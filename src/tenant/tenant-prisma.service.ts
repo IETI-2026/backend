@@ -1,7 +1,6 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaClient } from '@prisma/client';
-import { execSync } from 'child_process';
 
 @Injectable()
 export class TenantPrismaService implements OnModuleDestroy {
@@ -9,12 +8,9 @@ export class TenantPrismaService implements OnModuleDestroy {
   private readonly clients = new Map<string, PrismaClient>();
   private readonly pending = new Map<string, Promise<PrismaClient>>();
   private readonly databaseUrl: string;
-  private readonly initializedSchemas = new Set<string>();
 
   constructor(private readonly configService: ConfigService) {
     this.databaseUrl = this.configService.get<string>('DATABASE_URL') || '';
-    // Marcar 'public' como ya inicializado
-    this.initializedSchemas.add('public');
   }
 
   async getClient(tenantId: string): Promise<PrismaClient> {
@@ -23,8 +19,8 @@ export class TenantPrismaService implements OnModuleDestroy {
       return this.getOrCreateClient(tenantId, 'public');
     }
 
-    // Para otros tenants, asegura que el esquema exista con tablas
-    await this.ensureSchemaWithTables(tenantId);
+    // Para otros tenants, simplemente crear el cliente
+    // El esquema debe existir previamente (provisionado fuera del request path)
     return this.getOrCreateClient(tenantId, tenantId);
   }
 
@@ -33,8 +29,9 @@ export class TenantPrismaService implements OnModuleDestroy {
     schema: string,
   ): Promise<PrismaClient> {
     // Si ya existe el cliente, retornarlo
-    if (this.clients.has(tenantId)) {
-      return this.clients.get(tenantId)!;
+    const existingClient = this.clients.get(tenantId);
+    if (existingClient) {
+      return existingClient;
     }
 
     // Si ya hay una operación pendiente para este tenant, esperarla
@@ -57,6 +54,16 @@ export class TenantPrismaService implements OnModuleDestroy {
   }
 
   private async createClient(schema: string): Promise<PrismaClient> {
+    // Verificar que el esquema existe antes de crear el cliente
+    if (schema !== 'public') {
+      const schemaExists = await this.verifySchemaExists(schema);
+      if (!schemaExists) {
+        throw new Error(
+          `Schema "${schema}" no existe. Los esquemas deben ser provisionados fuera del request path usando migrate-tenants.js o prisma migrate deploy.`,
+        );
+      }
+    }
+
     const url = this.databaseUrl.includes('?')
       ? `${this.databaseUrl}&schema=${schema}`
       : `${this.databaseUrl}?schema=${schema}`;
@@ -69,57 +76,34 @@ export class TenantPrismaService implements OnModuleDestroy {
       },
     });
 
-    await client.$connect();
-    return client;
+    try {
+      await client.$connect();
+      this.logger.log(`✅ Cliente Prisma conectado para esquema: ${schema}`);
+      return client;
+    } catch (error) {
+      await client.$disconnect();
+      this.logger.error(`❌ Error conectando a esquema ${schema}:`, error);
+      throw new Error(
+        `No se pudo conectar al esquema "${schema}". Verifique que el esquema existe y las tablas están migradas.`,
+      );
+    }
   }
 
-  private async ensureSchemaWithTables(tenantId: string): Promise<void> {
-    // Si ya está inicializado, no hacer nada
-    if (this.initializedSchemas.has(tenantId)) {
-      return;
-    }
-
+  private async verifySchemaExists(schema: string): Promise<boolean> {
+    const tempClient = new PrismaClient();
     try {
-      // 1. Crear el esquema si no existe
-      const tempClient = new PrismaClient();
-      try {
-        await tempClient.$executeRawUnsafe(
-          `CREATE SCHEMA IF NOT EXISTS "${tenantId}"`,
-        );
-        this.logger.log(`📁 Esquema "${tenantId}" creado/verificado`);
-      } finally {
-        await tempClient.$disconnect();
-      }
-
-      // 2. Sincronizar las tablas usando prisma db push
-      this.logger.log(`🔄 Sincronizando tablas para esquema: ${tenantId}`);
-
-      const schemaUrl = `${this.databaseUrl}&schema=${tenantId}`;
-
-      try {
-        execSync('npx prisma db push --skip-generate --accept-data-loss', {
-          stdio: 'pipe',
-          env: {
-            ...process.env,
-            DATABASE_URL: schemaUrl,
-          },
-          cwd: process.cwd(),
-        });
-
-        this.logger.log(`✅ Tablas sincronizadas para tenant: ${tenantId}`);
-        this.initializedSchemas.add(tenantId);
-      } catch (error) {
-        this.logger.error(
-          `❌ Error al sincronizar tablas para tenant ${tenantId}:`,
-          error instanceof Error ? error.message : error,
-        );
-        throw new Error(
-          `No se pudo inicializar el esquema para el tenant ${tenantId}`,
-        );
-      }
+      const result = await tempClient.$queryRaw<{ exists: boolean }[]>`
+        SELECT EXISTS(
+          SELECT 1 FROM information_schema.schemata 
+          WHERE schema_name = ${schema}
+        ) as exists
+      `;
+      return result[0]?.exists || false;
     } catch (error) {
-      this.logger.error(`❌ Error al crear esquema ${tenantId}:`, error);
-      throw error;
+      this.logger.error(`Error verificando esquema ${schema}:`, error);
+      return false;
+    } finally {
+      await tempClient.$disconnect();
     }
   }
 
