@@ -1,10 +1,17 @@
-import { Injectable, NestMiddleware } from '@nestjs/common';
-import { Request, Response, NextFunction } from 'express';
+import {
+  BadRequestException,
+  Injectable,
+  NestMiddleware,
+} from '@nestjs/common';
+import { NextFunction, Request, Response } from 'express';
 import { TenantContext } from './tenant-context';
 import { TenantPrismaService } from './tenant-prisma.service';
 
 @Injectable()
 export class TenantMiddleware implements NestMiddleware {
+  // Regex pattern to validate tenant IDs: only lowercase alphanumeric, underscores, and hyphens
+  private readonly TENANT_ID_PATTERN = /^[a-z0-9_-]+$/;
+
   constructor(
     private readonly tenantContext: TenantContext,
     private readonly tenantPrismaService: TenantPrismaService,
@@ -52,6 +59,14 @@ export class TenantMiddleware implements NestMiddleware {
     if (!tenant) {
       return 'public';
     }
+
+    // Validate tenant ID format to prevent SQL injection
+    if (!this.TENANT_ID_PATTERN.test(tenant)) {
+      throw new BadRequestException(
+        `Invalid tenant ID: must contain only lowercase letters, numbers, underscores, and hyphens`,
+      );
+    }
+
     return tenant;
   }
 }
