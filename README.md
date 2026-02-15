@@ -71,6 +71,58 @@ $ mau deploy
 
 With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
 
+## Multi-Tenancy Setup
+
+This application uses PostgreSQL schemas for tenant isolation. Tenant schemas must be provisioned **before** the application starts, not during request handling.
+
+### Provisioning Tenant Schemas
+
+To provision new tenant schemas, use the `migrate-tenants.js` script:
+
+1. Edit `prisma/migrate-tenants.js` and add your tenant names to the `TENANTS` array
+2. Run the provisioning script:
+
+```bash
+$ node prisma/migrate-tenants.js
+```
+
+This script will:
+- Create the schema if it doesn't exist
+- Apply all Prisma migrations to the schema
+
+### Deploy Time Provisioning
+
+In production, tenant schemas should be provisioned as part of your deployment process:
+
+```bash
+# Run migrations for all tenants during deployment
+$ node prisma/migrate-tenants.js
+```
+
+### Adding New Tenants
+
+To add a new tenant after initial deployment:
+
+1. Add the tenant name to `TENANTS` array in `prisma/migrate-tenants.js`
+2. Run the script: `node prisma/migrate-tenants.js`
+3. The application will automatically connect to the new tenant schema when requests arrive with the tenant's header
+
+### Tenant Identification
+
+Tenants are identified via:
+1. `X-Tenant-ID` HTTP header (highest priority)
+2. Subdomain from the `Host` header (e.g., `acme.example.com` → tenant `acme`)
+3. Falls back to `public` schema if neither is provided
+
+### Security Note
+
+Schema provisioning is **not** performed during request handling to prevent:
+- DoS attacks from blocking the event loop
+- Unsafe data loss in production
+- Performance degradation
+
+All schemas must exist before the application receives requests for that tenant.
+
 ## Resources
 
 Check out a few resources that may come in handy when working with NestJS:

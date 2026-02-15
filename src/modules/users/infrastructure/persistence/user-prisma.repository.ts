@@ -1,16 +1,20 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '@prisma/prisma.service';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaClient } from '@prisma/client';
 import type {
   CreateUserEntity,
   IUserRepository,
   UpdateUserEntity,
   UserEntity,
 } from '@users/domain';
+import { TENANT_PRISMA_CLIENT } from '@/tenant';
 import * as UserMapper from '../adapters/user.mapper';
 
 @Injectable()
 export class UserPrismaRepository implements IUserRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    @Inject(TENANT_PRISMA_CLIENT)
+    private readonly prisma: PrismaClient,
+  ) {}
 
   async create(data: CreateUserEntity): Promise<UserEntity> {
     const prismaData = UserMapper.toPrismaCreate(data);

@@ -3,8 +3,6 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Starting database seeding...');
-
   // Add your seed data here
   // Example:
   // await prisma.user.upsert({
@@ -15,13 +13,10 @@ async function main() {
   //     name: 'Admin User',
   //   },
   // });
-
-  console.log('✅ Database seeding completed successfully!');
 }
 
 main()
-  .catch((e) => {
-    console.error('❌ Error seeding database:', e);
+  .catch((_e) => {
     process.exit(1);
   })
   .finally(async () => {

@@ -23,13 +23,13 @@ import {
   ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
-import type {
+import {
   CreateUserDto,
   GetUsersQueryDto,
   UpdateUserDto,
   UserResponseDto,
+  UsersService,
 } from '@users/application';
-import { UsersService } from '@users/application';
 
 @ApiTags('users')
 @Controller('users')
