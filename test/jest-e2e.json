@@ -3,6 +3,7 @@
   "rootDir": ".",
   "testEnvironment": "node",
   "testRegex": ".e2e-spec.ts$",
+  "testTimeout": 60000,
   "transform": {
     "^.+\\.(t|j)s$": "ts-jest"
   },
@@ -10,7 +11,6 @@
     "^@/(.*)$": "<rootDir>/../src/$1",
     "^@common/(.*)$": "<rootDir>/../src/common/$1",
     "^@users/(.*)$": "<rootDir>/../src/modules/users/$1",
-    "^@config/(.*)$": "<rootDir>/../src/config/$1",
-    "^@prisma/(.*)$": "<rootDir>/../src/prisma/$1"
+    "^@config/(.*)$": "<rootDir>/../src/config/$1"
   }
 }

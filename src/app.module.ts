@@ -1,7 +1,7 @@
 import { configs } from '@config/index';
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { PrismaModule } from '@prisma/prisma.module';
+import { PrismaModule } from '@/prisma/prisma.module';
 import { UsersModule } from './modules/users';
 import { TenantMiddleware, TenantModule } from './tenant';
 

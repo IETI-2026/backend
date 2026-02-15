@@ -18,7 +18,14 @@ export class TenantMiddleware implements NestMiddleware {
   ) {}
 
   use(req: Request, _res: Response, next: NextFunction) {
-    const tenant = this.resolveTenant(req);
+    let tenant: string;
+
+    try {
+      tenant = this.resolveTenant(req);
+    } catch (error) {
+      // Pass validation errors to Express error handler
+      return next(error);
+    }
 
     this.tenantContext.run(tenant, () => {
       // Inicializa el cliente Prisma para este tenant
@@ -42,7 +49,7 @@ export class TenantMiddleware implements NestMiddleware {
 
     // 2. Intentar obtener desde subdomain
     const hostHeader = req.header('host') ?? req.hostname;
-    if (hostHeader) {
+    if (hostHeader && !this.isIPAddress(hostHeader)) {
       const host = hostHeader.split(':')[0];
       if (host?.includes('.')) {
         const [subdomain] = host.split('.');
@@ -52,6 +59,11 @@ export class TenantMiddleware implements NestMiddleware {
 
     // 3. Fallback al tenant público
     return 'public';
+  }
+
+  private isIPAddress(value: string): boolean {
+    // Simple IP address detection - IPv4
+    return /^\d+\.\d+\.\d+\.\d+/.test(value) || /^\[/.test(value); // IPv6
   }
 
   private normalizeTenant(value?: string | null): string {
