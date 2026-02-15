@@ -1,8 +1,9 @@
 import { configs } from '@config/index';
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from '@prisma/prisma.module';
 import { UsersModule } from './modules/users';
+import { TenantModule, TenantMiddleware } from './tenant';
 
 @Module({
   imports: [
@@ -12,9 +13,15 @@ import { UsersModule } from './modules/users';
       envFilePath: '.env',
     }),
     PrismaModule,
+    TenantModule,
     UsersModule,
   ],
   controllers: [],
   providers: [],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    // Aplica el middleware de tenant a todas las rutas
+    consumer.apply(TenantMiddleware).forRoutes('*');
+  }
+}

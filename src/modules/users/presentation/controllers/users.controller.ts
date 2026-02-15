@@ -23,7 +23,7 @@ import {
   ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
-import type {
+import {
   CreateUserDto,
   GetUsersQueryDto,
   UpdateUserDto,
