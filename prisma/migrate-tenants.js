@@ -11,7 +11,7 @@
  * Configura los tenants en la variable TENANTS
  */
 
-const { execSync } = require('child_process');
+const { execSync } = require('node:child_process');
 const { Client } = require('pg');
 
 // Lista de tenants (esquemas) a provisionar y migrar
@@ -64,7 +64,7 @@ async function main() {
       });
 
       console.log(`✅ Tenant "${tenant}" provisionado exitosamente`);
-    } catch (error) {
+    } catch (_error) {
       console.error(`❌ Error provisionando tenant ${tenant}`);
       process.exit(1);
     }

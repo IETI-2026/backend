@@ -1,12 +1,12 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
-import { TENANT_PRISMA_CLIENT } from '@/tenant';
 import type {
   CreateUserEntity,
   IUserRepository,
   UpdateUserEntity,
   UserEntity,
 } from '@users/domain';
+import { TENANT_PRISMA_CLIENT } from '@/tenant';
 import * as UserMapper from '../adapters/user.mapper';
 
 @Injectable()

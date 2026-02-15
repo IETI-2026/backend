@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { TenantContext } from './tenant-context';
 import { TenantService } from './tenant.service';
+import { TenantContext } from './tenant-context';
 import { TenantPrismaService } from './tenant-prisma.service';
 import { tenantPrismaClientProvider } from './tenant-prisma-client.provider';
 

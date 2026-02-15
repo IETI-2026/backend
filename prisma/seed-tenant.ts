@@ -27,7 +27,7 @@ const prisma = new PrismaClient({
 
 async function main() {
   // Crear usuarios de ejemplo
-  const admin = await prisma.user.upsert({
+  const _admin = await prisma.user.upsert({
     where: { email: `admin@${tenantId}.com` },
     update: {},
     create: {

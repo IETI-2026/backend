@@ -3,7 +3,7 @@ import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from '@prisma/prisma.module';
 import { UsersModule } from './modules/users';
-import { TenantModule, TenantMiddleware } from './tenant';
+import { TenantMiddleware, TenantModule } from './tenant';
 
 @Module({
   imports: [

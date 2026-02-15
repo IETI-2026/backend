@@ -1,7 +1,15 @@
 import { INestApplication } from '@nestjs/common';
-import request from 'supertest';
 import { Test, TestingModule } from '@nestjs/testing';
+import request from 'supertest';
 import { AppModule } from '../src/app.module';
+
+interface User {
+  id: string;
+  email: string;
+  fullName: string;
+  phoneNumber: string;
+  documentId: string;
+}
 
 describe('Multi-Tenant E2E Tests', () => {
   let app: INestApplication;
@@ -46,7 +54,7 @@ describe('Multi-Tenant E2E Tests', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
-    
+
     // Apply the same validation pipe as in main.ts
     app.useGlobalPipes(
       new ValidationPipe({
@@ -58,7 +66,7 @@ describe('Multi-Tenant E2E Tests', () => {
         },
       }),
     );
-    
+
     await app.init();
   });
 
@@ -109,8 +117,8 @@ describe('Multi-Tenant E2E Tests', () => {
         .expect(200);
 
       // Verificar aislamiento: cada tenant solo ve sus propios usuarios
-      const acmeEmails = acmeUsers.body.data.map((u: any) => u.email);
-      const globexEmails = globexUsers.body.data.map((u: any) => u.email);
+      const acmeEmails = acmeUsers.body.data.map((u: User) => u.email);
+      const globexEmails = globexUsers.body.data.map((u: User) => u.email);
 
       expect(acmeEmails).toContain('user@acme.com');
       expect(acmeEmails).not.toContain('user@globex.com');
@@ -137,7 +145,7 @@ describe('Multi-Tenant E2E Tests', () => {
         .get('/users')
         .expect(200);
 
-      const emails = publicUsers.body.users.map((u: any) => u.email);
+      const emails = publicUsers.body.users.map((u: User) => u.email);
       expect(emails).toContain('public@example.com');
     });
 
@@ -187,7 +195,7 @@ describe('Multi-Tenant E2E Tests', () => {
         .set('X-Tenant-ID', 'acme')
         .expect(200);
 
-      const emails = acmeUsers.body.data.map((u: any) => u.email);
+      const emails = acmeUsers.body.data.map((u: User) => u.email);
       expect(emails).toContain('subdomain@acme.com');
     });
 
@@ -210,7 +218,7 @@ describe('Multi-Tenant E2E Tests', () => {
         .set('X-Tenant-ID', 'globex')
         .expect(200);
 
-      const globexEmails = globexUsers.body.data.map((u: any) => u.email);
+      const globexEmails = globexUsers.body.data.map((u: User) => u.email);
       expect(globexEmails).toContain('priority@test.com');
 
       // No debe estar en "acme"
@@ -219,7 +227,7 @@ describe('Multi-Tenant E2E Tests', () => {
         .set('X-Tenant-ID', 'acme')
         .expect(200);
 
-      const acmeEmails = acmeUsers.body.data.map((u: any) => u.email);
+      const acmeEmails = acmeUsers.body.data.map((u: User) => u.email);
       expect(acmeEmails).not.toContain('priority@test.com');
     });
   });

@@ -96,9 +96,7 @@ export class TenantPrismaService implements OnModuleDestroy {
     const tempClient = new PrismaClient();
 
     try {
-      const result = await tempClient.$queryRaw<
-        { exists: boolean }[]
-      >`
+      const result = await tempClient.$queryRaw<{ exists: boolean }[]>`
         SELECT EXISTS (
           SELECT 1
           FROM information_schema.schemata

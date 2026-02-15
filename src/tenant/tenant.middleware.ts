@@ -17,7 +17,7 @@ export class TenantMiddleware implements NestMiddleware {
     private readonly tenantPrismaService: TenantPrismaService,
   ) {}
 
-  use(req: Request, res: Response, next: NextFunction) {
+  use(req: Request, _res: Response, next: NextFunction) {
     const tenant = this.resolveTenant(req);
 
     this.tenantContext.run(tenant, () => {
@@ -44,7 +44,7 @@ export class TenantMiddleware implements NestMiddleware {
     const hostHeader = req.header('host') ?? req.hostname;
     if (hostHeader) {
       const host = hostHeader.split(':')[0];
-      if (host && host.includes('.')) {
+      if (host?.includes('.')) {
         const [subdomain] = host.split('.');
         return this.normalizeTenant(subdomain);
       }
