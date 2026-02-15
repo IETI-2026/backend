@@ -96,7 +96,7 @@ describe('Multi-Tenant E2E Tests', () => {
         .get('/users')
         .expect(200);
 
-      const emails = publicUsers.body.data.map((u: any) => u.email);
+      const emails = publicUsers.body.users.map((u: any) => u.email);
       expect(emails).toContain('public@example.com');
     });
 
