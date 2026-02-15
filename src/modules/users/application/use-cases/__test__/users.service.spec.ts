@@ -1,4 +1,4 @@
-import { describe } from 'node:test';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import type { IUserRepository } from '@users/domain';
@@ -23,6 +23,7 @@ describe('UsersService', () => {
     createdAt: new Date('2024-01-01'),
     updatedAt: new Date('2024-01-01'),
     lastLoginAt: null,
+    deletedAt: null,
   };
 
   const mockUserRepository: jest.Mocked<IUserRepository> = {

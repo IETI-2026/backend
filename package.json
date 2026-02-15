@@ -13,11 +13,14 @@
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
     "lint": "biome check",
+    "lint:fix": "biome check --write",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
+    "test:staged": "jest --bail --findRelatedTests",
+    "type-check": "tsc --noEmit",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:migrate:prod": "prisma migrate deploy",
@@ -27,7 +30,8 @@
     "prisma:push": "prisma db push",
     "prisma:pull": "prisma db pull",
     "prisma:format": "prisma format",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "prepare": "husky"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
@@ -64,7 +68,9 @@
     "@types/pg": "^8.16.0",
     "@types/supertest": "^6.0.2",
     "globals": "^17.3.0",
+    "husky": "^9.1.7",
     "jest": "^30.0.0",
+    "lint-staged": "^16.2.7",
     "prettier": "^3.4.2",
     "prisma": "^6.1.0",
     "source-map-support": "^0.5.21",
@@ -98,5 +104,18 @@
       "^@users/(.*)$": "<rootDir>/modules/users/$1",
       "^@config/(.*)$": "<rootDir>/config/$1"
     }
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "biome check --write --no-errors-on-unmatched",
+      "biome format --write --no-errors-on-unmatched",
+      "npm run test:staged --"
+    ],
+    "*.prisma": [
+      "prisma format"
+    ],
+    "*.{json,md}": [
+      "biome format --write --no-errors-on-unmatched"
+    ]
   }
 }
