@@ -188,4 +188,77 @@ describe('Multi-Tenant E2E Tests', () => {
       expect(acmeEmails).not.toContain('priority@test.com');
     });
   });
+
+  describe('Tenant ID Validation (SQL Injection Prevention)', () => {
+    it('should reject tenant IDs with SQL injection attempts', async () => {
+      const maliciousTenantIds = [
+        '"; DROP SCHEMA public; --',
+        "' OR '1'='1",
+        'tenant"; DROP TABLE users; --',
+        '../../../etc/passwd',
+        'tenant; DELETE FROM users;',
+      ];
+
+      for (const tenantId of maliciousTenantIds) {
+        const response = await request(app.getHttpServer())
+          .get('/users')
+          .set('X-Tenant-ID', tenantId)
+          .expect(400);
+
+        expect(response.body.message).toContain('Invalid tenant ID');
+      }
+    });
+
+    it('should reject tenant IDs with uppercase letters', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/users')
+        .set('X-Tenant-ID', 'InvalidTenant')
+        .expect(400);
+
+      expect(response.body.message).toContain('Invalid tenant ID');
+    });
+
+    it('should reject tenant IDs with special characters', async () => {
+      const invalidTenantIds = [
+        'tenant@company',
+        'tenant.company',
+        'tenant/company',
+        'tenant\\company',
+        'tenant company',
+        'tenant!company',
+        'tenant#company',
+      ];
+
+      for (const tenantId of invalidTenantIds) {
+        const response = await request(app.getHttpServer())
+          .get('/users')
+          .set('X-Tenant-ID', tenantId)
+          .expect(400);
+
+        expect(response.body.message).toContain('Invalid tenant ID');
+      }
+    });
+
+    it('should accept valid tenant IDs with lowercase, numbers, underscores, and hyphens', async () => {
+      const validTenantIds = [
+        'acme',
+        'acme123',
+        'acme_company',
+        'acme-company',
+        'company_123',
+        'test-tenant-1',
+        'tenant_with_multiple_words',
+      ];
+
+      for (const tenantId of validTenantIds) {
+        // Should not throw an error - we just check it doesn't return 400
+        const response = await request(app.getHttpServer())
+          .get('/users')
+          .set('X-Tenant-ID', tenantId);
+
+        // Should be 200 or 404, but not 400 (bad request)
+        expect(response.status).not.toBe(400);
+      }
+    });
+  });
 });

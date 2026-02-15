@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaClient } from '@prisma/client';
 import { execSync } from 'child_process';
@@ -10,6 +10,8 @@ export class TenantPrismaService implements OnModuleDestroy {
   private readonly pending = new Map<string, Promise<PrismaClient>>();
   private readonly databaseUrl: string;
   private readonly initializedSchemas = new Set<string>();
+  // Regex pattern to validate tenant IDs: only lowercase alphanumeric, underscores, and hyphens
+  private readonly TENANT_ID_PATTERN = /^[a-z0-9_-]+$/;
 
   constructor(private readonly configService: ConfigService) {
     this.databaseUrl = this.configService.get<string>('DATABASE_URL') || '';
@@ -17,7 +19,24 @@ export class TenantPrismaService implements OnModuleDestroy {
     this.initializedSchemas.add('public');
   }
 
+  /**
+   * Validates that a tenant ID contains only safe characters to prevent SQL injection.
+   * Allowed characters: lowercase letters, numbers, underscores, and hyphens.
+   * @param tenantId The tenant ID to validate
+   * @throws BadRequestException if the tenant ID is invalid
+   */
+  private validateTenantId(tenantId: string): void {
+    if (!tenantId || !this.TENANT_ID_PATTERN.test(tenantId)) {
+      throw new BadRequestException(
+        `Invalid tenant ID: must contain only lowercase letters, numbers, underscores, and hyphens`
+      );
+    }
+  }
+
   async getClient(tenantId: string): Promise<PrismaClient> {
+    // Validate tenant ID to prevent SQL injection
+    this.validateTenantId(tenantId);
+
     // Para el tenant público, usa el esquema 'public'
     if (tenantId === 'public') {
       return this.getOrCreateClient(tenantId, 'public');
@@ -72,6 +91,9 @@ export class TenantPrismaService implements OnModuleDestroy {
   }
 
   private async ensureSchemaWithTables(tenantId: string): Promise<void> {
+    // Validate tenant ID again as an extra safety measure
+    this.validateTenantId(tenantId);
+
     // Si ya está inicializado, no hacer nada
     if (this.initializedSchemas.has(tenantId)) {
       return;
@@ -81,6 +103,7 @@ export class TenantPrismaService implements OnModuleDestroy {
       // 1. Crear el esquema si no existe
       const tempClient = new PrismaClient();
       try {
+        // Safe to use tenantId here since it's been validated
         await tempClient.$executeRawUnsafe(
           `CREATE SCHEMA IF NOT EXISTS "${tenantId}"`,
         );
