@@ -14,13 +14,13 @@ export class TenantPrismaService implements OnModuleDestroy {
   }
 
   async getClient(tenantId: string): Promise<PrismaClient> {
-    // Para el tenant público, usa el esquema 'public'
+    // For the public tenant, use the 'public' schema
     if (tenantId === 'public') {
       return this.getOrCreateClient(tenantId, 'public');
     }
 
-    // Para otros tenants, simplemente crear el cliente
-    // El esquema debe existir previamente (provisionado fuera del request path)
+    // For other tenants, simply create the client
+    // The schema must exist previously (provisioned outside the request path)
     return this.getOrCreateClient(tenantId, tenantId);
   }
 
@@ -28,19 +28,19 @@ export class TenantPrismaService implements OnModuleDestroy {
     tenantId: string,
     schema: string,
   ): Promise<PrismaClient> {
-    // Si ya existe el cliente, retornarlo
+    // If the client already exists, return it
     const existingClient = this.clients.get(tenantId);
     if (existingClient) {
       return existingClient;
     }
 
-    // Si ya hay una operación pendiente para este tenant, esperarla
+    // If there's already a pending operation for this tenant, wait for it
     const existing = this.pending.get(tenantId);
     if (existing) {
       return existing;
     }
 
-    // Crear nuevo cliente
+    // Create new client
     const task = this.createClient(schema);
     this.pending.set(tenantId, task);
 
@@ -54,7 +54,7 @@ export class TenantPrismaService implements OnModuleDestroy {
   }
 
   private async createClient(schema: string): Promise<PrismaClient> {
-    // Verificar que el esquema existe antes de crear el cliente
+    // Verify that the schema exists before creating the client
     if (schema !== 'public') {
       const schemaExists = await this.verifySchemaExists(schema);
       if (!schemaExists) {
@@ -108,7 +108,7 @@ export class TenantPrismaService implements OnModuleDestroy {
   }
 
   async onModuleDestroy() {
-    // Desconectar todos los clientes al destruir el módulo
+    // Disconnect all clients when destroying the module
     await Promise.all(
       Array.from(this.clients.values()).map((client) => client.$disconnect()),
     );

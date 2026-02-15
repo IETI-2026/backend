@@ -8,7 +8,7 @@ describe('Multi-Tenant E2E Tests', () => {
   let app: INestApplication;
 
   beforeAll(async () => {
-    // Provisionar esquemas de test antes de ejecutar las pruebas
+    // Provision test schemas before running tests
     const testTenants = ['acme', 'globex'];
     const prisma = new PrismaClient();
 
@@ -19,7 +19,7 @@ describe('Multi-Tenant E2E Tests', () => {
         );
       }
 
-      // Aplicar migraciones a cada esquema de test
+      // Apply migrations to each test schema
       const { execSync } = require('node:child_process');
       const DATABASE_URL = process.env.DATABASE_URL;
 
@@ -193,7 +193,7 @@ describe('Multi-Tenant E2E Tests', () => {
       await request(app.getHttpServer())
         .post('/users')
         .set('Host', 'acme.localhost:3000')
-        .set('X-Tenant-ID', 'globex') // Header tiene prioridad
+        .set('X-Tenant-ID', 'globex') // Header takes priority
         .send({
           email: 'priority@test.com',
           password: 'password123',
