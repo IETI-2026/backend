@@ -1,52 +1,71 @@
-import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaClient } from '@prisma/client';
 
 @Injectable()
 export class TenantPrismaService implements OnModuleDestroy {
   private readonly logger = new Logger(TenantPrismaService.name);
+
   private readonly clients = new Map<string, PrismaClient>();
   private readonly pending = new Map<string, Promise<PrismaClient>>();
+
   private readonly databaseUrl: string;
 
+  // Solo permite ids seguros
+  private readonly TENANT_ID_PATTERN = /^[a-z0-9_-]+$/;
+
   constructor(private readonly configService: ConfigService) {
-    this.databaseUrl = this.configService.get<string>('DATABASE_URL') || '';
+    this.databaseUrl =
+      this.configService.get<string>('database.url') ||
+      this.configService.get<string>('DATABASE_URL') ||
+      '';
+
+    if (!this.databaseUrl) {
+      throw new Error('DATABASE_URL no está configurada');
+    }
+  }
+
+  private validateTenantId(tenantId: string): void {
+    if (!tenantId || !this.TENANT_ID_PATTERN.test(tenantId)) {
+      throw new BadRequestException(
+        'Tenant ID inválido: solo minúsculas, números, "_" y "-"',
+      );
+    }
   }
 
   async getClient(tenantId: string): Promise<PrismaClient> {
-    // For the public tenant, use the 'public' schema
-    if (tenantId === 'public') {
-      return this.getOrCreateClient(tenantId, 'public');
-    }
+    this.validateTenantId(tenantId);
 
-    // For other tenants, simply create the client
-    // The schema must exist previously (provisioned outside the request path)
-    return this.getOrCreateClient(tenantId, tenantId);
+    const schema = tenantId === 'public' ? 'public' : tenantId;
+    return this.getOrCreateClient(tenantId, schema);
   }
 
   private async getOrCreateClient(
     tenantId: string,
     schema: string,
   ): Promise<PrismaClient> {
-    // If the client already exists, return it
-    const existingClient = this.clients.get(tenantId);
-    if (existingClient) {
-      return existingClient;
+    const cached = this.clients.get(tenantId);
+    if (cached) {
+      return cached;
     }
 
-    // If there's already a pending operation for this tenant, wait for it
-    const existing = this.pending.get(tenantId);
-    if (existing) {
-      return existing;
+    const pending = this.pending.get(tenantId);
+    if (pending) {
+      return pending;
     }
 
-    // Create new client
     const task = this.createClient(schema);
     this.pending.set(tenantId, task);
 
     try {
       const client = await task;
       this.clients.set(tenantId, client);
+      this.logger.log(`✅ Prisma listo para schema: ${schema}`);
       return client;
     } finally {
       this.pending.delete(tenantId);
@@ -54,14 +73,11 @@ export class TenantPrismaService implements OnModuleDestroy {
   }
 
   private async createClient(schema: string): Promise<PrismaClient> {
-    // Verify that the schema exists before creating the client
-    if (schema !== 'public') {
-      const schemaExists = await this.verifySchemaExists(schema);
-      if (!schemaExists) {
-        throw new Error(
-          `Schema "${schema}" no existe. Los esquemas deben ser provisionados fuera del request path usando migrate-tenants.js o prisma migrate deploy.`,
-        );
-      }
+    const exists = await this.verifySchemaExists(schema);
+    if (!exists) {
+      throw new Error(
+        `El esquema "${schema}" no existe. Debe ser provisionado previamente.`,
+      );
     }
 
     const url = this.databaseUrl.includes('?')
@@ -69,38 +85,30 @@ export class TenantPrismaService implements OnModuleDestroy {
       : `${this.databaseUrl}?schema=${schema}`;
 
     const client = new PrismaClient({
-      datasources: {
-        db: {
-          url,
-        },
-      },
+      datasources: { db: { url } },
     });
 
-    try {
-      await client.$connect();
-      this.logger.log(`✅ Cliente Prisma conectado para esquema: ${schema}`);
-      return client;
-    } catch (error) {
-      await client.$disconnect();
-      this.logger.error(`❌ Error conectando a esquema ${schema}:`, error);
-      throw new Error(
-        `No se pudo conectar al esquema "${schema}". Verifique que el esquema existe y las tablas están migradas.`,
-      );
-    }
+    await client.$connect();
+    return client;
   }
 
   private async verifySchemaExists(schema: string): Promise<boolean> {
     const tempClient = new PrismaClient();
+
     try {
-      const result = await tempClient.$queryRaw<{ exists: boolean }[]>`
-        SELECT EXISTS(
-          SELECT 1 FROM information_schema.schemata 
+      const result = await tempClient.$queryRaw<
+        { exists: boolean }[]
+      >`
+        SELECT EXISTS (
+          SELECT 1
+          FROM information_schema.schemata
           WHERE schema_name = ${schema}
-        ) as exists
+        ) AS exists
       `;
-      return result[0]?.exists || false;
+
+      return result[0]?.exists ?? false;
     } catch (error) {
-      this.logger.error(`Error verificando esquema ${schema}:`, error);
+      this.logger.error(`Error verificando esquema ${schema}`, error);
       return false;
     } finally {
       await tempClient.$disconnect();
@@ -108,9 +116,8 @@ export class TenantPrismaService implements OnModuleDestroy {
   }
 
   async onModuleDestroy() {
-    // Disconnect all clients when destroying the module
     await Promise.all(
-      Array.from(this.clients.values()).map((client) => client.$disconnect()),
+      Array.from(this.clients.values()).map((c) => c.$disconnect()),
     );
     this.clients.clear();
   }
