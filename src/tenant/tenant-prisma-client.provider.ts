@@ -1,5 +1,4 @@
 import { FactoryProvider, Scope } from '@nestjs/common';
-import { REQUEST } from '@nestjs/core';
 import { PrismaClient } from '@prisma/client';
 import { TenantContext } from './tenant-context';
 import { TenantPrismaService } from './tenant-prisma.service';
