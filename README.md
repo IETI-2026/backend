@@ -1,3 +1,4 @@
+[![Board Status](https://dev.azure.com/IETI-2026/274af8c4-da42-437c-bcc5-e1fd036735dc/903fa6df-818d-43f8-9588-7da2bb3fe00b/_apis/work/boardbadge/05102f46-79e6-44df-950a-0936b748d8a9)](https://dev.azure.com/IETI-2026/274af8c4-da42-437c-bcc5-e1fd036735dc/_boards/board/t/903fa6df-818d-43f8-9588-7da2bb3fe00b/Microsoft.RequirementCategory)
 <p align="center">
   <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
 </p>
