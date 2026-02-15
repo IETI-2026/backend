@@ -1,10 +1,10 @@
+import { describe } from 'node:test';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import type { IUserRepository } from '@users/domain';
 import { USER_REPOSITORY, UserStatus } from '@users/domain';
 import type { CreateUserDto, UpdateUserDto } from '../../dtos';
 import { UsersService } from '../users.service';
-import { describe } from 'node:test';
 
 describe('UsersService', () => {
   let service: UsersService;
