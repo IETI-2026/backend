@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
-import * as request from 'supertest';
+import request from 'supertest';
 import { AppModule } from '../src/app.module';
 
 describe('Multi-Tenant E2E Tests', () => {
@@ -27,9 +27,7 @@ describe('Multi-Tenant E2E Tests', () => {
         .set('X-Tenant-ID', 'acme')
         .send({
           email: 'user@acme.com',
-          password: 'password123',
-          name: 'Acme',
-          lastName: 'User',
+          fullName: 'Acme User',
           phoneNumber: '+1234567001',
           documentId: 'DOC-ACME-001',
         })
@@ -41,9 +39,7 @@ describe('Multi-Tenant E2E Tests', () => {
         .set('X-Tenant-ID', 'globex')
         .send({
           email: 'user@globex.com',
-          password: 'password123',
-          name: 'Globex',
-          lastName: 'User',
+          fullName: 'Globex User',
           phoneNumber: '+1234567002',
           documentId: 'DOC-GLOBEX-001',
         })
@@ -81,9 +77,7 @@ describe('Multi-Tenant E2E Tests', () => {
         .post('/users')
         .send({
           email: 'public@example.com',
-          password: 'password123',
-          name: 'Public',
-          lastName: 'User',
+          fullName: 'Public User',
           phoneNumber: '+1234567003',
           documentId: 'DOC-PUBLIC-001',
         })
@@ -107,9 +101,7 @@ describe('Multi-Tenant E2E Tests', () => {
         .set('X-Tenant-ID', 'acme')
         .send({
           email: 'secure@acme.com',
-          password: 'password123',
-          name: 'Secure',
-          lastName: 'User',
+          fullName: 'Secure User',
           phoneNumber: '+1234567004',
           documentId: 'DOC-ACME-SECURE',
         })
@@ -134,9 +126,7 @@ describe('Multi-Tenant E2E Tests', () => {
         .set('Host', 'acme.localhost:3000')
         .send({
           email: 'subdomain@acme.com',
-          password: 'password123',
-          name: 'Subdomain',
-          lastName: 'User',
+          fullName: 'Subdomain User',
           phoneNumber: '+1234567005',
           documentId: 'DOC-SUBDOMAIN-001',
         })
@@ -161,9 +151,7 @@ describe('Multi-Tenant E2E Tests', () => {
         .set('X-Tenant-ID', 'globex') // Header tiene prioridad
         .send({
           email: 'priority@test.com',
-          password: 'password123',
-          name: 'Priority',
-          lastName: 'User',
+          fullName: 'Priority User',
           phoneNumber: '+1234567006',
           documentId: 'DOC-PRIORITY-001',
         })
