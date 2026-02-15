@@ -12,7 +12,10 @@ export class TenantPrismaService implements OnModuleDestroy {
   private readonly initializedSchemas = new Set<string>();
 
   constructor(private readonly configService: ConfigService) {
-    this.databaseUrl = this.configService.get<string>('DATABASE_URL') || '';
+    this.databaseUrl =
+      this.configService.get<string>('database.url') ||
+      this.configService.get<string>('DATABASE_URL') ||
+      '';
     // Marcar 'public' como ya inicializado
     this.initializedSchemas.add('public');
   }
