@@ -1,5 +1,9 @@
-import { BadRequestException, Injectable, NestMiddleware } from '@nestjs/common';
-import { Request, Response, NextFunction } from 'express';
+import {
+  BadRequestException,
+  Injectable,
+  NestMiddleware,
+} from '@nestjs/common';
+import { NextFunction, Request, Response } from 'express';
 import { TenantContext } from './tenant-context';
 import { TenantPrismaService } from './tenant-prisma.service';
 
@@ -59,7 +63,7 @@ export class TenantMiddleware implements NestMiddleware {
     // Validate tenant ID format to prevent SQL injection
     if (!this.TENANT_ID_PATTERN.test(tenant)) {
       throw new BadRequestException(
-        `Invalid tenant ID: must contain only lowercase letters, numbers, underscores, and hyphens`
+        `Invalid tenant ID: must contain only lowercase letters, numbers, underscores, and hyphens`,
       );
     }
 

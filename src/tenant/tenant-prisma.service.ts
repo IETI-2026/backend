@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaClient } from '@prisma/client';
 import { execSync } from 'child_process';
@@ -28,7 +33,7 @@ export class TenantPrismaService implements OnModuleDestroy {
   private validateTenantId(tenantId: string): void {
     if (!tenantId || !this.TENANT_ID_PATTERN.test(tenantId)) {
       throw new BadRequestException(
-        `Invalid tenant ID: must contain only lowercase letters, numbers, underscores, and hyphens`
+        `Invalid tenant ID: must contain only lowercase letters, numbers, underscores, and hyphens`,
       );
     }
   }
