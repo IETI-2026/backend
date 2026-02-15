@@ -57,7 +57,9 @@ export class TenantPrismaService implements OnModuleDestroy {
   }
 
   private async createClient(schema: string): Promise<PrismaClient> {
-    const url = `${this.databaseUrl}&schema=${schema}`;
+    const url = this.databaseUrl.includes('?')
+      ? `${this.databaseUrl}&schema=${schema}`
+      : `${this.databaseUrl}?schema=${schema}`;
 
     const client = new PrismaClient({
       datasources: {
