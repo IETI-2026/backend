@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 /**
- * Script para aplicar migraciones de Prisma a múltiples tenants (esquemas)
+ * Script para provisionar esquemas y aplicar migraciones de Prisma a múltiples tenants
+ *
+ * Este script debe ejecutarse fuera del request path (en deploy time o como tarea admin)
+ * para crear y migrar esquemas de tenants.
  *
  * Uso:
  *   node prisma/migrate-tenants.js
@@ -9,9 +12,9 @@
  */
 
 const { execSync } = require('child_process');
-const path = require('path');
+const { Client } = require('pg');
 
-// Lista de tenants (esquemas) a migrar
+// Lista de tenants (esquemas) a provisionar y migrar
 const TENANTS = ['public', 'acme', 'globex', 'initech'];
 
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -21,20 +24,53 @@ if (!DATABASE_URL) {
   process.exit(1);
 }
 
-for (const tenant of TENANTS) {
-  try {
-    const tenantUrl = DATABASE_URL.includes('?')
-      ? `${DATABASE_URL}&schema=${tenant}`
-      : `${DATABASE_URL}?schema=${tenant}`;
+async function createSchemaIfNotExists(schemaName) {
+  const client = new Client({
+    connectionString: DATABASE_URL,
+  });
 
-    execSync('npx prisma migrate deploy', {
-      stdio: 'inherit',
-      env: {
-        ...process.env,
-        DATABASE_URL: tenantUrl,
-      },
-    });
+  try {
+    await client.connect();
+    await client.query(`CREATE SCHEMA IF NOT EXISTS "${schemaName}"`);
+    console.log(`📁 Esquema "${schemaName}" creado/verificado`);
   } catch (error) {
-    process.exit(1);
+    console.error(`❌ Error creando esquema ${schemaName}:`, error.message);
+    throw error;
+  } finally {
+    await client.end();
   }
 }
+
+async function main() {
+  for (const tenant of TENANTS) {
+    try {
+      console.log(`\n🔄 Provisionando tenant: ${tenant}`);
+
+      // 1. Crear el esquema si no existe
+      await createSchemaIfNotExists(tenant);
+
+      // 2. Aplicar migraciones
+      const tenantUrl = DATABASE_URL.includes('?')
+        ? `${DATABASE_URL}&schema=${tenant}`
+        : `${DATABASE_URL}?schema=${tenant}`;
+
+      console.log(`🔄 Aplicando migraciones para: ${tenant}`);
+      execSync('npx prisma migrate deploy', {
+        stdio: 'inherit',
+        env: {
+          ...process.env,
+          DATABASE_URL: tenantUrl,
+        },
+      });
+
+      console.log(`✅ Tenant "${tenant}" provisionado exitosamente`);
+    } catch (error) {
+      console.error(`❌ Error provisionando tenant ${tenant}`);
+      process.exit(1);
+    }
+  }
+
+  console.log('\n✅ Todos los tenants provisionados exitosamente');
+}
+
+main();

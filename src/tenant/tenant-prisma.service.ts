@@ -6,16 +6,17 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaClient } from '@prisma/client';
-import { execSync } from 'child_process';
 
 @Injectable()
 export class TenantPrismaService implements OnModuleDestroy {
   private readonly logger = new Logger(TenantPrismaService.name);
+
   private readonly clients = new Map<string, PrismaClient>();
   private readonly pending = new Map<string, Promise<PrismaClient>>();
+
   private readonly databaseUrl: string;
-  private readonly initializedSchemas = new Set<string>();
-  // Regex pattern to validate tenant IDs: only lowercase alphanumeric, underscores, and hyphens
+
+  // Solo permite ids seguros
   private readonly TENANT_ID_PATTERN = /^[a-z0-9_-]+$/;
 
   constructor(private readonly configService: ConfigService) {
@@ -23,60 +24,48 @@ export class TenantPrismaService implements OnModuleDestroy {
       this.configService.get<string>('database.url') ||
       this.configService.get<string>('DATABASE_URL') ||
       '';
-    // Marcar 'public' como ya inicializado
-    this.initializedSchemas.add('public');
+
+    if (!this.databaseUrl) {
+      throw new Error('DATABASE_URL no está configurada');
+    }
   }
 
-  /**
-   * Validates that a tenant ID contains only safe characters to prevent SQL injection.
-   * Allowed characters: lowercase letters, numbers, underscores, and hyphens.
-   * @param tenantId The tenant ID to validate
-   * @throws BadRequestException if the tenant ID is invalid
-   */
   private validateTenantId(tenantId: string): void {
     if (!tenantId || !this.TENANT_ID_PATTERN.test(tenantId)) {
       throw new BadRequestException(
-        `Invalid tenant ID: must contain only lowercase letters, numbers, underscores, and hyphens`,
+        'Tenant ID inválido: solo minúsculas, números, "_" y "-"',
       );
     }
   }
 
   async getClient(tenantId: string): Promise<PrismaClient> {
-    // Validate tenant ID to prevent SQL injection
     this.validateTenantId(tenantId);
 
-    // Para el tenant público, usa el esquema 'public'
-    if (tenantId === 'public') {
-      return this.getOrCreateClient(tenantId, 'public');
-    }
-
-    // Para otros tenants, asegura que el esquema exista con tablas
-    await this.ensureSchemaWithTables(tenantId);
-    return this.getOrCreateClient(tenantId, tenantId);
+    const schema = tenantId === 'public' ? 'public' : tenantId;
+    return this.getOrCreateClient(tenantId, schema);
   }
 
   private async getOrCreateClient(
     tenantId: string,
     schema: string,
   ): Promise<PrismaClient> {
-    // Si ya existe el cliente, retornarlo
-    if (this.clients.has(tenantId)) {
-      return this.clients.get(tenantId)!;
+    const cached = this.clients.get(tenantId);
+    if (cached) {
+      return cached;
     }
 
-    // Si ya hay una operación pendiente para este tenant, esperarla
-    const existing = this.pending.get(tenantId);
-    if (existing) {
-      return existing;
+    const pending = this.pending.get(tenantId);
+    if (pending) {
+      return pending;
     }
 
-    // Crear nuevo cliente
     const task = this.createClient(schema);
     this.pending.set(tenantId, task);
 
     try {
       const client = await task;
       this.clients.set(tenantId, client);
+      this.logger.log(`✅ Prisma listo para schema: ${schema}`);
       return client;
     } finally {
       this.pending.delete(tenantId);
@@ -84,80 +73,51 @@ export class TenantPrismaService implements OnModuleDestroy {
   }
 
   private async createClient(schema: string): Promise<PrismaClient> {
+    const exists = await this.verifySchemaExists(schema);
+    if (!exists) {
+      throw new Error(
+        `El esquema "${schema}" no existe. Debe ser provisionado previamente.`,
+      );
+    }
+
     const url = this.databaseUrl.includes('?')
       ? `${this.databaseUrl}&schema=${schema}`
       : `${this.databaseUrl}?schema=${schema}`;
 
     const client = new PrismaClient({
-      datasources: {
-        db: {
-          url,
-        },
-      },
+      datasources: { db: { url } },
     });
 
     await client.$connect();
     return client;
   }
 
-  private async ensureSchemaWithTables(tenantId: string): Promise<void> {
-    // Validate tenant ID again as an extra safety measure
-    this.validateTenantId(tenantId);
-
-    // Si ya está inicializado, no hacer nada
-    if (this.initializedSchemas.has(tenantId)) {
-      return;
-    }
+  private async verifySchemaExists(schema: string): Promise<boolean> {
+    const tempClient = new PrismaClient();
 
     try {
-      // 1. Crear el esquema si no existe
-      const tempClient = new PrismaClient();
-      try {
-        // Safe to use tenantId here since it's been validated
-        await tempClient.$executeRawUnsafe(
-          `CREATE SCHEMA IF NOT EXISTS "${tenantId}"`,
-        );
-        this.logger.log(`📁 Esquema "${tenantId}" creado/verificado`);
-      } finally {
-        await tempClient.$disconnect();
-      }
+      const result = await tempClient.$queryRaw<
+        { exists: boolean }[]
+      >`
+        SELECT EXISTS (
+          SELECT 1
+          FROM information_schema.schemata
+          WHERE schema_name = ${schema}
+        ) AS exists
+      `;
 
-      // 2. Sincronizar las tablas usando prisma db push
-      this.logger.log(`🔄 Sincronizando tablas para esquema: ${tenantId}`);
-
-      const schemaUrl = `${this.databaseUrl}&schema=${tenantId}`;
-
-      try {
-        execSync('npx prisma db push --skip-generate --accept-data-loss', {
-          stdio: 'pipe',
-          env: {
-            ...process.env,
-            DATABASE_URL: schemaUrl,
-          },
-          cwd: process.cwd(),
-        });
-
-        this.logger.log(`✅ Tablas sincronizadas para tenant: ${tenantId}`);
-        this.initializedSchemas.add(tenantId);
-      } catch (error) {
-        this.logger.error(
-          `❌ Error al sincronizar tablas para tenant ${tenantId}:`,
-          error instanceof Error ? error.message : error,
-        );
-        throw new Error(
-          `No se pudo inicializar el esquema para el tenant ${tenantId}`,
-        );
-      }
+      return result[0]?.exists ?? false;
     } catch (error) {
-      this.logger.error(`❌ Error al crear esquema ${tenantId}:`, error);
-      throw error;
+      this.logger.error(`Error verificando esquema ${schema}`, error);
+      return false;
+    } finally {
+      await tempClient.$disconnect();
     }
   }
 
   async onModuleDestroy() {
-    // Desconectar todos los clientes al destruir el módulo
     await Promise.all(
-      Array.from(this.clients.values()).map((client) => client.$disconnect()),
+      Array.from(this.clients.values()).map((c) => c.$disconnect()),
     );
     this.clients.clear();
   }

@@ -1,10 +1,44 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
+import { Test, TestingModule } from '@nestjs/testing';
 import { AppModule } from '../src/app.module';
 
 describe('Multi-Tenant E2E Tests', () => {
   let app: INestApplication;
+
+  beforeAll(async () => {
+    // Provision test schemas before running tests
+    const testTenants = ['acme', 'globex'];
+    const prisma = new PrismaClient();
+
+    try {
+      for (const tenant of testTenants) {
+        await prisma.$executeRawUnsafe(
+          `CREATE SCHEMA IF NOT EXISTS "${tenant}"`,
+        );
+      }
+
+      // Apply migrations to each test schema
+      const { execSync } = require('node:child_process');
+      const DATABASE_URL = process.env.DATABASE_URL;
+
+      for (const tenant of testTenants) {
+        const tenantUrl = DATABASE_URL?.includes('?')
+          ? `${DATABASE_URL}&schema=${tenant}`
+          : `${DATABASE_URL}?schema=${tenant}`;
+
+        execSync('npx prisma migrate deploy', {
+          stdio: 'inherit',
+          env: {
+            ...process.env,
+            DATABASE_URL: tenantUrl,
+          },
+        });
+      }
+    } finally {
+      await prisma.$disconnect();
+    }
+  });
 
   beforeEach(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -158,10 +192,10 @@ describe('Multi-Tenant E2E Tests', () => {
     });
 
     it('should prioritize X-Tenant-ID header over subdomain', async () => {
-      const user = await request(app.getHttpServer())
+      await request(app.getHttpServer())
         .post('/users')
         .set('Host', 'acme.localhost:3000')
-        .set('X-Tenant-ID', 'globex') // Header tiene prioridad
+        .set('X-Tenant-ID', 'globex') // Header takes priority
         .send({
           email: 'priority@test.com',
           fullName: 'Priority User',
