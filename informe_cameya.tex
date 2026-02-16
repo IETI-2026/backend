@@ -1,0 +1,1307 @@
+\documentclass[12pt,a4paper,spanish]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[spanish]{babel}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{float}
+\usepackage{fancyhdr}
+\usepackage{tikz}
+\usepackage{array}
+\usepackage{booktabs}
+
+% Configuración de listings para código
+\lstset{
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    postbreak=\mbox{\textcolor{red}{$\hookrightarrow$}\space},
+    backgroundcolor=\color{gray!10},
+    frame=single,
+    rulecolor=\color{gray!20}
+}
+
+% Configuración de encabezados y pies
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{\textit{CameYa / CameYo}}
+\lhead{\textit{Plataforma de Servicios Bajo Demanda}}
+\cfoot{\thepage}
+
+% Colores personalizados
+\definecolor{darkblue}{rgb}{0.0, 0.0, 0.5}
+\definecolor{accentblue}{rgb}{0.2, 0.4, 0.8}
+
+% Comando para títulos de sección personalizado
+\newcommand{\sectionline}{%
+    \noindent\rule[0.5ex]{\linewidth}{1pt}
+}
+
+\title{
+    \textbf{\Huge CameYa / CameYo}\\
+    \vspace{0.5cm}
+    \textbf{\Large Plataforma Inteligente de Servicios Bajo Demanda}\\
+    \vspace{1cm}
+    \textit{\large Especificación Base, Arquitectura y Propuesta de Implementación}
+}
+
+\author{
+    Proyecto Universitario\\
+    \textit{Ingeniería de Software Avanzada}
+}
+
+\date{\today}
+
+\begin{document}
+
+% ==================== PORTADA ====================
+\maketitle
+\vspace{2cm}
+
+\begin{abstract}
+    \noindent\textbf{\large Resumen Ejecutivo}
+    \vspace{0.5cm}
+    
+    CameYa/CameYo es una plataforma digital de intermediación de servicios domésticos y técnicos bajo demanda, diseñada para conectar usuarios con trabajadores independientes verificados mediante algoritmos de asignación inteligente e inteligencia artificial. Este documento presenta la especificación completa del proyecto, incluyendo problemática identificada, objetivos, requisitos funcionales, arquitectura tecnológica recomendada y propuesta de implementación a nivel empresarial y académico.
+    
+    \vspace{0.5cm}
+    \noindent\textbf{Palabras clave:} Plataforma digital, servicios bajo demanda, inteligencia artificial, microservicios, arquitectura de software, NLP, geolocalización.
+\end{abstract}
+
+\newpage
+\tableofcontents
+\newpage
+
+% ==================== 1. INTRODUCCIÓN ====================
+\section{Introducción}
+
+\subsection{Contexto}
+
+El mercado de servicios domésticos y técnicos representa una oportunidad significativa de transformación digital en contextos locales (especialmente en países como Colombia). Actualmente, existe un vacío entre la demanda de servicios confiables y la capacidad de los trabajadores independientes para formalizarse y acceder a un mercado estructurado.
+
+Plataformas como Uber, Rappi y Workana han demostrado que la intermediación digital bajo demanda es viable y escalable. Sin embargo, no existe en el contexto local una solución integral especializada en servicios técnicos del hogar que combine:
+
+\begin{itemize}
+    \item Solicitud en lenguaje natural
+    \item Clasificación automática mediante IA
+    \item Asignación óptima
+    \item Verificación de antecedentes
+    \item Pagos digitales integrados
+\end{itemize}
+
+\subsection{Motivación del proyecto}
+
+Este proyecto nace de la necesidad académica y empresarial de:
+
+\begin{enumerate}
+    \item Demostrar aplicación real de técnicas de ingeniería de software avanzada
+    \item Implementar arquitecturas modernas y escalables
+    \item Integrar inteligencia artificial en soluciones prácticas
+    \item Crear una base de startup viable
+\end{enumerate}
+
+\newpage
+
+% ==================== 2. PROBLEMÁTICA ====================
+\section{Problemática Identificada}
+
+\subsection{Problema Central}
+
+Existe una \textbf{desconexión estructural} entre la demanda de servicios domésticos/técnicos y la oferta confiable de estos servicios, generando:
+
+\begin{center}
+\begin{tabular}{|c|c|}
+    \toprule
+    \textbf{Efecto} & \textbf{Impacto} \\
+    \midrule
+    Desconfianza & Usuarios evitan contratar servicios informales \\
+    Ineficiencia & Tiempos largos de búsqueda y asignación \\
+    Informalidad & Trabajadores sin visibilidad formal \\
+    Pérdida económica & Estafas, sobrecostos, incumplimientos \\
+    \bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Problemas Específicos por Actor}
+
+\subsubsection{Usuarios (Clientes)}
+
+\begin{itemize}
+    \item No existe canal confiable para contratar servicios
+    \item Precios poco claros o negociados informalmente
+    \item Incertidumbre sobre: quién llega, cuándo, qué tan confiable es
+    \item Riesgos de seguridad sin trazabilidad
+    \item Falta de recibos o comprobantes de pago
+\end{itemize}
+
+\subsubsection{Trabajadores Independientes}
+
+\begin{itemize}
+    \item Ausencia de vitrina digital
+    \item Dependencia del voz a voz (sin escalabilidad)
+    \item Ingresos variables e impredecibles
+    \item Imposibilidad de construir reputación formal verificable
+    \item Dificultades para recibir pagos digitales
+    \item Vulnerabilidad ante falta de contratos formales
+\end{itemize}
+
+\subsubsection{Administrador del Sistema}
+
+\begin{itemize}
+    \item Necesidad de automatizar procesos de clasificación
+    \item Complejidad de asignación óptima manualmente
+    \item Falta de herramientas de moderación
+    \item Dificultad en verificación de antecedentes
+\end{itemize}
+
+\newpage
+
+% ==================== 3. OBJETIVOS ====================
+\section{Objetivos del Proyecto}
+
+\subsection{Objetivo General}
+
+\begin{quotation}
+    \noindent Diseñar y desarrollar una plataforma tecnológica escalable que conecte usuarios con trabajadores independientes de manera \textbf{segura, eficiente e inteligente}, mediante el uso de \textbf{inteligencia artificial, geolocalización y pagos digitales}.
+\end{quotation}
+
+\subsection{Objetivos Específicos}
+
+\begin{enumerate}
+    \item Facilitar la solicitud de servicios mediante \textbf{procesamiento de lenguaje natural}
+    
+    \item Automatizar la \textbf{clasificación y priorización} de solicitudes con precisión $\geq 90\%$
+    
+    \item Optimizar la \textbf{asignación de prestadores} mediante algoritmo de scoring multicriterio
+    
+    \item Garantizar \textbf{trazabilidad completa} del servicio (estados, timestamps, GPS)
+    
+    \item Formalizar la \textbf{reputación del trabajador} mediante historial verificable
+    
+    \item Integrar \textbf{medios de pago digitales locales} (Nequi, Daviplata, Bre-B)
+    
+    \item Reducir tiempos de respuesta a \textbf{menos de 5 minutos} en zonas de alta cobertura
+    
+    \item Implementar \textbf{verificación de antecedentes} legal y segura
+\end{enumerate}
+
+\newpage
+
+% ==================== 4. ALCANCE ====================
+\section{Alcance del Sistema}
+
+\subsection{Incluye (MVP y Fase 1)}
+
+\begin{itemize}
+    \item Aplicación móvil nativa (Flutter) para usuarios y prestadores
+    \item Backend centralizado con arquitectura de microservicios
+    \item Motor de IA para clasificación y asignación
+    \item Sistema de pagos integrado
+    \item Sistema de evaluación y reputación
+    \item Panel administrativo web (React)
+    \item Tracking GPS en tiempo real
+    \item Notificaciones push
+    \item Dashboard analítico básico
+\end{itemize}
+
+\subsection{No Incluye (Fases Posteriores)}
+
+\begin{itemize}
+    \item Contratación empresarial a gran escala
+    \item Suscripciones avanzadas (Fase 2)
+    \item Facturación electrónica automática (integraciones futuras)
+    \item IA predictiva compleja de demanda
+    \item Expansion a otros países (Fase 3+)
+\end{itemize}
+
+\newpage
+
+% ==================== 5. ACTORES Y ROLES ====================
+\section{Actores del Sistema}
+
+\subsection{Usuario Solicitante}
+
+\begin{itemize}
+    \item \textbf{Tipo:} Persona natural
+    \item \textbf{Contextos:} Hogar, oficina pequeña, comercio local
+    \item \textbf{Intereses:} Confianza, rapidez, precio justo, transparencia
+\end{itemize}
+
+\subsection{Trabajador Independiente (Prestador)}
+
+\begin{itemize}
+    \item \textbf{Tipo:} Persona natural o microempresa
+    \item \textbf{Profesiones:} Técnico, plomero, electricista, carpintero, limpieza, servicios generales
+    \item \textbf{Intereses:} Visibilidad, ingresos estables, construcción de reputación, pagos seguros
+\end{itemize}
+
+\subsection{Administrador del Sistema}
+
+\begin{itemize}
+    \item \textbf{Función:} Operador de la plataforma
+    \item \textbf{Responsabilidades:} 
+        \begin{itemize}
+            \item Moderación
+            \item Verificación de prestadores
+            \item Soporte
+            \item Análisis y reportes
+            \item Resolución de conflictos
+        \end{itemize}
+\end{itemize}
+
+\newpage
+
+% ==================== 6. FUNCIONALIDADES ====================
+\section{Funcionalidades Detalladas}
+
+\subsection{Registro y Autenticación}
+
+\subsubsection{Usuario Solicitante}
+
+Registro con datos mínimos:
+\begin{itemize}
+    \item Nombre completo
+    \item Número de documento
+    \item Teléfono móvil
+    \item Correo electrónico
+    \item Dirección
+\end{itemize}
+
+Autenticación mediante:
+\begin{itemize}
+    \item Email + contraseña
+    \item SMS OTP
+    \item OAuth (Google, Facebook)
+\end{itemize}
+
+\subsubsection{Trabajador Independiente}
+
+Registro extendido con:
+\begin{itemize}
+    \item Documento (COI, Cédula)
+    \item Foto verificable
+    \item Servicios ofrecidos (taxonomía)
+    \item Zona de trabajo (radio de cobertura)
+    \item Certificado judicial (documento)
+    \item Cuenta bancaria o digital para pagos
+\end{itemize}
+
+Estados de verificación:
+\begin{itemize}
+    \item \textbf{Pendiente:} Registro completado, en revisión
+    \item \textbf{Aprobado:} Verificación exitosa, apto para recibir solicitudes
+    \item \textbf{Suspendido:} Violaciones o historias negativas
+    \item \textbf{Rechazado:} No cumple criterios
+\end{itemize}
+
+\subsection{Solicitud de Servicio (Núcleo del Sistema)}
+
+\subsubsection{Flujo de Solicitud}
+
+\begin{enumerate}
+    \item \textbf{Descripción en lenguaje natural:} El usuario describe el problema libremente
+    
+    \textit{Ejemplo:} ``Tengo una fuga de agua en el baño y es urgente''
+    
+    \item \textbf{Ubicación:} Sistema captura coordenadas GPS
+    
+    \item \textbf{Urgencia (opcional):} Usuario indica si es urgente
+    
+    \item \textbf{Rango de presupuesto (opcional):} Usuario propone rango
+\end{enumerate}
+
+\subsubsection{Procesamiento por IA}
+
+El motor de IA (servicio separado en Python + FastAPI) realiza:
+
+\begin{lstlisting}[language=json]
+Input: "Tengo una fuga de agua en el baño y es urgente"
+
+Output: {
+  "categoria": "plomeria",
+  "subcategoria": "reparacion_urgente",
+  "urgencia": "alta",
+  "prioridad": 0.92,
+  "palabras_clave": ["agua", "fuga", "baño"],
+  "estimado_tiempo": 45,
+  "estimado_costo": 80000
+}
+\end{lstlisting}
+
+Etapas de procesamiento:
+\begin{itemize}
+    \item Limpieza y normalización de texto
+    \item Clasificación de servicio (ML supervisado)
+    \item Detección de urgencia (reglas + ML)
+    \item Extracción de palabras clave (NLP)
+    \item Generación de solicitud estructurada
+\end{itemize}
+
+\subsection{Asignación Inteligente del Prestador}
+
+\subsubsection{Algoritmo de Scoring}
+
+Se calcula un \textbf{score de compatibilidad} para cada prestador disponible:
+
+\begin{equation}
+    \text{Score} = w_1 \cdot d + w_2 \cdot s + w_3 \cdot r + w_4 \cdot a + w_5 \cdot c
+\end{equation}
+
+Donde:
+\begin{itemize}
+    \item $d$: Distancia (inverso normalizado)
+    \item $s$: Coincidencia de servicio
+    \item $r$: Calificación histórica (1-5 estrellas)
+    \item $a$: Disponibilidad actual
+    \item $c$: Historial de cancelaciones (penalización)
+\end{itemize}
+
+Pesos recomendados:
+\begin{center}
+\begin{tabular}{|l|c|}
+    \toprule
+    \textbf{Factor} & \textbf{Peso} \\
+    \midrule
+    Distancia & 0.30 \\
+    Servicio & 0.25 \\
+    Reputación & 0.25 \\
+    Disponibilidad & 0.15 \\
+    Cancelaciones & 0.05 \\
+    \bottomrule
+\end{tabular}
+\end{center}
+
+\subsubsection{Proceso de Asignación}
+
+\begin{enumerate}
+    \item Calcular score para todos los prestadores candidatos
+    \item Ordenar descendentemente
+    \item Enviar notificación al DE MAYOR SCORE
+    \item Prestador tiene 30 segundos para aceptar/rechazar
+    \item Si rechaza, continúa con el siguiente
+    \item Si nadie acepta, solicitud entra en cola
+\end{enumerate}
+
+\subsection{Seguimiento del Servicio}
+
+\subsubsection{Estados del Servicio}
+
+\begin{center}
+\begin{tabular}{|l|p{5cm}|}
+    \toprule
+    \textbf{Estado} & \textbf{Descripción} \\
+    \midrule
+    Solicitado & Usuario envió solicitud, esperando asignación \\
+    Asignado & Prestador aceptó y confirma llegada \\
+    En Camino & Prestador en ruta (GPS activo) \\
+    En Ejecución & Prestador en ubicación, ejecutando servicio \\
+    Finalizado & Servicio completado, esperando evaluación \\
+    Cancelado & Usuario o prestador canceló \\
+    \bottomrule
+\end{tabular}
+\end{center}
+
+\subsubsection{Funcionalidades de Tracking}
+
+\begin{itemize}
+    \item \textbf{GPS en tiempo real:} Ubicación del prestador actualizada cada 10 segundos
+    \item \textbf{ETA estimado:} Tiempo de llegada calculado dinámicamente
+    \item \textbf{Notificaciones push:} Estado, ETA, cambios
+    \item \textbf{Historial visible:} Timeline de eventos
+    \item \textbf{Comunicación:} Chat o llamada directa
+\end{itemize}
+
+\subsection{Sistema de Pagos}
+
+\subsubsection{Características}
+
+\begin{itemize}
+    \item El usuario paga \textbf{antes o después} del servicio (configurable)
+    \item Plataforma retiene comisión (10-20%)
+    \item Prestador recibe el neto
+    \item Generación de recibo digital automático
+\end{itemize}
+
+\subsubsection{Integraciones Previstas}
+
+\begin{itemize}
+    \item \textbf{Nequi:} App bancaria, pagos P2P
+    \item \textbf{Daviplata:} Billetera digital
+    \item \textbf{Bre-B:} Plataforma de pagos
+    \item \textbf{Transferencia bancaria:} Débito de cuenta
+    \item \textbf{Pasarela (Wompi/Adyen):} Agregador de métodos
+\end{itemize}
+
+\subsubsection{Flujo Simplificado}
+
+\begin{enumerate}
+    \item Usuario selecciona método de pago
+    \item Autoriza transacción
+    \item Plataforma debita monto + comisión
+    \item Sistema genera orden de pago
+    \item Prestador recibe notificación de pago
+    \item Historial de transacción disponible
+\end{enumerate}
+
+\subsection{Evaluación y Reputación}
+
+\subsubsection{Componentes}
+
+\begin{itemize}
+    \item \textbf{Calificación:} 1 a 5 estrellas (obligatoria)
+    \item \textbf{Comentario:} Texto opcional (máx. 500 caracteres)
+    \item \textbf{Fotos:} Usuario puede adjuntar evidencia
+    \item \textbf{Historial:} Visible públicamente en perfil
+\end{itemize}
+
+\subsubsection{Impacto en Futuras Asignaciones}
+
+\begin{itemize}
+    \item Calificación $\geq 4.5$ estrellas: Factor multiplicador +1.2
+    \item Calificación 3.0-4.5: Factor multiplicador 1.0
+    \item Calificación $< 3.0$: Factor multiplicador 0.7 (riesgo)
+\end{itemize}
+
+\newpage
+
+% ==================== 7. INTELIGENCIA ARTIFICIAL ====================
+\section{Inteligencia Artificial en el Sistema}
+
+\subsection{Tipos de IA Implementada}
+
+\begin{itemize}
+    \item \textbf{NLP (Natural Language Processing):} Clasificación de texto
+    \item \textbf{Machine Learning supervisado:} Modelos entrenados
+    \item \textbf{Scoring dinámico:} Cálculos en tiempo real
+    \item \textbf{Aprendizaje iterativo:} Mejora con histórico
+\end{itemize}
+
+\subsection{Casos de Uso Concretos}
+
+\begin{enumerate}
+    \item \textbf{Clasificación de solicitudes:}
+    \begin{itemize}
+        \item Texto libre $\rightarrow$ Categoría + subcategoría
+        \item Modelo: Red neuronal (BERT, GPT-2 fine-tuned)
+        \item Precisión objetivo: $\geq 90\%$
+    \end{itemize}
+    
+    \item \textbf{Detección de urgencia:}
+    \begin{itemize}
+        \item Palabras clave: ``urgente'', ``emergencia'', ``ahorita''
+        \item Reglas + scoring probabilístico
+    \end{itemize}
+    
+    \item \textbf{Optimización de matching:}
+    \begin{itemize}
+        \item Features: distancia, servicio, reputación, disponibilidad
+        \item Algoritmo: Gradient Boosting (XGBoost)
+    \end{itemize}
+    
+    \item \textbf{Aprendizaje del histórico:}
+    \begin{itemize}
+        \item Aumentar peso de pares usuario-prestador que resultaron bien
+        \item Feedback loop mensual
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Arquitectura del Servicio IA}
+
+\begin{lstlisting}[language=bash]
+IA Service (Microservicio Independiente)
+├── Python 3.10+
+├── FastAPI (servidor HTTP)
+├── Hugging Face (transformers preentrenados)
+├── Scikit-learn (ML clásico)
+├── PostgreSQL (histórico de entrenamientos)
+└── Docker (containerización)
+\end{lstlisting}
+
+\newpage
+
+% ==================== 8. ARQUITECTURA TECNOLÓGICA ====================
+\section{Arquitectura Tecnológica Recomendada}
+
+\subsection{Visión General}
+
+La arquitectura recomendada es una \textbf{Arquitectura de Microservicios con Clean Architecture}, que proporciona:
+
+\begin{itemize}
+    \item Escalabilidad horizontal
+    \item Separación de responsabilidades
+    \item Independencia de deployments
+    \item Facilidad de testing
+    \item Base sólida académica
+\end{itemize}
+
+\subsubsection{Diagrama general (textual)}
+
+\begin{lstlisting}
+┌─────────────────────────────────────────┐
+│    Apps Móviles (iOS/Android)            │
+│    Panel Web Admin                        │
+└────────────────┬────────────────────────┘
+                 │
+        ┌────────┴────────┐
+        │   API Gateway   │
+        └────────┬────────┘
+                 │
+    ┌────────────┼────────────┐
+    │            │            │
+┌──────┐  ┌──────────┐  ┌────────────┐
+│ Auth │  │ Users &  │  │ Services & │
+│      │  │ Profiles │  │  Matching  │
+└──────┘  └──────────┘  └────────────┘
+    │            │            │
+    └────────────┼────────────┘
+                 │
+    ┌────────────┼────────────┐
+    │            │            │
+┌────────┐  ┌────────┐  ┌──────────┐
+│ Payments│  │Ratings │  │Tracking  │
+└────────┘  └────────┘  └──────────┘
+    │            │            │
+    └────────────┼────────────┘
+                 │
+    ┌────────────┴────────────┐
+    │  Bases de Datos         │
+    │  Cache (Redis)          │
+    │  Message Queue (RabbitMQ)│
+    └─────────────────────────┘
+\end{lstlisting}
+
+\subsection{Frontend}
+
+\subsubsection{Aplicación Móvil}
+
+\begin{itemize}
+    \item \textbf{Framework:} Flutter
+    \item \textbf{Lenguaje:} Dart
+    \item \textbf{Razones:}
+    \begin{itemize}
+        \item Un solo código base para iOS y Android
+        \item Performance excelente
+        \item Ideal para mapas y tracking en tiempo real
+        \item Comunidad grande y bien soportada
+    \end{itemize}
+    \item \textbf{Funcionalidades:}
+    \begin{itemize}
+        \item Login / Registro con Firebase Auth
+        \item Solicitud de servicio con geolocalización
+        \item Tracking GPS en tiempo real
+        \item Integración de pagos
+        \item Historial y calificaciones
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{Panel Administrativo Web}
+
+\begin{itemize}
+    \item \textbf{Framework:} React.js
+    \item \textbf{Lenguaje:} TypeScript
+    \item \textbf{Stack:}
+    \begin{itemize}
+        \item Vite o Next.js (bundler)
+        \item Material-UI o Ant Design (componentes)
+        \item Redux o Zustand (state management)
+        \item React Query (data fetching)
+    \end{itemize}
+    \item \textbf{Funcionalidades:}
+    \begin{itemize}
+        \item Dashboard de métricas
+        \item Gestión de usuarios
+        \item Verificación de prestadores
+        \item Moderación y resolución de conflictos
+        \item Reportes analíticos
+    \end{itemize}
+\end{itemize}
+
+\subsection{Backend}
+
+\subsubsection{Tecnología Base}
+
+\begin{itemize}
+    \item \textbf{Lenguaje:} Node.js + TypeScript
+    \item \textbf{Framework:} NestJS
+    \item \textbf{Razones:}
+    \begin{itemize}
+        \item Arquitectura modular y escalable
+        \item Inspirado en Spring (familiar para devs Java)
+        \item Excelente soporte para microservicios
+        \item Tipado fuerte con TypeScript
+        \item Decentemente documentado
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{Microservicios Clave}
+
+\paragraph{1. Auth Service}
+\begin{itemize}
+    \item Login / Logout
+    \item JWT tokens + Refresh tokens
+    \item OAuth (Google, Facebook)
+    \item Roles y permisos
+\end{itemize}
+
+\paragraph{2. User Service}
+\begin{itemize}
+    \item CRUD de usuarios solicitantes
+    \item CRUD de prestadores
+    \item Perfil y actualización de datos
+    \item Gestión de estados
+\end{itemize}
+
+\paragraph{3. Service Request Service}
+\begin{itemize}
+    \item Crear / editar / eliminar solicitudes
+    \item Cambio de estados
+    \item Historial de solicitudes
+    \item Eventos del servicio
+\end{itemize}
+
+\paragraph{4. Matching Service}
+\begin{itemize}
+    \item Algoritmo de asignación
+    \item Cálculo de scores
+    \item Notificación a prestadores
+    \item Aceptación / rechazo
+\end{itemize}
+
+\paragraph{5. IA Service (Python separado)}
+\begin{itemize}
+    \item NLP para clasificación
+    \item Detección de urgencia
+    \item Integración con modelos ML
+\end{itemize}
+
+\paragraph{6. Payment Service}
+\begin{itemize}
+    \item Procesamiento de pagos
+    \item Integración con pasarelas
+    \item Cálculo de comisiones
+    \item Transferencias a prestadores
+\end{itemize}
+
+\paragraph{7. Rating Service}
+\begin{itemize}
+    \item Calificaciones y comentarios
+    \item Cálculo de reputación
+    \item Historial de evaluaciones
+\end{itemize}
+
+\paragraph{8. Tracking Service (WebSocket)}
+\begin{itemize}
+    \item GPS en tiempo real
+    \item Socket.IO para conexiones bidireccionales
+    \item Cálculo de ETA
+\end{itemize}
+
+\subsection{Bases de Datos}
+
+\subsubsection{PostgreSQL (Principal)}
+
+\begin{itemize}
+    \item Almacenamiento relacional
+    \item Tablas: Users, Providers, ServiceRequests, Payments, Ratings, etc.
+    \item Transacciones ACID
+    \item Backups automáticos
+\end{itemize}
+
+\subsubsection{Redis (Cache)}
+
+\begin{itemize}
+    \item Cache de sesiones
+    \item Rate limiting
+    \item Cache de queries frecuentes
+    \item Queues de trabajos
+\end{itemize}
+
+\subsubsection{MongoDB / Firebase (Eventos)}
+
+\begin{itemize}
+    \item Logs de eventos
+    \item Tracking de cambios de estado
+    \item Historial de interacciones
+    \item Escalabilidad de escrituras
+\end{itemize}
+
+\subsection{Comunicación en Tiempo Real}
+
+\subsubsection{WebSockets}
+
+\begin{itemize}
+    \item \textbf{Librería:} Socket.IO (Node.js)
+    \item \textbf{Usos:}
+    \begin{itemize}
+        \item Ubicación en vivo del prestador
+        \item Estado del servicio actualizado
+        \item ETA dinámico
+        \item Chat entre usuario y prestador
+    \end{itemize}
+    \item \textbf{Escalado:} Redis Adapter para clustering
+\end{itemize}
+
+\newpage
+
+% ==================== 9. INTELIGENCIA ARTIFICIAL (AMPLIADO) ====================
+\section{Implementación de Inteligencia Artificial}
+
+\subsection{Tecnologías Específicas}
+
+\begin{itemize}
+    \item \textbf{Lenguaje:} Python 3.10+
+    \item \textbf{Framework:} FastAPI
+    \item \textbf{ML:} Scikit-learn, TensorFlow/PyTorch
+    \item \textbf{NLP:} Hugging Face Transformers
+    \item \textbf{Modelos preentrenados:} BERT, GPT-2, DistilBERT
+\end{itemize}
+
+\subsection{Flujo de Datos IA}
+
+\begin{enumerate}
+    \item Usuario escribe solicitud en app móvil: ``Tengo una fuga de agua''
+    \item App envía texto a IA Service (POST /classify)
+    \item IA Service recibe, procesa y retorna JSON:
+    \begin{lstlisting}[language=json]
+{
+  "categoria": "plomeria",
+  "urgencia": 0.85,
+  "confianza": 0.92
+}
+    \end{lstlisting}
+    \item Backend actualiza la solicitud con este resultado
+    \item Matching Service usará estos datos para asignación
+\end{enumerate}
+
+\subsection{Modelos de ML Entrenados Localmente}
+
+Para garantizar:
+\begin{itemize}
+    \item Control sobre datos sensibles (privacidad)
+    \item Independencia de APIs externas
+    \item Customización según contexto local
+\end{itemize}
+
+Se recomienda fine-tuning de modelos BERT sobre corpus de solicitudes reales.
+
+\newpage
+
+% ==================== 10. SEGURIDAD ====================
+\section{Seguridad del Sistema}
+
+\subsection{Autenticación y Autorización}
+
+\subsubsection{Autenticación}
+
+\begin{itemize}
+    \item \textbf{JWT (JSON Web Tokens):} Token de acceso (15 min)
+    \item \textbf{Refresh Tokens:} Token de renovación (7 días)
+    \item \textbf{OAuth 2.0:} Integración con Google y Facebook
+    \item \textbf{SMS OTP:} Para operaciones sensibles
+\end{itemize}
+
+\subsubsection{Autorización (RBAC)}
+
+\begin{center}
+\begin{tabular}{|l|p{8cm}|}
+    \toprule
+    \textbf{Rol} & \textbf{Permisos} \\
+    \midrule
+    USER & Crear solicitudes, ver estado, calificar, pagar \\
+    PROVIDER & Ver solicitudes, aceptar/rechazar, ejecutar, recibir pago \\
+    ADMIN & Acceso total, moderación, reportes \\
+    MODERATOR & Resolver disputas, revisar reportes \\
+    \bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Cifrado y Protección de Datos}
+
+\begin{itemize}
+    \item \textbf{HTTPS/TLS:} Todas las comunicaciones encriptadas
+    \item \textbf{Hash de contraseñas:} bcrypt con salt
+    \item \textbf{Encriptación en reposo:} Datos sensibles en BD
+    \item \textbf{AES-256:} Para documentos (cédula, certificados)
+\end{itemize}
+
+\subsection{Verificación de Antecedentes}
+
+\subsubsection{Marco Legal (Colombia)}
+
+\begin{quotation}
+    ❌ \textbf{NO es legal} acceder directamente a bases de datos de antecedentes penales privadas o estatales sin autorización específica.
+\end{quotation}
+
+\subsubsection{Forma Correcta y Legal}
+
+\paragraph{Opción 1: Certificado Judicial (RECOMENDADA para MVP)}
+
+\begin{enumerate}
+    \item Prestador autoriza voluntariamente
+    \item Sube \textbf{certificado judicial oficial} (emitido por Policía Nacional/Fiscalía)
+    \item Plataforma valida:
+    \begin{itemize}
+        \item Documento existe
+        \item Firma digital es válida
+        \item Fecha está dentro de rango aceptable (< 2 años)
+    \end{itemize}
+    \item Marca perfil como \textbf{``Verificado''}
+    \item Guarda hash del documento (no el documento en texto)
+\end{enumerate}
+
+\paragraph{Opción 2: Integración con Terceros}
+
+Empresas especializadas en background check:
+\begin{itemize}
+    \item \textbf{Cumple con leyes de protección de datos}
+    \item Consultan antecedentes legalmente
+    \item Devuelven resultado booleano: ``APTO'' / ``NO APTO''
+    \item Ejemplos: Checkify, PermanenterTest
+\end{itemize}
+
+\paragraph{Opción 3 (para desarrollo)}
+
+Validación manual + documental:
+\begin{itemize}
+    \item Admin revisa manualmente documento
+    \item Aprueba o rechaza
+    \item Decisión registrada en auditoría
+\end{itemize}
+
+\subsubsection{Estados de Verificación}
+
+\begin{center}
+\begin{tabular}{|l|p{6cm}|}
+    \toprule
+    \textbf{Estado} & \textbf{Significado} \\
+    \midrule
+    NO\_VERIFICADO & No ha cargado documentos \\
+    EN\_REVISION & Documento cargado, esperando validación \\
+    VERIFICADO & Aprobado, puede recibir solicitudes \\
+    RECHAZADO & No cumple criterios de seguridad \\
+    SUSPENDIDO & Antecedentes negativos o incumplimiento de normas \\
+    \bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Auditoría y Logging}
+
+\begin{itemize}
+    \item Todos los eventos sensibles son registrados
+    \item Tabla de auditoría inmutable
+    \item Retención: 2 años
+    \item Logs de acceso a datos sensibles
+\end{itemize}
+
+\newpage
+
+% ==================== 11. DEVOPS E INFRAESTRUCTURA ====================
+\section{DevOps e Infraestructura}
+
+\subsection{Containerización}
+
+\subsubsection{Docker}
+
+Cada microservicio tiene su propio Dockerfile:
+
+\begin{lstlisting}[language=bash]
+# Ejemplo: Auth Service
+FROM node:18-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --production
+COPY . .
+EXPOSE 3001
+CMD ["npm", "start"]
+\end{lstlisting}
+
+\subsubsection{Docker Compose}
+
+Para desarrollo local (MVP):
+
+\begin{lstlisting}[language=yaml]
+version: '3.8'
+services:
+  auth-service:
+    build: ./auth
+    ports:
+      - "3001:3001"
+    
+  user-service:
+    build: ./users
+    ports:
+      - "3002:3002"
+  
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_PASSWORD: secret
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+  
+  redis:
+    image: redis:7
+
+volumes:
+  postgres_data:
+\end{lstlisting}
+
+\subsection{Orquestación (Fase Posterior)}
+
+\subsubsection{Kubernetes}
+
+Para producción con alto tráfico:
+
+\begin{itemize}
+    \item Pods para cada microservicio
+    \item Ingress Controller para API Gateway
+    \item Persistent Volumes para BD
+    \item Horizontal Pod Autoscaler
+\end{itemize}
+
+\subsection{Cloud Provider}
+
+\subsubsection{Opciones Recomendadas}
+
+\begin{itemize}
+    \item \textbf{AWS EC2:} VMs tradicionales, escalables
+    \item \textbf{AWS ECS:} Orquestación de contenedores gestionada
+    \item \textbf{Google Cloud Run:} Serverless para IA Service
+    \item \textbf{Azure App Service:} Para backend
+\end{itemize}
+
+\subsection{CI/CD Pipeline}
+
+\subsubsection{GitHub Actions / GitLab CI}
+
+\begin{lstlisting}[language=yaml]
+name: Build and Deploy
+on:
+  push:
+    branches: [main, develop]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Run tests
+        run: npm test
+      - name: Build Docker
+        run: docker build -t myapp .
+      - name: Push to Registry
+        run: docker push myapp:latest
+  
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to Cloud
+        run: kubectl apply -f deployment.yaml
+\end{lstlisting}
+
+\newpage
+
+% ==================== 12. MODELO DE NEGOCIO ====================
+\section{Modelo de Negocio}
+
+\subsection{Estructura de Ingresos}
+
+\subsubsection{Comisión por Transacción}
+
+\begin{itemize}
+    \item \textbf{Porcentaje:} 10-20\% del monto del servicio
+    \item \textbf{Quien paga:} Prestador (descuento neto)
+    \item \textbf{Ejemplo:}
+    \begin{itemize}
+        \item Servicio cuesta: \$100.000
+        \item Comisión (15\%): \$15.000
+        \item Prestador recibe: \$85.000
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{Servicios Adicionales (Fase 2)}
+
+\begin{itemize}
+    \item \textbf{Suscripción Premium:} Acceso prioritario a solicitudes
+    \item \textbf{Featured Profile:} Perfil destacado en búsquedas
+    \item \textbf{Publicidad:} Prestadores pueden pagar por visibilidad
+\end{itemize}
+
+\subsubsection{Alianzas Comerciales}
+
+\begin{itemize}
+    \item Asociaciones con distribuidores de materiales
+    \item Comisión por referidos
+    \item Seguros para usuarios
+\end{itemize}
+
+\subsection{Proyecciones Financieras (Teórico)}
+
+\begin{center}
+\begin{tabular}{|l|c|c|c|}
+    \toprule
+    \textbf{Métrica} & \textbf{Mes 1} & \textbf{Mes 6} & \textbf{Mes 12} \\
+    \midrule
+    Usuarios activos & 100 & 1.000 & 5.000 \\
+    Prestadores & 20 & 200 & 800 \\
+    Solicitudes/mes & 150 & 1.500 & 8.000 \\
+    Ticket promedio & \$80K & \$80K & \$85K \\
+    Ingresos/mes & \$1.8M & \$18M & \$102M \\
+    \bottomrule
+\end{tabular}
+\end{center}
+
+\newpage
+
+% ==================== 13. PLAN DE IMPLEMENTACIÓN ====================
+\section{Plan de Implementación}
+
+\subsection{Fases del Proyecto}
+
+\subsubsection{Fase 0: Evaluación y Setup (Semanas 1-2)}
+
+\begin{itemize}
+    \item Definición de requisitos técnicos
+    \item Configuración de repositorios
+    \item Setup de ambientes (dev, staging, prod)
+    \item Selección de herramientas
+\end{itemize}
+
+\subsubsection{Fase 1: MVP Base (Semanas 3-12)}
+
+\begin{itemize}
+    \item \textbf{Auth Service:} Login, JWT
+    \item \textbf{User Service:} CRUD usuarios y prestadores
+    \item \textbf{Service Request Service:} Crear y listar solicitudes
+    \item \textbf{Frontend básico:} Login, crear solicitud, listar
+    \item Base de datos PostgreSQL
+    \item Tests unitarios
+\end{itemize}
+
+\subsubsection{Fase 2: Matching e IA (Semanas 13-20)}
+
+\begin{itemize}
+    \item Matching Service con algoritmo básico
+    \item IA Service (NLP) - MVP
+    \item Notificaciones push
+    \item Tracking básico (no GPS)
+\end{itemize}
+
+\subsubsection{Fase 3: Pagos y Tracking (Semanas 21-28)}
+
+\begin{itemize}
+    \item Payment Service con pasarela
+    \item GPS tracking en tiempo real
+    \item WebSocket para actualizaciones
+    \item Rating Service
+\end{itemize}
+
+\subsubsection{Fase 4: Panel Admin y Optimizaciones (Semanas 29-36)}
+
+\begin{itemize}
+    \item Panel administrativo web
+    \item Dashboard de métricas
+    \item Herramientas de moderación
+    \item Optimización de performance
+    \item Tests E2E
+\end{itemize}
+
+\subsubsection{Fase 5: Producción y Escalado (Semanas 37+)}
+
+\begin{itemize}
+    \item Deployment a cloud
+    \item CI/CD pipeline
+    \item Monitoreo y alertas
+    \item Optimización y escalado
+\end{itemize}
+
+\subsection{Equipo Recomendado}
+
+\begin{center}
+\begin{tabular}{|l|c|p{5cm}|}
+    \toprule
+    \textbf{Rol} & \textbf{Cantidad} & \textbf{Responsabilidades} \\
+    \midrule
+    Backend Developer & 2 & NestJS, APIs, BD \\
+    Frontend Developer & 2 & Flutter, React \\
+    DevOps Engineer & 1 & Infraestructura, CI/CD \\
+    ML Engineer & 1 & NLP, IA \\
+    QA Engineer & 1 & Testing, calidad \\
+    Product Manager & 1 & Visión, requisitos \\
+    Tech Lead & 1 & Arquitectura, decisiones \\
+    \bottomrule
+\end{tabular}
+\end{center}
+
+\newpage
+
+% ==================== 14. IMPACTO ESPERADO ====================
+\section{Impacto Esperado}
+
+\subsection{Impacto Social}
+
+\begin{itemize}
+    \item \textbf{Formalización laboral:} Trabajadores independientes con visibilidad formal
+    \item \textbf{Confianza:} Usuarios confían en prestadores verificados
+    \item \textbf{Reducción de fraude:} Sistema de reputación desincentiva estafas
+    \item \textbf{Inclusión financiera:} Acceso a pagos digitales
+\end{itemize}
+
+\subsection{Impacto Económico}
+
+\begin{itemize}
+    \item \textbf{Determinación de ingresos:} Prestadores tienen fuente estable
+    \item \textbf{Escalabilidad:} Usuarios pueden acceder a servicios sin buscar informalmente
+    \item \textbf{Creación de empleo:} Demanda de desarrolladores, soporte, operaciones
+    \item \textbf{Transacciones formales:} Todo queda registrado y tributario
+\end{itemize}
+
+\subsection{Impacto Tecnológico}
+
+\begin{itemize}
+    \item \textbf{IA aplicada:} Demostración real de NLP en contexto local
+    \item \textbf{Arquitectura moderna:} Microservicios, clean architecture
+    \item \textbf{Stack contemporáneo:} Node.js, Flutter, PostgreSQL, Python
+    \item \textbf{Cloud-native:} Preparada para escalar globalmente
+\end{itemize}
+
+\subsection{Impacto Académico}
+
+\begin{itemize}
+    \item Proyecto integradora de conocimientos de ingeniería de software
+    \item Aplicación de patrones de arquitectura
+    \item Demostración de capacidad de ejecución empresarial
+    \item Base sólida para publicaciones o spin-off académico
+\end{itemize}
+
+\newpage
+
+% ==================== 15. RIESGOS Y MITIGACIÓN ====================
+\section{Riesgos y Plan de Mitigación}
+
+\subsection{Riesgos Técnicos}
+
+\begin{center}
+\begin{tabular}{|p{3cm}|p{3cm}|p{4cm}|}
+    \toprule
+    \textbf{Riesgo} & \textbf{Probabilidad} & \textbf{Mitigación} \\
+    \midrule
+    Complejidad de IA mayor a la esperada & MEDIA & Usar modelos preentrenados, no entrenar from scratch \\
+    Performance de matching en tiempo real & MEDIA & Caching, índices BD, algoritmo optimizado \\
+    Escalado de BD & BAJA & Sharding temprano, réplicas \\
+    \bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Riesgos de Negocio}
+
+\begin{center}
+\begin{tabular}{|p{3cm}|p{3cm}|p{4cm}|}
+    \toprule
+    \textbf{Riesgo} & \textbf{Probabilidad} & \textbf{Mitigación} \\
+    \midrule
+    Baja adopción inicial & ALTA & Marketing local, incentivos iniciales \\
+    Competencia existente & MEDIA & Diferenciación en IA y UX \\
+    Regulación de plataformas & MEDIA & Cumplimiento legal de datos, seguridad \\
+    \bottomrule
+\end{tabular}
+\end{center}
+
+\newpage
+
+% ==================== 16. CONCLUSIONES ====================
+\section{Conclusiones}
+
+\subsection{Síntesis}
+
+CameYa/CameYo representa una \textbf{oportunidad integral} de innovación tecnológica que combina:
+
+\begin{enumerate}
+    \item Una \textbf{problemática real} (mercado lineal y desorganizado)
+    \item Una \textbf{solución tecnológica sólida} (microservicios, IA, pagos)
+    \item Un \textbf{modelo de negocio viable} (comisión, escalable)
+    \item Una \textbf{arquitectura robusta y académica} (Clean Arch, SOLID)
+\end{enumerate}
+
+\subsection{Viabilidad}
+
+\begin{itemize}
+    \item ✅ Técnicamente viable: Tecnologías disponibles y maduras
+    \item ✅ Económicamente viable: Modelo de negocio comprobado en otras plataformas
+    \item ✅ Académicamente sólido: Cumple estándares de proyectos de grado
+    \item ✅ Escalable: Arquitectura preparada para crecer
+\end{itemize}
+
+\subsection{Recomendaciones Finales}
+
+\begin{enumerate}
+    \item \textbf{Comenzar con MVP enfocado}: Solicitud + Matching + Pagos básicos
+    \item \textbf{Validar con usuarios reales}: Pilotos en 1-2 ciudades
+    \item \textbf{Fine-tuning de IA en histórico real}: No confiar solo en datos públicos
+    \item \textbf{Énfasis en seguridad}: Verificación de antecedentes es crítica
+    \item \textbf{Escalado gradual}: No intentar ser Uber en mes 1
+\end{enumerate}
+
+\subsection{Próximos Pasos}
+
+A partir de este documento, se recomienda:
+
+\begin{enumerate}
+    \item Diseño detallado de base de datos
+    \item Especificación de APIs (OpenAPI/Swagger)
+    \item Diagramas UML de arquitectura
+    \item Prototipo de UI/UX
+    \item Plan de seguridad detallado
+    \item Roadmap técnico en Jira/Asana
+\end{enumerate}
+
+\newpage
+
+% ==================== REFERENCIAS Y APÉNDICES ====================
+\section{Referencias}
+
+\begin{enumerate}
+    \item Fowler, M. (2014). \textit{Microservices}. martinfowler.com
+    \item Evans, E. (2003). \textit{Domain-Driven Design}. Addison-Wesley
+    \item Martin, R. C. (2017). \textit{Clean Architecture}. Prentice Hall
+    \item Goodfellow, I., Bengio, Y., \& Courville, A. (2016). \textit{Deep Learning}. MIT Press
+    \item Devlin, J., et al. (2018). BERT: Pre-training of Deep Bidirectional Transformers
+\end{enumerate}
+
+\appendix
+
+\section{Tabla Comparativa de Tecnologías}
+
+\begin{center}
+\begin{tabular}{|l|l|l|l|}
+    \toprule
+    \textbf{Aspecto} & \textbf{Opción 1} & \textbf{Opción 2} & \textbf{Seleccionada} \\
+    \midrule
+    Frontend & React Native & \textbf{Flutter} & Flutter \\
+    Backend & Express & \textbf{NestJS} & NestJS \\
+    BD Relacional & MySQL & \textbf{PostgreSQL} & PostgreSQL \\
+    Cache & Memcached & \textbf{Redis} & Redis \\
+    Mensajería & Kafka & \textbf{RabbitMQ} & RabbitMQ \\
+    IA Framework & TensorFlow & \textbf{Hugging Face} & Hugging Face \\
+    Cloud & AWS & GCP & \textbf{Flexible} \\
+    \bottomrule
+\end{tabular}
+\end{center}
+
+\section{Glosario de Términos}
+
+\begin{itemize}
+    \item \textbf{API Gateway:} Punto de entrada unificado para todas las APIs
+    \item \textbf{Microservicio:} Componente independiente que realiza una función específica
+    \item \textbf{JWT:} JSON Web Token para autenticación
+    \item \textbf{NLP:} Natural Language Processing, procesamiento de lenguaje natural
+    \item \textbf{OTP:} One-Time Password, contraseña única
+    \item \textbf{RBAC:} Role-Based Access Control, control de acceso basado en roles
+    \item \textbf{Matching:} Proceso de asignación de prestador a solicitud
+    \item \textbf{Scoring:} Cálculo de puntuación de compatibilidad
+\end{itemize}
+
+\end{document}
