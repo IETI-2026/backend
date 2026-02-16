@@ -6,7 +6,10 @@ import { Request } from 'express';
 import { JwtPayloadEntity } from '../../domain/entities';
 
 @Injectable()
-export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh') {
+export class JwtRefreshStrategy extends PassportStrategy(
+  Strategy,
+  'jwt-refresh',
+) {
   constructor(private configService: ConfigService) {
     super({
       jwtFromRequest: ExtractJwt.fromBodyField('refreshToken'),
@@ -16,7 +19,10 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh'
     } as any);
   }
 
-  async validate(req: Request, payload: JwtPayloadEntity & { type: string }): Promise<JwtPayloadEntity> {
+  async validate(
+    req: Request,
+    payload: JwtPayloadEntity & { type: string },
+  ): Promise<JwtPayloadEntity> {
     if (payload.type !== 'refresh') {
       throw new BadRequestException('Invalid refresh token');
     }

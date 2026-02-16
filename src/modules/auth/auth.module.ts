@@ -4,10 +4,15 @@ import { PassportModule } from '@nestjs/passport';
 import { ConfigService } from '@nestjs/config';
 import { PrismaModule } from '@/prisma/prisma.module';
 import { AuthPrismaRepository } from './infrastructure/persistence';
-import { JwtStrategy, JwtRefreshStrategy, GoogleOAuthStrategy } from './infrastructure/strategies';
+import {
+  JwtStrategy,
+  JwtRefreshStrategy,
+  GoogleOAuthStrategy,
+} from './infrastructure/strategies';
 import { AUTH_REPOSITORY } from './domain/repositories';
 import { AuthController } from './presentation';
 import { JwtAuthGuard, RolesGuard } from './infrastructure/guards';
+import { AuthService } from './application/services/auth.service';
 
 @Module({
   imports: [
@@ -15,10 +20,10 @@ import { JwtAuthGuard, RolesGuard } from './infrastructure/guards';
     PassportModule,
     JwtModule.registerAsync({
       useFactory: (configService: ConfigService) => {
-        const expiresIn = configService.get<string | number>('jwt.expiresIn') ?? '7d';
+        const expiresIn = configService.get<string>('jwt.expiresIn') ?? '15m';
         return {
           secret: configService.get<string>('jwt.secret'),
-          signOptions: { expiresIn },
+          signOptions: { expiresIn: expiresIn as any },
         };
       },
       inject: [ConfigService],
@@ -26,6 +31,7 @@ import { JwtAuthGuard, RolesGuard } from './infrastructure/guards';
   ],
   controllers: [AuthController],
   providers: [
+    AuthService,
     {
       provide: AUTH_REPOSITORY,
       useClass: AuthPrismaRepository,
@@ -36,6 +42,6 @@ import { JwtAuthGuard, RolesGuard } from './infrastructure/guards';
     JwtAuthGuard,
     RolesGuard,
   ],
-  exports: [JwtAuthGuard, RolesGuard, AUTH_REPOSITORY],
+  exports: [AuthService, JwtAuthGuard, RolesGuard, AUTH_REPOSITORY],
 })
 export class AuthModule {}

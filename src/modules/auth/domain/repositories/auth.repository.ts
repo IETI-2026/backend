@@ -23,7 +23,10 @@ export interface IAuthRepository {
     }>,
   ): Promise<User>;
 
-  findOAuthAccount(provider: string, providerUserId: string): Promise<any | null>;
+  findOAuthAccount(
+    provider: string,
+    providerUserId: string,
+  ): Promise<any | null>;
   createOAuthAccount(data: {
     userId: string;
     provider: string;

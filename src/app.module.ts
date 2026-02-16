@@ -21,7 +21,6 @@ import { TenantMiddleware, TenantModule } from './tenant';
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    // Aplica el middleware de tenant a todas las rutas
     consumer.apply(TenantMiddleware).forRoutes('*');
   }
 }

@@ -19,7 +19,9 @@ export class AuthPrismaRepository implements IAuthRepository {
     });
   }
 
-  async findUserWithRoles(userId: string): Promise<(User & { roles: any[] }) | null> {
+  async findUserWithRoles(
+    userId: string,
+  ): Promise<(User & { roles: any[] }) | null> {
     return this.prisma.user.findUnique({
       where: { id: userId },
       include: {
@@ -70,7 +72,10 @@ export class AuthPrismaRepository implements IAuthRepository {
     });
   }
 
-  async findOAuthAccount(provider: string, providerUserId: string): Promise<any | null> {
+  async findOAuthAccount(
+    provider: string,
+    providerUserId: string,
+  ): Promise<any | null> {
     return this.prisma.oAuthAccount.findFirst({
       where: {
         provider: provider as any,
