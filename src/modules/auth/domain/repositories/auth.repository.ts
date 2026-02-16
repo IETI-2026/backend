@@ -1,5 +1,4 @@
-import { User } from '@prisma/client';
-import { JwtPayloadEntity } from '../entities';
+import { RefreshToken, User } from '@prisma/client';
 
 export interface IAuthRepository {
   findUserByEmail(email: string): Promise<User | null>;
@@ -43,9 +42,9 @@ export interface IAuthRepository {
     expiresAt: Date;
     userAgent?: string;
     ipAddress?: string;
-  }): Promise<any>;
-  revokeRefreshToken(tokenId: string): Promise<any>;
+  }): Promise<RefreshToken>;
+  revokeRefreshToken(tokenId: string): Promise<void>;
 
-  assignRoleToUser(userId: string, roleName: string): Promise<any>;
+  assignRoleToUser(userId: string, roleName: string): Promise<void>;
   getUserRoles(userId: string): Promise<string[]>;
 }

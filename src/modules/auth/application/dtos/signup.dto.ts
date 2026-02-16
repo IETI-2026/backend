@@ -11,12 +11,12 @@ import {
 export class SignUpDto {
   @IsEmail()
   @IsNotEmpty()
-  email?: string;
+  email: string;
 
   @IsString()
   @IsNotEmpty()
   @Length(2, 100)
-  fullName?: string;
+  fullName: string;
 
   @IsString()
   @IsNotEmpty()
@@ -25,7 +25,7 @@ export class SignUpDto {
     message:
       'Password must contain uppercase, lowercase, number and special character (@$!%*?&)',
   })
-  password?: string;
+  password: string;
 
   @IsString()
   @IsOptional()

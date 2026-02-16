@@ -1,6 +1,5 @@
 import {
   Injectable,
-  BadRequestException,
   UnauthorizedException,
   ConflictException,
 } from '@nestjs/common';
@@ -36,15 +35,15 @@ export class AuthService {
   async signUp(signUpDto: SignUpDto): Promise<AuthResponseDto> {
     const { email, password, fullName, phoneNumber } = signUpDto;
 
-    const existingUser = await this.authRepository.findUserByEmail(email!);
+    const existingUser = await this.authRepository.findUserByEmail(email);
     if (existingUser) {
       throw new ConflictException('Email already registered');
     }
 
-    const passwordHash = await this.hashPassword(password!);
+    const passwordHash = await this.hashPassword(password);
 
     const user = await this.authRepository.createUser({
-      email: email!,
+      email: email || '',
       fullName: fullName!,
       passwordHash,
       phoneNumber,
@@ -164,7 +163,7 @@ export class AuthService {
       providerUserId: providerId,
       accessToken,
       refreshToken,
-      expiresAt: new Date(Date.now() + 3600 * 1000), // 1 hour
+      expiresAt: new Date(Date.now() + 3600 * 1000),
     });
 
     return this.generateAuthResponse(user.id, user.email!);

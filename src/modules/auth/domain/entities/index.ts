@@ -1,2 +1,2 @@
-export * from './jwt-payload.entity';
 export * from './auth-response.entity';
+export * from './jwt-payload.entity';
