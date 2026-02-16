@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaClient } from '@prisma/client';
+import { execSync } from 'node:child_process';
 
 @Injectable()
 export class TenantPrismaService implements OnModuleDestroy {
