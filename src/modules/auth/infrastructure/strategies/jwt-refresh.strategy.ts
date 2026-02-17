@@ -1,8 +1,8 @@
-import { ExtractJwt, Strategy } from 'passport-jwt';
-import { PassportStrategy } from '@nestjs/passport';
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Request } from 'express';
+import { PassportStrategy } from '@nestjs/passport';
+import { type Request } from 'express';
+import { ExtractJwt, Strategy } from 'passport-jwt';
 import { JwtPayloadEntity } from '../../domain/entities';
 
 @Injectable()
@@ -10,17 +10,22 @@ export class JwtRefreshStrategy extends PassportStrategy(
   Strategy,
   'jwt-refresh',
 ) {
-  constructor(private configService: ConfigService) {
+  constructor(configService: ConfigService) {
+    const refreshSecret = configService.get<string>('jwt.refreshSecret');
+    if (!refreshSecret) {
+      throw new Error('JWT refresh secret is required');
+    }
+
     super({
       jwtFromRequest: ExtractJwt.fromBodyField('refreshToken'),
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>('jwt.refreshSecret'),
+      secretOrKey: refreshSecret,
       passReqToCallback: true,
-    } as any);
+    });
   }
 
   async validate(
-    req: Request,
+    _req: Request,
     payload: JwtPayloadEntity & { type: string },
   ): Promise<JwtPayloadEntity> {
     if (payload.type !== 'refresh') {

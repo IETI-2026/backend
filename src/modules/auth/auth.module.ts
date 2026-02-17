@@ -3,16 +3,15 @@ import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { PrismaModule } from '@/prisma/prisma.module';
-import { AuthPrismaRepository } from './infrastructure/persistence';
-import {
-  JwtStrategy,
-  JwtRefreshStrategy,
-  GoogleOAuthStrategy,
-} from './infrastructure/strategies';
-
 import { AuthService } from './application/services/auth.service';
 import { AUTH_REPOSITORY } from './domain/repositories';
 import { JwtAuthGuard, RolesGuard } from './infrastructure/guards';
+import { AuthPrismaRepository } from './infrastructure/persistence';
+import {
+  GoogleOAuthStrategy,
+  JwtRefreshStrategy,
+  JwtStrategy,
+} from './infrastructure/strategies';
 import { AuthController } from './presentation';
 
 @Module({
@@ -22,8 +21,13 @@ import { AuthController } from './presentation';
     JwtModule.registerAsync({
       useFactory: (configService: ConfigService) => {
         const expiresIn = configService.get<string>('jwt.expiresIn') ?? '15m';
+        const secret = configService.get<string>('jwt.secret');
+        if (!secret) {
+          throw new Error('JWT secret is required');
+        }
         return {
-          secret: configService.get<string>('jwt.secret'),
+          secret,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           signOptions: { expiresIn: expiresIn as any },
         };
       },

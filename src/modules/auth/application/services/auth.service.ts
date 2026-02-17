@@ -1,25 +1,40 @@
 import {
+  ConflictException,
+  Inject,
   Injectable,
   UnauthorizedException,
-  ConflictException,
 } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import * as bcrypt from 'bcrypt';
+import { JwtService } from '@nestjs/jwt';
 import { RoleName } from '@prisma/client';
-import { Inject } from '@nestjs/common';
+import * as bcrypt from 'bcrypt';
+import {
+  AUTH_RESPONSE_EXPIRES_IN_SECONDS,
+  JWT_ACCESS_TOKEN_EXPIRES_IN,
+  JWT_REFRESH_TOKEN_EXPIRES_IN,
+  REFRESH_TOKEN_EXPIRY_DAYS,
+} from '../../domain/constants';
+import { JwtPayloadEntity } from '../../domain/entities';
 import {
   AUTH_REPOSITORY,
   type IAuthRepository,
 } from '../../domain/repositories';
-import { JwtPayloadEntity, AuthResponseEntity } from '../../domain/entities';
-import { LoginDto, SignUpDto, AuthResponseDto } from '../dtos';
-import {
-  JWT_ACCESS_TOKEN_EXPIRES_IN,
-  JWT_REFRESH_TOKEN_EXPIRES_IN,
-  REFRESH_TOKEN_EXPIRY_DAYS,
-  AUTH_RESPONSE_EXPIRES_IN_SECONDS,
-} from '../../domain/constants';
+import { AuthResponseDto, LoginDto, SignUpDto } from '../dtos';
+
+// User response type for getCurrentUser method
+export interface UserResponse {
+  id: string;
+  email: string | null;
+  fullName: string;
+  phoneNumber: string | null;
+  profilePhotoUrl: string | null;
+  emailVerified: boolean;
+  phoneVerified: boolean;
+  status: string;
+  roles: string[];
+  createdAt: Date;
+  lastLoginAt: Date | null;
+}
 
 @Injectable()
 export class AuthService {
@@ -44,13 +59,13 @@ export class AuthService {
 
     const user = await this.authRepository.createUser({
       email: email || '',
-      fullName: fullName!,
+      fullName: fullName || '',
       passwordHash,
       phoneNumber,
       emailVerified: false,
     });
 
-    return this.generateAuthResponse(user.id, user.email!);
+    return this.generateAuthResponse(user.id, user.email || '');
   }
 
   async login(loginDto: LoginDto): Promise<AuthResponseDto> {
@@ -73,7 +88,7 @@ export class AuthService {
       lastLoginAt: new Date(),
     });
 
-    return this.generateAuthResponse(user.id, user.email!);
+    return this.generateAuthResponse(user.id, user.email || '');
   }
 
   async refreshToken(refreshToken: string): Promise<AuthResponseDto> {
@@ -97,8 +112,8 @@ export class AuthService {
         throw new UnauthorizedException('User not found');
       }
 
-      return this.generateAuthResponse(user.id, user.email!);
-    } catch (error) {
+      return this.generateAuthResponse(user.id, user.email || '');
+    } catch (_error) {
       throw new UnauthorizedException('Invalid refresh token');
     }
   }
@@ -111,16 +126,9 @@ export class AuthService {
     accessToken: string;
     refreshToken?: string;
   }): Promise<AuthResponseDto> {
-    const {
-      providerId,
-      email,
-      fullName,
-      profilePhotoUrl,
-      accessToken,
-      refreshToken,
-    } = profile;
+    const { providerId, email, fullName, accessToken, refreshToken } = profile;
 
-    let oauthAccount = await this.authRepository.findOAuthAccount(
+    const oauthAccount = await this.authRepository.findOAuthAccount(
       'GOOGLE',
       providerId,
     );
@@ -144,7 +152,7 @@ export class AuthService {
         });
       }
 
-      return this.generateAuthResponse(user.id, user.email!);
+      return this.generateAuthResponse(user.id, user.email || '');
     }
 
     let user = await this.authRepository.findUserByEmail(email);
@@ -166,7 +174,7 @@ export class AuthService {
       expiresAt: new Date(Date.now() + 3600 * 1000),
     });
 
-    return this.generateAuthResponse(user.id, user.email!);
+    return this.generateAuthResponse(user.id, user.email || '');
   }
 
   async revokeRefreshToken(tokenId: string): Promise<void> {
@@ -261,7 +269,11 @@ export class AuthService {
   async validateJwtPayload(
     payload: JwtPayloadEntity,
   ): Promise<JwtPayloadEntity> {
-    const user = await this.authRepository.findUserById(payload.sub!);
+    if (!payload.sub) {
+      throw new UnauthorizedException('Invalid JWT payload');
+    }
+
+    const user = await this.authRepository.findUserById(payload.sub);
     if (!user || user.status !== 'ACTIVE') {
       throw new UnauthorizedException('User not found or inactive');
     }
@@ -274,13 +286,13 @@ export class AuthService {
     };
   }
 
-  async getCurrentUser(userId: string): Promise<any> {
+  async getCurrentUser(userId: string): Promise<UserResponse> {
     const user = await this.authRepository.findUserWithRoles(userId);
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
 
-    const roles = user.roles?.map((ur: any) => ur.role.name) || [];
+    const roles = user.roles?.map((ur) => ur.role.name) || [];
 
     return {
       id: user.id,

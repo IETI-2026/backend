@@ -1,34 +1,50 @@
 import {
-  Controller,
-  Post,
-  Get,
   Body,
-  UseGuards,
+  Controller,
+  Get,
+  HttpCode,
+  Post,
   Req,
   Res,
-  HttpCode,
   UnauthorizedException,
+  UseGuards,
 } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
-import type { Response, Request } from 'express';
 import { ConfigService } from '@nestjs/config';
+import { AuthGuard } from '@nestjs/passport';
 import {
-  ApiTags,
-  ApiOperation,
   ApiBearerAuth,
+  ApiOperation,
   ApiResponse,
+  ApiTags,
 } from '@nestjs/swagger';
-import {
-  LoginDto,
-  SignUpDto,
-  RefreshTokenDto,
-  AuthResponseDto,
-} from '../application/dtos';
-import { JwtAuthGuard, RolesGuard } from '../infrastructure/guards';
-import { Public, CurrentUser, Roles } from '../infrastructure/decorators';
-import { JwtPayloadEntity } from '../domain/entities';
 import { RoleName } from '@prisma/client';
-import { AuthService } from '../application/services/auth.service';
+import type { Request, Response } from 'express';
+import {
+  AuthResponseDto,
+  LoginDto,
+  RefreshTokenDto,
+  SignUpDto,
+} from '../application/dtos';
+import {
+  AuthService,
+  UserResponse,
+} from '../application/services/auth.service';
+import { JwtPayloadEntity } from '../domain/entities';
+import { CurrentUser, Public, Roles } from '../infrastructure/decorators';
+import { JwtAuthGuard, RolesGuard } from '../infrastructure/guards';
+
+// Interface for Google OAuth callback request
+interface GoogleOAuthRequest extends Request {
+  user?: {
+    provider: string;
+    providerId: string;
+    email?: string;
+    fullName: string;
+    profilePhotoUrl?: string;
+    accessToken: string;
+    refreshToken?: string;
+  };
+}
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -82,13 +98,18 @@ export class AuthController {
     const redirectUri = this.configService.get<string>(
       'oauth.google.callbackUrl',
     );
+
+    if (!redirectUri) {
+      throw new Error('Google OAuth callback URL is not configured');
+    }
+
     const scope = encodeURIComponent('openid profile email');
     const state = Math.random().toString(36).substring(7);
 
     const authUrl =
       `https://accounts.google.com/o/oauth2/v2/auth?` +
       `client_id=${clientId}&` +
-      `redirect_uri=${encodeURIComponent(redirectUri!)}&` +
+      `redirect_uri=${encodeURIComponent(redirectUri)}&` +
       `response_type=code&` +
       `scope=${scope}&` +
       `state=${state}`;
@@ -101,15 +122,25 @@ export class AuthController {
   @UseGuards(AuthGuard('google'))
   @ApiOperation({ summary: 'Google OAuth callback endpoint' })
   @ApiResponse({ status: 302, description: 'Redirect to frontend with tokens' })
-  async googleCallback(@Req() req: any, @Res() res: Response): Promise<void> {
+  async googleCallback(
+    @Req() req: GoogleOAuthRequest,
+    @Res() res: Response,
+  ): Promise<void> {
     if (!req.user) {
       throw new UnauthorizedException('Google authentication failed');
     }
 
-    try {
-      const authResponse = await this.authService.handleGoogleOAuthCallback(
-        req.user,
+    if (!req.user.email) {
+      throw new UnauthorizedException(
+        'Email is required for OAuth authentication',
       );
+    }
+
+    try {
+      const authResponse = await this.authService.handleGoogleOAuthCallback({
+        ...req.user,
+        email: req.user.email, // Ensure email is defined
+      });
 
       if (!authResponse.user) {
         throw new UnauthorizedException('User data not available');
@@ -143,7 +174,9 @@ export class AuthController {
   @ApiOperation({ summary: 'Get current authenticated user information' })
   @ApiResponse({ status: 200, description: 'User information retrieved' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async getCurrentUser(@CurrentUser() user: JwtPayloadEntity): Promise<any> {
+  async getCurrentUser(
+    @CurrentUser() user: JwtPayloadEntity,
+  ): Promise<UserResponse> {
     if (!user.sub) {
       throw new UnauthorizedException('User ID not available');
     }
@@ -158,7 +191,7 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Logout successful' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async logout(
-    @CurrentUser() user: JwtPayloadEntity,
+    @CurrentUser() _user: JwtPayloadEntity,
   ): Promise<{ message: string }> {
     // TODO: Revoke the user's refresh token(s) in the database
     return { message: 'Logout successful' };
@@ -172,7 +205,7 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Users list retrieved' })
   @ApiResponse({ status: 403, description: 'Forbidden - Admin role required' })
   async adminListUsers(
-    @CurrentUser() user: JwtPayloadEntity,
+    @CurrentUser() _user: JwtPayloadEntity,
   ): Promise<{ message: string }> {
     return { message: 'Admin endpoint - users list' };
   }
@@ -188,8 +221,8 @@ export class AuthController {
     description: 'Forbidden - Moderator/Admin role required',
   })
   async verifyProvider(
-    @CurrentUser() user: JwtPayloadEntity,
-    @Req() req: Request,
+    @CurrentUser() _user: JwtPayloadEntity,
+    @Req() _req: Request,
   ): Promise<{ message: string }> {
     return { message: 'Provider verification endpoint' };
   }

@@ -1,8 +1,8 @@
 import {
   CanActivate,
   ExecutionContext,
-  Injectable,
   ForbiddenException,
+  Injectable,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { RoleName } from '@prisma/client';
@@ -30,7 +30,7 @@ export class RolesGuard implements CanActivate {
       throw new ForbiddenException('User roles not found');
     }
 
-    const hasRole = requiredRoles.some((role) => user.roles!.includes(role));
+    const hasRole = requiredRoles.some((role) => user.roles?.includes(role));
 
     if (!hasRole) {
       throw new ForbiddenException(

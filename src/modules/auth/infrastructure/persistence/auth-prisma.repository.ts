@@ -1,7 +1,17 @@
-import { UserStatus, RoleName, User } from '@prisma/client';
 import { Injectable } from '@nestjs/common';
+import {
+  AuthProvider,
+  OAuthAccount,
+  RefreshToken,
+  RoleName,
+  User,
+  UserStatus,
+} from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
-import { IAuthRepository } from '../../domain/repositories/auth.repository';
+import {
+  IAuthRepository,
+  UserWithRoles,
+} from '../../domain/repositories/auth.repository';
 
 @Injectable()
 export class AuthPrismaRepository implements IAuthRepository {
@@ -19,9 +29,7 @@ export class AuthPrismaRepository implements IAuthRepository {
     });
   }
 
-  async findUserWithRoles(
-    userId: string,
-  ): Promise<(User & { roles: any[] }) | null> {
+  async findUserWithRoles(userId: string): Promise<UserWithRoles | null> {
     return this.prisma.user.findUnique({
       where: { id: userId },
       include: {
@@ -75,10 +83,10 @@ export class AuthPrismaRepository implements IAuthRepository {
   async findOAuthAccount(
     provider: string,
     providerUserId: string,
-  ): Promise<any | null> {
+  ): Promise<OAuthAccount | null> {
     return this.prisma.oAuthAccount.findFirst({
       where: {
-        provider: provider as any,
+        provider: provider as AuthProvider,
         providerUserId,
       },
       include: {
@@ -94,11 +102,11 @@ export class AuthPrismaRepository implements IAuthRepository {
     accessToken?: string;
     refreshToken?: string;
     expiresAt?: Date;
-  }): Promise<any> {
+  }): Promise<OAuthAccount> {
     return this.prisma.oAuthAccount.create({
       data: {
         userId: data.userId,
-        provider: data.provider as any,
+        provider: data.provider as AuthProvider,
         providerUserId: data.providerUserId,
         accessToken: data.accessToken,
         refreshToken: data.refreshToken,
@@ -107,7 +115,7 @@ export class AuthPrismaRepository implements IAuthRepository {
     });
   }
 
-  async findRefreshToken(token: string): Promise<any | null> {
+  async findRefreshToken(token: string): Promise<RefreshToken | null> {
     return this.prisma.refreshToken.findUnique({
       where: { token },
       include: {
@@ -122,7 +130,7 @@ export class AuthPrismaRepository implements IAuthRepository {
     expiresAt: Date;
     userAgent?: string;
     ipAddress?: string;
-  }): Promise<any> {
+  }): Promise<RefreshToken> {
     return this.prisma.refreshToken.create({
       data: {
         userId: data.userId,
@@ -135,14 +143,14 @@ export class AuthPrismaRepository implements IAuthRepository {
     });
   }
 
-  async revokeRefreshToken(tokenId: string): Promise<any> {
-    return this.prisma.refreshToken.update({
+  async revokeRefreshToken(tokenId: string): Promise<void> {
+    await this.prisma.refreshToken.update({
       where: { id: tokenId },
       data: { isRevoked: true },
     });
   }
 
-  async assignRoleToUser(userId: string, roleName: string): Promise<any> {
+  async assignRoleToUser(userId: string, roleName: string): Promise<void> {
     const role = await this.prisma.role.findUnique({
       where: { name: roleName as RoleName },
     });
@@ -151,7 +159,7 @@ export class AuthPrismaRepository implements IAuthRepository {
       throw new Error(`Role ${roleName} not found`);
     }
 
-    return this.prisma.userRole.upsert({
+    await this.prisma.userRole.upsert({
       where: {
         userId_roleId: {
           userId,

@@ -1,9 +1,20 @@
-import { RefreshToken, User } from '@prisma/client';
+import {
+  OAuthAccount,
+  RefreshToken,
+  Role,
+  User,
+  UserRole,
+} from '@prisma/client';
+
+// Type for User with populated roles
+export type UserWithRoles = User & {
+  roles: Array<UserRole & { role: Role }>;
+};
 
 export interface IAuthRepository {
   findUserByEmail(email: string): Promise<User | null>;
   findUserById(userId: string): Promise<User | null>;
-  findUserWithRoles(userId: string): Promise<(User & { roles: any[] }) | null>;
+  findUserWithRoles(userId: string): Promise<UserWithRoles | null>;
 
   createUser(data: {
     email: string;
@@ -25,7 +36,7 @@ export interface IAuthRepository {
   findOAuthAccount(
     provider: string,
     providerUserId: string,
-  ): Promise<any | null>;
+  ): Promise<OAuthAccount | null>;
   createOAuthAccount(data: {
     userId: string;
     provider: string;
@@ -33,9 +44,9 @@ export interface IAuthRepository {
     accessToken?: string;
     refreshToken?: string;
     expiresAt?: Date;
-  }): Promise<any>;
+  }): Promise<OAuthAccount>;
 
-  findRefreshToken(token: string): Promise<any | null>;
+  findRefreshToken(token: string): Promise<RefreshToken | null>;
   createRefreshToken(data: {
     userId: string;
     token: string;
