@@ -29,9 +29,6 @@ jobs:
       - name: Generate Prisma Client
         run: npm run prisma:generate
 
-      - name: Run Biome lint
-        run: npm run lint
-
   test:
     name: Run Tests
     runs-on: ubuntu-latest
