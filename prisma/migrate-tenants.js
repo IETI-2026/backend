@@ -10,12 +10,12 @@
  *
  * Configura los tenants en la variable TENANTS
  */
-
+require('dotenv').config();
 const { execSync } = require('node:child_process');
 const { Client } = require('pg');
 
 // Lista de tenants (esquemas) a provisionar y migrar
-const TENANTS = ['public', 'acme', 'globex', 'initech'];
+const TENANTS = ['public'];
 
 const DATABASE_URL = process.env.DATABASE_URL;
 

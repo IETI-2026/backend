@@ -1,3 +1,4 @@
+import { execSync } from 'node:child_process';
 import {
   BadRequestException,
   Injectable,
@@ -75,9 +76,10 @@ export class TenantPrismaService implements OnModuleDestroy {
   private async createClient(schema: string): Promise<PrismaClient> {
     const exists = await this.verifySchemaExists(schema);
     if (!exists) {
-      throw new Error(
-        `El esquema "${schema}" no existe. Debe ser provisionado previamente.`,
+      this.logger.log(
+        `El esquema "${schema}" no existe. Creándolo automáticamente...`,
       );
+      await this.provisionTenantSchema(schema);
     }
 
     const url = this.databaseUrl.includes('?')
@@ -90,6 +92,80 @@ export class TenantPrismaService implements OnModuleDestroy {
 
     await client.$connect();
     return client;
+  }
+
+  /**
+   * Provisiona un nuevo tenant: crea el esquema y aplica migraciones
+   */
+  private async provisionTenantSchema(schema: string): Promise<void> {
+    try {
+      // 1. Crear el esquema en la base de datos
+      await this.createSchema(schema);
+
+      // 2. Aplicar migraciones de Prisma
+      await this.applyMigrations(schema);
+
+      this.logger.log(`✅ Tenant "${schema}" provisionado exitosamente`);
+    } catch (error) {
+      this.logger.error(
+        `❌ Error provisionando tenant "${schema}"`,
+        error instanceof Error ? error.stack : String(error),
+      );
+      throw new Error(
+        `No se pudo provisionar el tenant "${schema}": ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
+  /**
+   * Crea el esquema SQL si no existe
+   */
+  private async createSchema(schema: string): Promise<void> {
+    const tempClient = new PrismaClient();
+
+    try {
+      await tempClient.$executeRawUnsafe(
+        `CREATE SCHEMA IF NOT EXISTS "${schema}"`,
+      );
+      this.logger.log(`📁 Esquema "${schema}" creado/verificado`);
+    } catch (error) {
+      this.logger.error(
+        `❌ Error creando esquema ${schema}`,
+        error instanceof Error ? error.stack : String(error),
+      );
+      throw error;
+    } finally {
+      await tempClient.$disconnect();
+    }
+  }
+
+  /**
+   * Aplica las migraciones de Prisma al esquema del tenant
+   */
+  private async applyMigrations(schema: string): Promise<void> {
+    const tenantUrl = this.databaseUrl.includes('?')
+      ? `${this.databaseUrl}&schema=${schema}`
+      : `${this.databaseUrl}?schema=${schema}`;
+
+    try {
+      this.logger.log(`🔄 Aplicando migraciones para: ${schema}`);
+
+      execSync('npx prisma migrate deploy', {
+        stdio: 'inherit',
+        env: {
+          ...process.env,
+          DATABASE_URL: tenantUrl,
+        },
+      });
+
+      this.logger.log(`✅ Migraciones aplicadas para: ${schema}`);
+    } catch (error) {
+      this.logger.error(
+        `❌ Error aplicando migraciones para ${schema}`,
+        error instanceof Error ? error.stack : String(error),
+      );
+      throw error;
+    }
   }
 
   private async verifySchemaExists(schema: string): Promise<boolean> {
