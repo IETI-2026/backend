@@ -4,11 +4,11 @@ import {
   Injectable,
   Logger,
   NotFoundException,
-} from "@nestjs/common";
-import type { IUserRepository } from "@users/domain";
-import { USER_REPOSITORY, UserStatus } from "@users/domain";
-import type { CreateUserDto, GetUsersQueryDto, UpdateUserDto } from "../dtos";
-import { UserResponseDto } from "../dtos";
+} from '@nestjs/common';
+import type { IUserRepository } from '@users/domain';
+import { USER_REPOSITORY, UserStatus } from '@users/domain';
+import type { CreateUserDto, GetUsersQueryDto, UpdateUserDto } from '../dtos';
+import { UserResponseDto } from '../dtos';
 
 @Injectable()
 export class UsersService {
@@ -37,7 +37,7 @@ export class UsersService {
         createUserDto.email,
       );
       if (existingUserByEmail) {
-        throw new ConflictException("Email already in use");
+        throw new ConflictException('Email already in use');
       }
     }
 
@@ -46,7 +46,7 @@ export class UsersService {
         createUserDto.phoneNumber,
       );
       if (existingUserByPhone) {
-        throw new ConflictException("Phone number already in use");
+        throw new ConflictException('Phone number already in use');
       }
     }
 
@@ -55,7 +55,7 @@ export class UsersService {
         createUserDto.documentId,
       );
       if (existingUserByDoc) {
-        throw new ConflictException("Document ID already in use");
+        throw new ConflictException('Document ID already in use');
       }
     }
 
@@ -136,7 +136,7 @@ export class UsersService {
         updateUserDto.email,
       );
       if (userWithEmail && userWithEmail.id !== id) {
-        throw new ConflictException("Email already in use");
+        throw new ConflictException('Email already in use');
       }
     }
 
@@ -149,7 +149,7 @@ export class UsersService {
         updateUserDto.phoneNumber,
       );
       if (userWithPhone && userWithPhone.id !== id) {
-        throw new ConflictException("Phone number already in use");
+        throw new ConflictException('Phone number already in use');
       }
     }
 

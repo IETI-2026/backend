@@ -1,4 +1,4 @@
-import { UserStatus } from "../enums";
+import { UserStatus } from '../enums';
 
 export interface UserEntity {
   id: string;

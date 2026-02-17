@@ -1,17 +1,17 @@
-import { configs } from "@config/index";
-import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
-import { ConfigModule } from "@nestjs/config";
-import { PrismaModule } from "@/prisma/prisma.module";
-import { UsersModule } from "./modules/users";
-import { ServiceRequestsModule } from "./modules/service-requests";
-import { TenantMiddleware, TenantModule } from "./tenant";
+import { configs } from '@config/index';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { PrismaModule } from '@/prisma/prisma.module';
+import { ServiceRequestsModule } from './modules/service-requests';
+import { UsersModule } from './modules/users';
+import { TenantMiddleware, TenantModule } from './tenant';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       load: configs,
-      envFilePath: ".env",
+      envFilePath: '.env',
     }),
     PrismaModule,
     TenantModule,
@@ -24,6 +24,6 @@ import { TenantMiddleware, TenantModule } from "./tenant";
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     // Aplica el middleware de tenant a todas las rutas
-    consumer.apply(TenantMiddleware).forRoutes("*");
+    consumer.apply(TenantMiddleware).forRoutes('*');
   }
 }

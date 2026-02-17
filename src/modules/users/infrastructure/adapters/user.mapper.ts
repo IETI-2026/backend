@@ -1,13 +1,13 @@
 import {
   User as PrismaUser,
   UserStatus as PrismaUserStatus,
-} from "@prisma/client";
+} from '@prisma/client';
 import type {
   CreateUserEntity,
   UpdateUserEntity,
   UserEntity,
-} from "@users/domain";
-import { UserStatus } from "@users/domain";
+} from '@users/domain';
+import { UserStatus } from '@users/domain';
 
 export function toDomain(prismaUser: PrismaUser): UserEntity {
   return {

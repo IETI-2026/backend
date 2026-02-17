@@ -3,14 +3,14 @@ import {
   Inject,
   Injectable,
   NotFoundException,
-} from "@nestjs/common";
+} from '@nestjs/common';
 import {
+  type PrismaClient,
   ServiceRequestStatus,
   TechnicianResponseStatus,
   UrgencyLevel,
-  type PrismaClient,
-} from "@prisma/client";
-import { TENANT_PRISMA_CLIENT } from "@/tenant";
+} from '@prisma/client';
+import { TENANT_PRISMA_CLIENT } from '@/tenant';
 import {
   type AcceptedTechnicianUserDto,
   type AcceptServiceRequestDto,
@@ -19,7 +19,7 @@ import {
   type GetServiceRequestsQueryDto,
   type RejectServiceRequestDto,
   ServiceRequestResponseDto,
-} from "../dtos";
+} from '../dtos';
 
 @Injectable()
 export class ServiceRequestsService {
@@ -53,7 +53,7 @@ export class ServiceRequestsService {
       },
       include: {
         technicianResponses: {
-          orderBy: { respondedAt: "desc" },
+          orderBy: { respondedAt: 'desc' },
         },
       },
     });
@@ -85,10 +85,10 @@ export class ServiceRequestsService {
         where,
         skip: page * limit,
         take: limit,
-        orderBy: { createdAt: "desc" },
+        orderBy: { createdAt: 'desc' },
         include: {
           technicianResponses: {
-            orderBy: { respondedAt: "desc" },
+            orderBy: { respondedAt: 'desc' },
           },
         },
       }),
@@ -123,7 +123,7 @@ export class ServiceRequestsService {
           serviceRequestId,
           status: TechnicianResponseStatus.ACCEPTED,
         },
-        orderBy: { respondedAt: "desc" },
+        orderBy: { respondedAt: 'desc' },
         include: {
           technicianUser: {
             select: {
@@ -185,10 +185,10 @@ export class ServiceRequestsService {
           },
         },
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: { createdAt: 'desc' },
       include: {
         technicianResponses: {
-          orderBy: { respondedAt: "desc" },
+          orderBy: { respondedAt: 'desc' },
         },
       },
     });
@@ -255,7 +255,7 @@ export class ServiceRequestsService {
         newStatus: ServiceRequestStatus.REQUESTED,
         triggeredBy: dto.technicianUserId,
         metadata: {
-          action: "TECHNICIAN_ACCEPTED",
+          action: 'TECHNICIAN_ACCEPTED',
         },
       },
     });
@@ -324,7 +324,7 @@ export class ServiceRequestsService {
         triggeredBy: dto.technicianUserId,
         notes: dto.reason ?? null,
         metadata: {
-          action: "TECHNICIAN_REJECTED",
+          action: 'TECHNICIAN_REJECTED',
         },
       },
     });
@@ -403,7 +403,7 @@ export class ServiceRequestsService {
         newStatus: ServiceRequestStatus.ASSIGNED,
         triggeredBy: dto.customerUserId,
         metadata: {
-          action: "CUSTOMER_SELECTED_TECHNICIAN",
+          action: 'CUSTOMER_SELECTED_TECHNICIAN',
           technicianUserId: dto.technicianUserId,
         },
       },
@@ -419,7 +419,7 @@ export class ServiceRequestsService {
       where: { id: serviceRequestId },
       include: {
         technicianResponses: {
-          orderBy: { respondedAt: "desc" },
+          orderBy: { respondedAt: 'desc' },
         },
       },
     });

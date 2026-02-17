@@ -1,5 +1,5 @@
-import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { UrgencyLevel } from "@prisma/client";
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { UrgencyLevel } from '@prisma/client';
 import {
   ArrayMinSize,
   ArrayUnique,
@@ -11,19 +11,19 @@ import {
   IsString,
   IsUUID,
   MaxLength,
-} from "class-validator";
+} from 'class-validator';
 
 export class CreateServiceRequestDto {
   @ApiProperty({
-    description: "ID del usuario cliente que crea la solicitud",
-    example: "550e8400-e29b-41d4-a716-446655440000",
+    description: 'ID del usuario cliente que crea la solicitud',
+    example: '550e8400-e29b-41d4-a716-446655440000',
   })
   @IsUUID()
   userId!: string;
 
   @ApiProperty({
-    description: "Descripción del problema reportado por el cliente",
-    example: "El lavamanos tiene una fuga y gotea constantemente",
+    description: 'Descripción del problema reportado por el cliente',
+    example: 'El lavamanos tiene una fuga y gotea constantemente',
     maxLength: 2000,
   })
   @IsString()
@@ -32,8 +32,8 @@ export class CreateServiceRequestDto {
   problema!: string;
 
   @ApiProperty({
-    description: "Lista de habilidades requeridas para resolver el problema",
-    example: ["plomería", "soldadura"],
+    description: 'Lista de habilidades requeridas para resolver el problema',
+    example: ['plomería', 'soldadura'],
     type: [String],
   })
   @IsArray()
@@ -43,7 +43,7 @@ export class CreateServiceRequestDto {
   skills!: string[];
 
   @ApiProperty({
-    description: "Latitud del punto de servicio",
+    description: 'Latitud del punto de servicio',
     example: 4.60971,
     type: Number,
   })
@@ -51,7 +51,7 @@ export class CreateServiceRequestDto {
   latitude!: number;
 
   @ApiProperty({
-    description: "Longitud del punto de servicio",
+    description: 'Longitud del punto de servicio',
     example: -74.08175,
     type: Number,
   })
@@ -59,8 +59,8 @@ export class CreateServiceRequestDto {
   longitude!: number;
 
   @ApiProperty({
-    description: "Dirección legible del punto de servicio",
-    example: "Calle 80 # 15-20, Bogotá",
+    description: 'Dirección legible del punto de servicio',
+    example: 'Calle 80 # 15-20, Bogotá',
   })
   @IsString()
   @IsNotEmpty()
@@ -68,15 +68,15 @@ export class CreateServiceRequestDto {
 
   @ApiProperty({
     description:
-      "Ciudad o tenant lógico de la solicitud (por ahora enviado como atributo)",
-    example: "bogota",
+      'Ciudad o tenant lógico de la solicitud (por ahora enviado como atributo)',
+    example: 'bogota',
   })
   @IsString()
   @IsNotEmpty()
   serviceCity!: string;
 
   @ApiPropertyOptional({
-    description: "Nivel de urgencia de la solicitud",
+    description: 'Nivel de urgencia de la solicitud',
     enum: UrgencyLevel,
     default: UrgencyLevel.MEDIUM,
   })
