@@ -17,12 +17,17 @@ describe('UsersService', () => {
     fullName: 'Test User',
     documentId: '1234567890',
     profilePhotoUrl: 'https://example.com/photo.jpg',
+    skills: [],
+    currentLatitude: null,
+    currentLongitude: null,
+    lastLocationUpdate: null,
     status: UserStatus.ACTIVE,
     emailVerified: false,
     phoneVerified: false,
     createdAt: new Date('2024-01-01'),
     updatedAt: new Date('2024-01-01'),
     lastLoginAt: null,
+    deletedAt: null,
   };
 
   const mockUserRepository: jest.Mocked<IUserRepository> = {

@@ -50,6 +50,11 @@ enum ServiceRequestStatus {
   FAILED       // No hubo prestador disponible
 }
 
+enum TechnicianResponseStatus {
+  ACCEPTED
+  REJECTED
+}
+
 enum UrgencyLevel {
   LOW
   MEDIUM
@@ -130,6 +135,10 @@ model User {
   fullName       String
   documentId     String?    @unique    // Cédula / documento de identidad
   profilePhotoUrl String?
+  skills         String[]   @default([])
+  currentLatitude Float?
+  currentLongitude Float?
+  lastLocationUpdate DateTime?
   status         UserStatus @default(ACTIVE)
   emailVerified  Boolean    @default(false)
   phoneVerified  Boolean    @default(false)
@@ -155,6 +164,8 @@ model User {
   auditLogs          AuditLog[]          @relation("AuditUser")
   chatMessages       ChatMessage[]
   subscriptions      UserSubscription[]
+  assignedRequests   ServiceRequest[]    @relation("AssignedTechnician")
+  technicianResponses ServiceRequestTechnicianResponse[] @relation("TechnicianUser")
 
   @@map("users")
 }
@@ -357,12 +368,15 @@ model ProviderService {
 model ServiceRequest {
   id            String               @id @default(uuid())
   userId        String
+  assignedTechnicianId String?
   categoryId    String?
   subcategoryId String?
   addressId     String?
 
   // Input del usuario (lenguaje natural)
   rawDescription String
+  serviceCity String
+  requestedSkills String[]          @default([])
 
   // Resultado del procesamiento IA
   aiCategoryId          String?   // Categoría clasificada por IA
@@ -399,6 +413,7 @@ model ServiceRequest {
   cancellationNote   String?
 
   user          User                  @relation("RequestUser", fields: [userId], references: [id])
+  assignedTechnician User?            @relation("AssignedTechnician", fields: [assignedTechnicianId], references: [id])
   category      ServiceCategory?      @relation(fields: [categoryId], references: [id])
   subcategory   ServiceSubcategory?   @relation(fields: [subcategoryId], references: [id])
   address       Address?              @relation(fields: [addressId], references: [id])
@@ -407,10 +422,31 @@ model ServiceRequest {
   payment       Payment?
   rating        Rating?
   chatMessages  ChatMessage[]
+  technicianResponses ServiceRequestTechnicianResponse[]
 
   @@index([userId, status])
+  @@index([assignedTechnicianId])
   @@index([status, createdAt])
   @@map("service_requests")
+}
+
+model ServiceRequestTechnicianResponse {
+  id               String                   @id @default(uuid())
+  serviceRequestId String
+  technicianUserId String
+  status           TechnicianResponseStatus
+  reason           String?
+  respondedAt      DateTime                 @default(now())
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+
+  serviceRequest   ServiceRequest           @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
+  technicianUser   User                     @relation("TechnicianUser", fields: [technicianUserId], references: [id], onDelete: Cascade)
+
+  @@unique([serviceRequestId, technicianUserId])
+  @@index([serviceRequestId, status])
+  @@index([technicianUserId, status])
+  @@map("service_request_technician_responses")
 }
 
 // Timeline de eventos del servicio (inmutable)

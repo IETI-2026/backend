@@ -43,6 +43,36 @@ export class UserResponseDto {
   profilePhotoUrl!: string | null;
 
   @ApiProperty({
+    description: 'Lista de habilidades del usuario',
+    example: ['electricidad', 'plomería'],
+    type: [String],
+  })
+  skills!: string[];
+
+  @ApiPropertyOptional({
+    description: 'Latitud actual del usuario',
+    example: 4.60971,
+    nullable: true,
+  })
+  currentLatitude!: number | null;
+
+  @ApiPropertyOptional({
+    description: 'Longitud actual del usuario',
+    example: -74.08175,
+    nullable: true,
+  })
+  currentLongitude!: number | null;
+
+  @ApiPropertyOptional({
+    description: 'Fecha de última actualización de ubicación',
+    example: '2026-02-16T10:30:00Z',
+    type: 'string',
+    format: 'date-time',
+    nullable: true,
+  })
+  lastLocationUpdate!: Date | null;
+
+  @ApiProperty({
     description: 'Estado actual del usuario',
     enum: UserStatus,
     example: UserStatus.ACTIVE,

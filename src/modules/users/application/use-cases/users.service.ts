@@ -22,6 +22,16 @@ export class UsersService {
   async create(createUserDto: CreateUserDto): Promise<UserResponseDto> {
     this.logger.log(`Creating user with email: ${createUserDto.email}`);
 
+    if (
+      createUserDto.currentLatitude !== undefined ||
+      createUserDto.currentLongitude !== undefined
+    ) {
+      createUserDto = {
+        ...createUserDto,
+        lastLocationUpdate: new Date(),
+      };
+    }
+
     if (createUserDto.email) {
       const existingUserByEmail = await this.userRepository.findByEmail(
         createUserDto.email,
@@ -104,6 +114,16 @@ export class UsersService {
   ): Promise<UserResponseDto> {
     this.logger.log(`Updating user with ID: ${id}`);
 
+    if (
+      updateUserDto.currentLatitude !== undefined ||
+      updateUserDto.currentLongitude !== undefined
+    ) {
+      updateUserDto = {
+        ...updateUserDto,
+        lastLocationUpdate: new Date(),
+      };
+    }
+
     // Verificar que el usuario existe
     const existingUser = await this.userRepository.findById(id);
     if (!existingUser) {
@@ -170,6 +190,10 @@ export class UsersService {
     fullName: string;
     documentId: string | null;
     profilePhotoUrl: string | null;
+    skills: string[];
+    currentLatitude: number | null;
+    currentLongitude: number | null;
+    lastLocationUpdate: Date | null;
     status: UserStatus;
     emailVerified: boolean;
     phoneVerified: boolean;
@@ -184,6 +208,10 @@ export class UsersService {
     response.fullName = user.fullName;
     response.documentId = user.documentId;
     response.profilePhotoUrl = user.profilePhotoUrl;
+    response.skills = user.skills;
+    response.currentLatitude = user.currentLatitude;
+    response.currentLongitude = user.currentLongitude;
+    response.lastLocationUpdate = user.lastLocationUpdate;
     response.status = user.status;
     response.emailVerified = user.emailVerified;
     response.phoneVerified = user.phoneVerified;

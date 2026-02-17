@@ -7,6 +7,10 @@ export interface UserEntity {
   fullName: string;
   documentId: string | null;
   profilePhotoUrl: string | null;
+  skills: string[];
+  currentLatitude: number | null;
+  currentLongitude: number | null;
+  lastLocationUpdate: Date | null;
   status: UserStatus;
   emailVerified: boolean;
   phoneVerified: boolean;
@@ -23,6 +27,10 @@ export interface CreateUserEntity {
   fullName: string;
   documentId?: string;
   profilePhotoUrl?: string;
+  skills?: string[];
+  currentLatitude?: number;
+  currentLongitude?: number;
+  lastLocationUpdate?: Date;
   status?: UserStatus;
 }
 
@@ -32,6 +40,10 @@ export interface UpdateUserEntity {
   fullName?: string;
   documentId?: string;
   profilePhotoUrl?: string;
+  skills?: string[];
+  currentLatitude?: number;
+  currentLongitude?: number;
+  lastLocationUpdate?: Date;
   status?: UserStatus;
   emailVerified?: boolean;
   phoneVerified?: boolean;

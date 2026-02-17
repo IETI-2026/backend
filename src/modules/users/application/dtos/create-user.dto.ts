@@ -1,9 +1,14 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { UserStatus } from '@users/domain';
+import { Type } from 'class-transformer';
 import {
+  ArrayUnique,
+  IsArray,
+  IsDate,
   IsEmail,
   IsEnum,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsString,
   MaxLength,
@@ -69,6 +74,47 @@ export class CreateUserDto {
   @IsOptional()
   @IsString()
   profilePhotoUrl?: string;
+
+  @ApiPropertyOptional({
+    description: 'Lista de habilidades del usuario',
+    example: ['electricidad', 'plomería'],
+    type: [String],
+    default: [],
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayUnique()
+  @IsString({ each: true })
+  skills?: string[];
+
+  @ApiPropertyOptional({
+    description: 'Latitud actual del usuario',
+    example: 4.60971,
+    type: Number,
+  })
+  @IsOptional()
+  @IsNumber()
+  currentLatitude?: number;
+
+  @ApiPropertyOptional({
+    description: 'Longitud actual del usuario',
+    example: -74.08175,
+    type: Number,
+  })
+  @IsOptional()
+  @IsNumber()
+  currentLongitude?: number;
+
+  @ApiPropertyOptional({
+    description: 'Fecha de última actualización de ubicación',
+    example: '2026-02-16T10:30:00Z',
+    type: 'string',
+    format: 'date-time',
+  })
+  @IsOptional()
+  @IsDate()
+  @Type(() => Date)
+  lastLocationUpdate?: Date;
 
   @ApiPropertyOptional({
     description: 'Estado del usuario',

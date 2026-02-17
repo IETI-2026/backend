@@ -2,6 +2,7 @@ import { configs } from '@config/index';
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from '@/prisma/prisma.module';
+import { ServiceRequestsModule } from './modules/service-requests';
 import { AuthModule } from './modules/auth';
 import { UsersModule } from './modules/users';
 import { TenantMiddleware, TenantModule } from './tenant';
@@ -17,6 +18,7 @@ import { TenantMiddleware, TenantModule } from './tenant';
     TenantModule,
     AuthModule,
     UsersModule,
+    ServiceRequestsModule,
   ],
   controllers: [],
   providers: [],
