@@ -74,6 +74,14 @@ jobs:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/cameyo_test?schema=public
           JWT_SECRET: test-jwt-secret-key-for-ci
           JWT_EXPIRES_IN: 1h
+          GOOGLE_CLIENT_ID: your-google-client-id.apps.googleusercontent.com
+          GOOGLE_CLIENT_SECRET: your-google-client-secret
+          GOOGLE_CALLBACK_URL: http://localhost:3333/auth/google/callback
+          FRONTEND_URL: http://localhost:3000
+          ADMIN_EMAIL: admin@mail.com
+          ADMIN_PASSWORD: admin123
+          ADMIN_FULLNAME: Admin User
+          ADMIN_PHONE: +1234567890
         run: npm run test
 
       - name: Run e2e tests
