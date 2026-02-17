@@ -133,6 +133,9 @@ model User {
   status         UserStatus @default(ACTIVE)
   emailVerified  Boolean    @default(false)
   phoneVerified  Boolean    @default(false)
+  // Rol principal elegido en el registro (USER | PROVIDER). Los roles adicionales
+  // (ADMIN, MODERATOR, etc.) se asignan vía UserRole por un admin.
+  primaryRole    RoleName   @default(USER)
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
   lastLoginAt    DateTime?
@@ -189,34 +192,23 @@ model RefreshToken {
 }
 
 // ============================================================
-// MÓDULO: ROLES Y PERMISOS (RBAC)
+// MÓDULO: ROLES (RBAC simplificado)
 // ============================================================
 
 model Role {
-  id          String           @id @default(uuid())
-  name        RoleName         @unique
+  id          String    @id @default(uuid())
+  name        RoleName  @unique
   description String?
-  createdAt   DateTime         @default(now())
+  createdAt   DateTime  @default(now())
 
+  // Relación con usuarios asignados (p. ej. ADMIN, MODERATOR)
   users       UserRole[]
-  permissions RolePermission[]
 
   @@map("roles")
 }
 
-model Permission {
-  id          String           @id @default(uuid())
-  name        String           @unique  // e.g. "request:create", "provider:verify"
-  description String?
-  resource    String           // e.g. "request", "provider", "payment"
-  action      String           // e.g. "create", "read", "update", "delete"
-  createdAt   DateTime         @default(now())
-
-  roles       RolePermission[]
-
-  @@map("permissions")
-}
-
+// Asociación simple usuario↔rol. El campo `assignedBy` debe rellenarse
+// siempre desde la lógica del servicio y solo por usuarios con rol ADMIN.
 model UserRole {
   userId     String
   roleId     String
@@ -228,17 +220,6 @@ model UserRole {
 
   @@id([userId, roleId])
   @@map("user_roles")
-}
-
-model RolePermission {
-  roleId       String
-  permissionId String
-
-  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
-
-  @@id([roleId, permissionId])
-  @@map("role_permissions")
 }
 
 // ============================================================

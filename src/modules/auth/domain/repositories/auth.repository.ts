@@ -45,6 +45,10 @@ export interface IAuthRepository {
   }): Promise<RefreshToken>;
   revokeRefreshToken(tokenId: string): Promise<void>;
 
-  assignRoleToUser(userId: string, roleName: string): Promise<void>;
+  assignRoleToUser(
+    userId: string,
+    roleName: string,
+    assignedBy?: string,
+  ): Promise<void>;
   getUserRoles(userId: string): Promise<string[]>;
 }
