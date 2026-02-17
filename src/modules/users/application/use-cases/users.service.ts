@@ -4,11 +4,11 @@ import {
   Injectable,
   Logger,
   NotFoundException,
-} from '@nestjs/common';
-import type { IUserRepository } from '@users/domain';
-import { USER_REPOSITORY, UserStatus } from '@users/domain';
-import type { CreateUserDto, GetUsersQueryDto, UpdateUserDto } from '../dtos';
-import { UserResponseDto } from '../dtos';
+} from "@nestjs/common";
+import type { IUserRepository } from "@users/domain";
+import { USER_REPOSITORY, UserStatus } from "@users/domain";
+import type { CreateUserDto, GetUsersQueryDto, UpdateUserDto } from "../dtos";
+import { UserResponseDto } from "../dtos";
 
 @Injectable()
 export class UsersService {
@@ -22,12 +22,22 @@ export class UsersService {
   async create(createUserDto: CreateUserDto): Promise<UserResponseDto> {
     this.logger.log(`Creating user with email: ${createUserDto.email}`);
 
+    if (
+      createUserDto.currentLatitude !== undefined ||
+      createUserDto.currentLongitude !== undefined
+    ) {
+      createUserDto = {
+        ...createUserDto,
+        lastLocationUpdate: new Date(),
+      };
+    }
+
     if (createUserDto.email) {
       const existingUserByEmail = await this.userRepository.findByEmail(
         createUserDto.email,
       );
       if (existingUserByEmail) {
-        throw new ConflictException('Email already in use');
+        throw new ConflictException("Email already in use");
       }
     }
 
@@ -36,7 +46,7 @@ export class UsersService {
         createUserDto.phoneNumber,
       );
       if (existingUserByPhone) {
-        throw new ConflictException('Phone number already in use');
+        throw new ConflictException("Phone number already in use");
       }
     }
 
@@ -45,7 +55,7 @@ export class UsersService {
         createUserDto.documentId,
       );
       if (existingUserByDoc) {
-        throw new ConflictException('Document ID already in use');
+        throw new ConflictException("Document ID already in use");
       }
     }
 
@@ -104,6 +114,16 @@ export class UsersService {
   ): Promise<UserResponseDto> {
     this.logger.log(`Updating user with ID: ${id}`);
 
+    if (
+      updateUserDto.currentLatitude !== undefined ||
+      updateUserDto.currentLongitude !== undefined
+    ) {
+      updateUserDto = {
+        ...updateUserDto,
+        lastLocationUpdate: new Date(),
+      };
+    }
+
     // Verificar que el usuario existe
     const existingUser = await this.userRepository.findById(id);
     if (!existingUser) {
@@ -116,7 +136,7 @@ export class UsersService {
         updateUserDto.email,
       );
       if (userWithEmail && userWithEmail.id !== id) {
-        throw new ConflictException('Email already in use');
+        throw new ConflictException("Email already in use");
       }
     }
 
@@ -129,7 +149,7 @@ export class UsersService {
         updateUserDto.phoneNumber,
       );
       if (userWithPhone && userWithPhone.id !== id) {
-        throw new ConflictException('Phone number already in use');
+        throw new ConflictException("Phone number already in use");
       }
     }
 
@@ -170,6 +190,10 @@ export class UsersService {
     fullName: string;
     documentId: string | null;
     profilePhotoUrl: string | null;
+    skills: string[];
+    currentLatitude: number | null;
+    currentLongitude: number | null;
+    lastLocationUpdate: Date | null;
     status: UserStatus;
     emailVerified: boolean;
     phoneVerified: boolean;
@@ -184,6 +208,10 @@ export class UsersService {
     response.fullName = user.fullName;
     response.documentId = user.documentId;
     response.profilePhotoUrl = user.profilePhotoUrl;
+    response.skills = user.skills;
+    response.currentLatitude = user.currentLatitude;
+    response.currentLongitude = user.currentLongitude;
+    response.lastLocationUpdate = user.lastLocationUpdate;
     response.status = user.status;
     response.emailVerified = user.emailVerified;
     response.phoneVerified = user.phoneVerified;

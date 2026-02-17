@@ -1,13 +1,13 @@
 import {
   User as PrismaUser,
   UserStatus as PrismaUserStatus,
-} from '@prisma/client';
+} from "@prisma/client";
 import type {
   CreateUserEntity,
   UpdateUserEntity,
   UserEntity,
-} from '@users/domain';
-import { UserStatus } from '@users/domain';
+} from "@users/domain";
+import { UserStatus } from "@users/domain";
 
 export function toDomain(prismaUser: PrismaUser): UserEntity {
   return {
@@ -17,6 +17,10 @@ export function toDomain(prismaUser: PrismaUser): UserEntity {
     fullName: prismaUser.fullName,
     documentId: prismaUser.documentId,
     profilePhotoUrl: prismaUser.profilePhotoUrl,
+    skills: prismaUser.skills,
+    currentLatitude: prismaUser.currentLatitude,
+    currentLongitude: prismaUser.currentLongitude,
+    lastLocationUpdate: prismaUser.lastLocationUpdate,
     status: prismaUser.status as UserStatus,
     emailVerified: prismaUser.emailVerified,
     phoneVerified: prismaUser.phoneVerified,
@@ -35,6 +39,10 @@ export function toPrismaCreate(data: CreateUserEntity) {
     fullName: data.fullName,
     documentId: data.documentId,
     profilePhotoUrl: data.profilePhotoUrl,
+    skills: data.skills,
+    currentLatitude: data.currentLatitude,
+    currentLongitude: data.currentLongitude,
+    lastLocationUpdate: data.lastLocationUpdate,
     status: data.status as PrismaUserStatus | undefined,
   };
 }
@@ -46,6 +54,10 @@ export function toPrismaUpdate(data: UpdateUserEntity) {
     fullName: data.fullName,
     documentId: data.documentId,
     profilePhotoUrl: data.profilePhotoUrl,
+    skills: data.skills,
+    currentLatitude: data.currentLatitude,
+    currentLongitude: data.currentLongitude,
+    lastLocationUpdate: data.lastLocationUpdate,
     status: data.status as PrismaUserStatus | undefined,
     emailVerified: data.emailVerified,
     phoneVerified: data.phoneVerified,
