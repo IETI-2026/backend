@@ -1,16 +1,19 @@
 import {
   ConflictException,
+  InternalServerErrorException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
-} from '@nestjs/common';
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import {
   type PrismaClient,
   ServiceRequestStatus,
   TechnicianResponseStatus,
   UrgencyLevel,
-} from '@prisma/client';
-import { TENANT_PRISMA_CLIENT } from '@/tenant';
+} from "@prisma/client";
+import { TENANT_PRISMA_CLIENT } from "@/tenant";
 import {
   type AcceptedTechnicianUserDto,
   type AcceptServiceRequestDto,
@@ -19,13 +22,35 @@ import {
   type GetServiceRequestsQueryDto,
   type RejectServiceRequestDto,
   ServiceRequestResponseDto,
-} from '../dtos';
+} from "../dtos";
+
+type AgentClassificationResponse = {
+  categoria?: unknown;
+  categoría?: unknown;
+  urgencia?: unknown;
+};
+
+type ChatCompletionsResponse = {
+  choices?: Array<{
+    message?: {
+      content?:
+        | string
+        | Array<{
+            type?: string;
+            text?: string;
+          }>;
+    };
+  }>;
+};
 
 @Injectable()
 export class ServiceRequestsService {
+  private readonly logger = new Logger(ServiceRequestsService.name);
+
   constructor(
     @Inject(TENANT_PRISMA_CLIENT)
     private readonly prisma: PrismaClient,
+    private readonly configService: ConfigService,
   ) {}
 
   async create(
@@ -40,20 +65,22 @@ export class ServiceRequestsService {
       throw new NotFoundException(`User with ID ${dto.userId} not found`);
     }
 
+    const classification = await this.classifyProblemWithAgent(dto.problema);
+
     const request = await this.prisma.serviceRequest.create({
       data: {
         userId: dto.userId,
         rawDescription: dto.problema,
         serviceCity: dto.serviceCity.trim().toLowerCase(),
-        requestedSkills: this.normalizeSkills(dto.skills),
+        requestedSkills: classification.skills,
         latitude: dto.latitude,
         longitude: dto.longitude,
         addressText: dto.addressText,
-        urgency: dto.urgency ?? UrgencyLevel.MEDIUM,
+        urgency: classification.urgency,
       },
       include: {
         technicianResponses: {
-          orderBy: { respondedAt: 'desc' },
+          orderBy: { respondedAt: "desc" },
         },
       },
     });
@@ -85,10 +112,10 @@ export class ServiceRequestsService {
         where,
         skip: page * limit,
         take: limit,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         include: {
           technicianResponses: {
-            orderBy: { respondedAt: 'desc' },
+            orderBy: { respondedAt: "desc" },
           },
         },
       }),
@@ -123,7 +150,7 @@ export class ServiceRequestsService {
           serviceRequestId,
           status: TechnicianResponseStatus.ACCEPTED,
         },
-        orderBy: { respondedAt: 'desc' },
+        orderBy: { respondedAt: "desc" },
         include: {
           technicianUser: {
             select: {
@@ -185,10 +212,10 @@ export class ServiceRequestsService {
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
       include: {
         technicianResponses: {
-          orderBy: { respondedAt: 'desc' },
+          orderBy: { respondedAt: "desc" },
         },
       },
     });
@@ -255,7 +282,7 @@ export class ServiceRequestsService {
         newStatus: ServiceRequestStatus.REQUESTED,
         triggeredBy: dto.technicianUserId,
         metadata: {
-          action: 'TECHNICIAN_ACCEPTED',
+          action: "TECHNICIAN_ACCEPTED",
         },
       },
     });
@@ -324,7 +351,7 @@ export class ServiceRequestsService {
         triggeredBy: dto.technicianUserId,
         notes: dto.reason ?? null,
         metadata: {
-          action: 'TECHNICIAN_REJECTED',
+          action: "TECHNICIAN_REJECTED",
         },
       },
     });
@@ -403,7 +430,7 @@ export class ServiceRequestsService {
         newStatus: ServiceRequestStatus.ASSIGNED,
         triggeredBy: dto.customerUserId,
         metadata: {
-          action: 'CUSTOMER_SELECTED_TECHNICIAN',
+          action: "CUSTOMER_SELECTED_TECHNICIAN",
           technicianUserId: dto.technicianUserId,
         },
       },
@@ -419,7 +446,7 @@ export class ServiceRequestsService {
       where: { id: serviceRequestId },
       include: {
         technicianResponses: {
-          orderBy: { respondedAt: 'desc' },
+          orderBy: { respondedAt: "desc" },
         },
       },
     });
@@ -439,6 +466,165 @@ export class ServiceRequestsService {
       .filter((skill) => skill.length > 0);
 
     return [...new Set(normalized)];
+  }
+
+  private async classifyProblemWithAgent(problema: string): Promise<{
+    skills: string[];
+    urgency: UrgencyLevel;
+  }> {
+    const endpoint = this.configService.get<string>("azureAgent.endpoint");
+    const apiKey = this.configService.get<string>("azureAgent.apiKey");
+    const apiVersion = this.configService.get<string>("azureAgent.apiVersion");
+
+    if (!endpoint || !apiKey) {
+      throw new InternalServerErrorException(
+        "Azure agent configuration is missing. Set AZURE_AGENT_ENDPOINT and AZURE_AGENT_API_KEY.",
+      );
+    }
+
+    const normalizedEndpoint = endpoint.includes("api-version=")
+      ? endpoint
+      : `${endpoint}${endpoint.includes("?") ? "&" : "?"}api-version=${apiVersion}`;
+
+    let response: Response;
+    try {
+      response = await fetch(normalizedEndpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "api-key": apiKey,
+        },
+        body: JSON.stringify({
+          messages: [
+            {
+              role: "system",
+              content:
+                'Eres un sistema de clasificación para la aplicación CameYo en Colombia. Debes analizar el problema descrito por un usuario y responder únicamente en JSON válido con este esquema EXACTO: { "categoria": "plomeria | electricidad | cerrajeria | gas | albanileria | carpinteria | refrigeracion | tecnologia | jardineria | pintura | limpieza | impermeabilizacion | techos | vidrieria | soldadura | mantenimiento | mascotas | mudanza | otro", "urgencia": "baja | media | alta"} Reglas estrictas: - SOLO puedes usar exactamente uno de los valores indicados en "categoria". - No puedes inventar nuevas categorías. - No puedes cambiar la ortografía. - No puedes usar acentos. - Si no encaja claramente en ninguna, usa "otro". - Si hay riesgo inmediato (inundación, fuga de gas, corto circuito, persona atrapada), la urgencia es "alta". - Si el usuario expresa prisa ("urgente", "ya", "ahora mismo"), es "alta". - Si el problema impide usar algo esencial (sin agua, sin luz), es mínimo "media". - No agregues texto fuera del JSON.',
+            },
+            {
+              role: "user",
+              content: `Problema: ${problema}`,
+            },
+          ],
+          temperature: 0,
+          response_format: {
+            type: "json_object",
+          },
+        }),
+      });
+      console.log("response", response);
+    } catch (error) {
+      this.logger.error("Azure agent request failed", error);
+      throw new InternalServerErrorException(
+        "Failed to contact Azure agent service",
+      );
+    }
+
+    if (!response.ok) {
+      const body = await response.text();
+      this.logger.error(
+        `Azure agent responded with status ${response.status}: ${body}`,
+      );
+      throw new InternalServerErrorException(
+        "Azure agent service returned an error",
+      );
+    }
+
+    const completion = (await response.json()) as ChatCompletionsResponse;
+    const rawContent = completion.choices?.[0]?.message?.content;
+    const content = this.extractAssistantContent(rawContent);
+
+    if (!content) {
+      throw new InternalServerErrorException(
+        "Azure agent response did not include assistant content",
+      );
+    }
+
+    let payload: AgentClassificationResponse;
+    try {
+      payload = JSON.parse(content) as AgentClassificationResponse;
+    } catch {
+      this.logger.error(`Azure agent returned non-JSON content: ${content}`);
+      throw new InternalServerErrorException(
+        "Azure agent response is not valid JSON",
+      );
+    }
+
+    const rawCategory = payload.categoria ?? payload.categoría;
+    const skills = this.parseCategoryToSkills(rawCategory);
+    const urgency = this.mapUrgency(payload.urgencia);
+
+    if (skills.length === 0) {
+      throw new InternalServerErrorException(
+        "Azure agent response did not include a valid categoria",
+      );
+    }
+
+    return {
+      skills,
+      urgency,
+    };
+  }
+
+  private parseCategoryToSkills(rawCategory: unknown): string[] {
+    if (typeof rawCategory === "string") {
+      return this.normalizeSkills([rawCategory]);
+    }
+
+    if (Array.isArray(rawCategory)) {
+      return this.normalizeSkills(
+        rawCategory.filter(
+          (value): value is string => typeof value === "string",
+        ),
+      );
+    }
+
+    return [];
+  }
+
+  private extractAssistantContent(
+    content:
+      | string
+      | Array<{
+          type?: string;
+          text?: string;
+        }>
+      | undefined,
+  ): string {
+    if (typeof content === "string") {
+      return content.trim();
+    }
+
+    if (Array.isArray(content)) {
+      return content
+        .map((part) => (typeof part.text === "string" ? part.text : ""))
+        .join("")
+        .trim();
+    }
+
+    return "";
+  }
+
+  private mapUrgency(rawUrgency: unknown): UrgencyLevel {
+    if (typeof rawUrgency !== "string") {
+      return UrgencyLevel.media;
+    }
+
+    const value = rawUrgency.trim().toLowerCase();
+
+    if (value === "baja" || value === "low") {
+      return UrgencyLevel.baja;
+    }
+
+    if (value === "media" || value === "medium") {
+      return UrgencyLevel.media;
+    }
+
+    if (value === "alta" || value === "high") {
+      return UrgencyLevel.alta;
+    }
+
+    return UrgencyLevel.media;
   }
 
   private toResponse(request: {
