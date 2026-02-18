@@ -1,0 +1,724 @@
+// ============================================================
+// CAMEYA / CAMEYO — Plataforma de Servicios Bajo Demanda
+// schema.prisma — PostgreSQL + Prisma ORM
+// ============================================================
+//
+// SETUP RÁPIDO:
+//   1. Crear la BD: createdb cameyo_db
+//   2. Copiar .env y definir DATABASE_URL
+//   3. npx prisma migrate dev --name init
+//   4. npx prisma generate
+//
+// DATABASE_URL="postgresql://user:password@localhost:5432/cameyo_db"
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum ProviderVerificationStatus {
+  UNVERIFIED    // No ha cargado documentos
+  UNDER_REVIEW  // Documentos cargados, esperando validación del admin
+  VERIFIED      // Aprobado, puede recibir solicitudes
+  REJECTED      // No cumple criterios de seguridad
+  SUSPENDED     // Antecedentes negativos o incumplimiento de normas
+}
+
+enum ServiceRequestStatus {
+  REQUESTED    // Usuario envió solicitud, esperando asignación
+  ASSIGNED     // Prestador aceptó y confirma llegada
+  ON_THE_WAY   // Prestador en ruta (GPS activo)
+  IN_PROGRESS  // Prestador en ubicación, ejecutando servicio
+  COMPLETED    // Servicio completado, esperando evaluación
+  CANCELLED    // Usuario o prestador canceló
+  FAILED       // No hubo prestador disponible
+}
+
+enum TechnicianResponseStatus {
+  ACCEPTED
+  REJECTED
+}
+
+enum UrgencyLevel {
+  baja
+  media
+  alta
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REFUNDED
+  CANCELLED
+}
+
+enum PaymentMethodType {
+  NEQUI
+  DAVIPLATA
+  BREB
+  BANK_TRANSFER
+  CREDIT_CARD
+  DEBIT_CARD
+  CASH
+}
+
+enum NotificationType {
+  REQUEST_CREATED
+  REQUEST_ASSIGNED
+  PROVIDER_ON_THE_WAY
+  SERVICE_STARTED
+  SERVICE_COMPLETED
+  PAYMENT_RECEIVED
+  RATING_RECEIVED
+  ACCOUNT_VERIFIED
+  DOCUMENT_REJECTED
+  SYSTEM
+}
+
+enum RoleName {
+  USER
+  PROVIDER
+  ADMIN
+  MODERATOR
+}
+
+enum AuthProvider {
+  EMAIL
+  GOOGLE
+  FACEBOOK
+  PHONE_OTP
+}
+
+enum CancellationReason {
+  USER_CANCELLED
+  PROVIDER_CANCELLED
+  NO_PROVIDER_AVAILABLE
+  PAYMENT_FAILED
+  ADMIN_CANCELLED
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  EXPIRED
+  PENDING
+}
+
+// ============================================================
+// MÓDULO: AUTENTICACIÓN Y USUARIOS
+// ============================================================
+
+model User {
+  id             String     @id @default(uuid())
+  email          String?    @unique
+  phoneNumber    String?    @unique
+  passwordHash   String?
+  fullName       String
+  documentId     String?    @unique    // Cédula / documento de identidad
+  profilePhotoUrl String?
+  skills         String[]   @default([])
+  currentLatitude Float?
+  currentLongitude Float?
+  lastLocationUpdate DateTime?
+  status         UserStatus @default(ACTIVE)
+  emailVerified  Boolean    @default(false)
+  phoneVerified  Boolean    @default(false)
+  // Rol principal elegido en el registro (USER | PROVIDER). Los roles adicionales
+  // (ADMIN, MODERATOR, etc.) se asignan vía UserRole por un admin.
+  primaryRole    RoleName   @default(USER)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  lastLoginAt    DateTime?
+  deletedAt      DateTime?  // Soft delete
+
+  // Relations
+  roles              UserRole[]
+  oauthAccounts      OAuthAccount[]
+  refreshTokens      RefreshToken[]
+  providerProfile    ProviderProfile?
+  addresses          Address[]
+  serviceRequests    ServiceRequest[]    @relation("RequestUser")
+  payments           Payment[]           @relation("UserPayments")
+  ratingsGiven       Rating[]            @relation("RatingAuthor")
+  ratingsReceived    Rating[]            @relation("RatingTarget")
+  notifications      Notification[]
+  auditLogs          AuditLog[]          @relation("AuditUser")
+  chatMessages       ChatMessage[]
+  subscriptions      UserSubscription[]
+  assignedRequests   ServiceRequest[]    @relation("AssignedTechnician")
+  technicianResponses ServiceRequestTechnicianResponse[] @relation("TechnicianUser")
+
+  @@map("users")
+}
+
+model OAuthAccount {
+  id             String       @id @default(uuid())
+  userId         String
+  provider       AuthProvider
+  providerUserId String
+  accessToken    String?
+  refreshToken   String?
+  expiresAt      DateTime?
+  createdAt      DateTime     @default(now())
+
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerUserId])
+  @@map("oauth_accounts")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  isRevoked Boolean  @default(false)
+  createdAt DateTime @default(now())
+  userAgent String?
+  ipAddress String?
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+// ============================================================
+// MÓDULO: ROLES (RBAC simplificado)
+// ============================================================
+
+model Role {
+  id          String    @id @default(uuid())
+  name        RoleName  @unique
+  description String?
+  createdAt   DateTime  @default(now())
+
+  // Relación con usuarios asignados (p. ej. ADMIN, MODERATOR)
+  users       UserRole[]
+
+  @@map("roles")
+}
+
+// Asociación simple usuario↔rol. El campo `assignedBy` debe rellenarse
+// siempre desde la lógica del servicio y solo por usuarios con rol ADMIN.
+model UserRole {
+  userId     String
+  roleId     String
+  assignedAt DateTime @default(now())
+  assignedBy String?  // userId del admin que asignó el rol
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role       Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+// ============================================================
+// MÓDULO: PERFIL DEL PRESTADOR (PROVIDER)
+// ============================================================
+
+model ProviderProfile {
+  id                     String                    @id @default(uuid())
+  userId                 String                    @unique
+  bio                    String?
+  verificationStatus     ProviderVerificationStatus @default(UNVERIFIED)
+
+  // Métricas de reputación (calculadas y cacheadas)
+  averageRating          Float                     @default(0.0)
+  totalRatings           Int                       @default(0)
+  totalCompletedServices Int                       @default(0)
+  totalCancelledServices Int                       @default(0)
+  scoringMultiplier      Float                     @default(1.0)  // >= 4.5 → 1.2 | < 3.0 → 0.7
+
+  // Disponibilidad y ubicación
+  isAvailable            Boolean                   @default(false)
+  currentLatitude        Float?
+  currentLongitude       Float?
+  lastLocationUpdate     DateTime?
+  coverageRadiusKm       Float                     @default(10.0)
+
+  // Datos de pago (almacenados encriptados)
+  bankAccountInfo        String?   // Encrypted AES-256
+  nequiNumber            String?
+  daviplataNumber        String?
+
+  createdAt              DateTime                  @default(now())
+  updatedAt              DateTime                  @updatedAt
+
+  user             User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  services         ProviderService[]
+  backgroundChecks BackgroundCheck[]
+  assignments      ServiceAssignment[]
+  availability     ProviderAvailability[]
+  trackingPoints   TrackingPoint[]
+
+  @@map("provider_profiles")
+}
+
+model ProviderAvailability {
+  id                String          @id @default(uuid())
+  providerProfileId String
+  dayOfWeek         Int             // 0=Domingo ... 6=Sábado
+  startTime         String          // "HH:MM" formato 24h
+  endTime           String          // "HH:MM" formato 24h
+  isActive          Boolean         @default(true)
+
+  provider          ProviderProfile @relation(fields: [providerProfileId], references: [id], onDelete: Cascade)
+
+  @@map("provider_availability")
+}
+
+model BackgroundCheck {
+  id                String          @id @default(uuid())
+  providerProfileId String
+  documentType      String          // "certificado_judicial", "cedula", etc.
+  documentHash      String          // Hash SHA-256 del documento (nunca el archivo en texto)
+  fileUrl           String?         // URL firmada temporalmente (S3, GCS)
+  issuedAt          DateTime?       // Fecha de emisión del documento
+  expiresAt         DateTime?       // Máximo 2 años de validez
+  verifiedAt        DateTime?
+  verifiedBy        String?         // userId del admin que verificó
+  status            String          // PENDING | VALID | EXPIRED | REJECTED
+  rejectionReason   String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  provider          ProviderProfile @relation(fields: [providerProfileId], references: [id], onDelete: Cascade)
+
+  @@map("background_checks")
+}
+
+// ============================================================
+// MÓDULO: CATEGORÍAS Y SERVICIOS
+// ============================================================
+
+model ServiceCategory {
+  id           String               @id @default(uuid())
+  name         String               @unique  // "Plomería", "Electricidad", etc.
+  slug         String               @unique  // "plomeria", "electricidad"
+  description  String?
+  iconUrl      String?
+  isActive     Boolean              @default(true)
+  sortOrder    Int                  @default(0)
+  createdAt    DateTime             @default(now())
+
+  subcategories    ServiceSubcategory[]
+  providerServices ProviderService[]
+  requests         ServiceRequest[]
+
+  @@map("service_categories")
+}
+
+model ServiceSubcategory {
+  id          String          @id @default(uuid())
+  categoryId  String
+  name        String          // "Reparación urgente", "Instalación nueva", etc.
+  slug        String
+  description String?
+  isActive    Boolean         @default(true)
+  sortOrder   Int             @default(0)
+  createdAt   DateTime        @default(now())
+
+  category    ServiceCategory  @relation(fields: [categoryId], references: [id])
+  requests    ServiceRequest[]
+
+  @@unique([categoryId, slug])
+  @@map("service_subcategories")
+}
+
+model ProviderService {
+  id                String          @id @default(uuid())
+  providerProfileId String
+  categoryId        String
+  yearsExperience   Int?
+  isActive          Boolean         @default(true)
+  createdAt         DateTime        @default(now())
+
+  provider          ProviderProfile @relation(fields: [providerProfileId], references: [id], onDelete: Cascade)
+  category          ServiceCategory @relation(fields: [categoryId], references: [id])
+
+  @@unique([providerProfileId, categoryId])
+  @@map("provider_services")
+}
+
+// ============================================================
+// MÓDULO: SOLICITUDES DE SERVICIO (CORE)
+// ============================================================
+
+model ServiceRequest {
+  id            String               @id @default(uuid())
+  userId        String
+  assignedTechnicianId String?
+  categoryId    String?
+  subcategoryId String?
+  addressId     String?
+
+  // Input del usuario (lenguaje natural)
+  rawDescription String
+  serviceCity String
+  requestedSkills String[]          @default([])
+
+  // Resultado del procesamiento IA
+  aiCategoryId          String?   // Categoría clasificada por IA
+  aiUrgencyScore        Float?    // 0.0 - 1.0
+  aiConfidenceScore     Float?    // 0.0 - 1.0
+  aiEstimatedDurationMin Int?     // Minutos estimados
+  aiEstimatedCostMin    Decimal?  @db.Decimal(12, 2)
+  aiEstimatedCostMax    Decimal?  @db.Decimal(12, 2)
+  aiKeywords            String[]
+  aiProcessedAt         DateTime?
+
+  // Ubicación
+  latitude    Float
+  longitude   Float
+  addressText String     // Dirección legible por humano
+
+  urgency     UrgencyLevel          @default(media)
+  status      ServiceRequestStatus  @default(REQUESTED)
+
+  // Presupuesto
+  budgetMin  Decimal? @db.Decimal(12, 2)
+  budgetMax  Decimal? @db.Decimal(12, 2)
+  finalPrice Decimal? @db.Decimal(12, 2)
+
+  // Timestamps del ciclo de vida
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  assignedAt  DateTime?
+  startedAt   DateTime?
+  completedAt DateTime?
+  cancelledAt DateTime?
+
+  cancellationReason CancellationReason?
+  cancellationNote   String?
+
+  user          User                  @relation("RequestUser", fields: [userId], references: [id])
+  assignedTechnician User?            @relation("AssignedTechnician", fields: [assignedTechnicianId], references: [id])
+  category      ServiceCategory?      @relation(fields: [categoryId], references: [id])
+  subcategory   ServiceSubcategory?   @relation(fields: [subcategoryId], references: [id])
+  address       Address?              @relation(fields: [addressId], references: [id])
+  assignment    ServiceAssignment?
+  events        ServiceRequestEvent[]
+  payment       Payment?
+  rating        Rating?
+  chatMessages  ChatMessage[]
+  technicianResponses ServiceRequestTechnicianResponse[]
+
+  @@index([userId, status])
+  @@index([assignedTechnicianId])
+  @@index([status, createdAt])
+  @@map("service_requests")
+}
+
+model ServiceRequestTechnicianResponse {
+  id               String                   @id @default(uuid())
+  serviceRequestId String
+  technicianUserId String
+  status           TechnicianResponseStatus
+  reason           String?
+  respondedAt      DateTime                 @default(now())
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+
+  serviceRequest   ServiceRequest           @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
+  technicianUser   User                     @relation("TechnicianUser", fields: [technicianUserId], references: [id], onDelete: Cascade)
+
+  @@unique([serviceRequestId, technicianUserId])
+  @@index([serviceRequestId, status])
+  @@index([technicianUserId, status])
+  @@map("service_request_technician_responses")
+}
+
+// Timeline de eventos del servicio (inmutable)
+model ServiceRequestEvent {
+  id               String                @id @default(uuid())
+  serviceRequestId String
+  previousStatus   ServiceRequestStatus?
+  newStatus        ServiceRequestStatus
+  triggeredBy      String?               // userId que disparó el evento
+  notes            String?
+  metadata         Json?                 // Datos adicionales (e.g. coordenadas)
+  createdAt        DateTime              @default(now())
+
+  serviceRequest   ServiceRequest        @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
+
+  @@index([serviceRequestId])
+  @@map("service_request_events")
+}
+
+// ============================================================
+// MÓDULO: MATCHING Y ASIGNACIÓN
+// ============================================================
+
+model ServiceAssignment {
+  id               String          @id @default(uuid())
+  serviceRequestId String          @unique
+  providerProfileId String
+
+  // Datos del algoritmo de scoring
+  distanceKm         Float?
+  compatibilityScore Float?
+  // Breakdown de pesos: { distance: 0.3, service: 0.25, reputation: 0.25, availability: 0.15, cancellations: 0.05 }
+  scoringBreakdown   Json?
+
+  // Flujo de oferta (30s para aceptar/rechazar)
+  offeredAt        DateTime @default(now())
+  responseDeadline DateTime // offeredAt + 30 segundos
+  acceptedAt       DateTime?
+  rejectedAt       DateTime?
+  rejectionReason  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  serviceRequest ServiceRequest  @relation(fields: [serviceRequestId], references: [id])
+  provider       ProviderProfile @relation(fields: [providerProfileId], references: [id])
+
+  @@map("service_assignments")
+}
+
+// ============================================================
+// MÓDULO: TRACKING GPS EN TIEMPO REAL
+// ============================================================
+
+model TrackingPoint {
+  id                String          @id @default(uuid())
+  providerProfileId String
+  serviceRequestId  String?         // Nulo si el prestador no está en servicio activo
+  latitude          Float
+  longitude         Float
+  accuracyMeters    Float?
+  speedKmh          Float?
+  headingDegrees    Float?
+  recordedAt        DateTime        @default(now())
+
+  provider          ProviderProfile @relation(fields: [providerProfileId], references: [id], onDelete: Cascade)
+
+  @@index([providerProfileId, recordedAt])
+  @@index([serviceRequestId])
+  @@map("tracking_points")
+}
+
+// ============================================================
+// MÓDULO: PAGOS Y SUSCRIPCIONES
+// ============================================================
+
+model Payment {
+  id               String            @id @default(uuid())
+  serviceRequestId String            @unique
+  userId           String
+
+  // Montos
+  grossAmount      Decimal @db.Decimal(12, 2)  // Lo que paga el usuario
+  commissionRate   Float                        // e.g. 0.15 (15%)
+  commissionAmount Decimal @db.Decimal(12, 2)  // Lo que se queda la plataforma
+  netAmount        Decimal @db.Decimal(12, 2)  // Lo que recibe el prestador
+
+  paymentMethod    PaymentMethodType
+  status           PaymentStatus     @default(PENDING)
+
+  // Referencias externas (Wompi, Nequi, etc.)
+  externalTransactionId String?
+  gatewayReference      String?
+  gatewayResponse       Json?
+
+  paidAt        DateTime?
+  refundedAt    DateTime?
+  refundReason  String?
+  receiptUrl    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  serviceRequest ServiceRequest @relation(fields: [serviceRequestId], references: [id])
+  user           User           @relation("UserPayments", fields: [userId], references: [id])
+
+  @@index([userId, status])
+  @@map("payments")
+}
+
+// Planes de suscripción (para Fase 2: Premium para prestadores)
+model SubscriptionPlan {
+  id              String   @id @default(uuid())
+  name            String   @unique  // "BASIC", "PREMIUM"
+  description     String?
+  priceMonthly    Decimal  @db.Decimal(12, 2)
+  currency        String   @default("COP")
+  features        Json     // Array de features del plan
+  priorityBoost   Float    @default(0.0)  // Bonus en el algoritmo de matching
+  maxRequestsDay  Int?     // Límite de solicitudes por día (null = ilimitado)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  subscriptions   UserSubscription[]
+
+  @@map("subscription_plans")
+}
+
+model UserSubscription {
+  id         String             @id @default(uuid())
+  userId     String
+  planId     String
+  status     SubscriptionStatus @default(PENDING)
+  startedAt  DateTime           @default(now())
+  expiresAt  DateTime
+  cancelledAt DateTime?
+  autoRenew  Boolean            @default(true)
+  paymentRef String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan       SubscriptionPlan @relation(fields: [planId], references: [id])
+
+  @@index([userId, status])
+  @@map("user_subscriptions")
+}
+
+// ============================================================
+// MÓDULO: EVALUACIONES Y REPUTACIÓN
+// ============================================================
+
+model Rating {
+  id               String   @id @default(uuid())
+  serviceRequestId String   @unique
+  authorId         String   // Usuario que califica
+  targetId         String   // Prestador calificado
+
+  stars            Int      // 1 - 5
+  comment          String?  @db.VarChar(500)
+  isPublic         Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  serviceRequest ServiceRequest @relation(fields: [serviceRequestId], references: [id])
+  author         User           @relation("RatingAuthor", fields: [authorId], references: [id])
+  target         User           @relation("RatingTarget", fields: [targetId], references: [id])
+  photos         RatingPhoto[]
+
+  @@map("ratings")
+}
+
+model RatingPhoto {
+  id        String   @id @default(uuid())
+  ratingId  String
+  url       String
+  createdAt DateTime @default(now())
+
+  rating    Rating   @relation(fields: [ratingId], references: [id], onDelete: Cascade)
+
+  @@map("rating_photos")
+}
+
+// ============================================================
+// MÓDULO: CHAT USUARIO ↔ PRESTADOR
+// ============================================================
+
+model ChatMessage {
+  id               String   @id @default(uuid())
+  serviceRequestId String
+  senderId         String
+  content          String
+  isRead           Boolean  @default(false)
+  readAt           DateTime?
+  sentAt           DateTime @default(now())
+
+  serviceRequest ServiceRequest @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
+  sender         User           @relation(fields: [senderId], references: [id])
+
+  @@index([serviceRequestId, sentAt])
+  @@map("chat_messages")
+}
+
+// ============================================================
+// MÓDULO: NOTIFICACIONES PUSH
+// ============================================================
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  type      NotificationType
+  title     String
+  body      String
+  data      Json?            // Payload extra (e.g. { serviceRequestId: "..." })
+  isRead    Boolean          @default(false)
+  readAt    DateTime?
+  sentAt    DateTime         @default(now())
+
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@map("notifications")
+}
+
+// ============================================================
+// MÓDULO: DIRECCIONES
+// ============================================================
+
+model Address {
+  id           String           @id @default(uuid())
+  userId       String
+  label        String?          // "Casa", "Oficina"
+  street       String
+  neighborhood String?
+  city         String
+  department   String?
+  country      String           @default("CO")
+  postalCode   String?
+  latitude     Float?
+  longitude    Float?
+  isDefault    Boolean          @default(false)
+  createdAt    DateTime         @default(now())
+
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  requests     ServiceRequest[]
+
+  @@index([userId])
+  @@map("addresses")
+}
+
+// ============================================================
+// MÓDULO: AUDITORÍA (INMUTABLE — nunca borrar registros)
+// ============================================================
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?  // Puede ser null si fue acción del sistema
+  action     String   // "PROVIDER_VERIFIED", "REQUEST_CANCELLED", "PAYMENT_REFUNDED"
+  resource   String   // "provider_profile", "service_request", "payment"
+  resourceId String?
+  oldValues  Json?    // Estado anterior
+  newValues  Json?    // Estado nuevo
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  user       User?    @relation("AuditUser", fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([resource, resourceId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
