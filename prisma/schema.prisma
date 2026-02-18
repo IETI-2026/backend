@@ -56,10 +56,9 @@ enum TechnicianResponseStatus {
 }
 
 enum UrgencyLevel {
-  LOW
-  MEDIUM
-  HIGH
-  EMERGENCY
+  baja
+  media
+  alta
 }
 
 enum PaymentStatus {
@@ -412,7 +411,7 @@ model ServiceRequest {
   longitude   Float
   addressText String     // Dirección legible por humano
 
-  urgency     UrgencyLevel          @default(MEDIUM)
+  urgency     UrgencyLevel          @default(media)
   status      ServiceRequestStatus  @default(REQUESTED)
 
   // Presupuesto

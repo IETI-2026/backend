@@ -175,6 +175,11 @@ JWT_EXPIRES_IN="24h"
 # Application
 PORT=3000
 NODE_ENV="development"
+
+# Azure Agent (clasificación de problema -> categoría/urgencia)
+AZURE_AGENT_ENDPOINT="https://procesador-de-lenguaje-natural.cognitiveservices.azure.com/..."
+AZURE_AGENT_API_KEY="tu-api-key"
+AZURE_AGENT_API_VERSION="2024-12-01-preview"
 ```
 
 4. **Generar el cliente de Prisma**
@@ -477,8 +482,9 @@ El sistema detectará que el tenant no existe y lo creará automáticamente.
 Si prefieres crear tenants de manera anticipada, puedes usar el script de provisión:
 
 1. Editar el array `TENANTS` en `prisma/migrate-tenants.js`:
+
    ```javascript
-   const TENANTS = ['public', 'tenant1', 'tenant2'];
+   const TENANTS = ["public", "tenant1", "tenant2"];
    ```
 
 2. Ejecutar el script:
@@ -500,15 +506,15 @@ Para prevenir ataques, los tenant IDs deben cumplir:
 
 El proyecto se desarrolla en 7 sprints iterativos, cada uno enfocado en funcionalidades específicas:
 
-| Sprint | Funcionalidades Principales |
-|--------|---------------------------|
-| **Sprint 1** | Planeación y arquitectura, Crear repositorios, Conectar base de datos |
-| **Sprint 2** | Autenticación y registro con JWT, Implementación de roles, Solicitar servicios |
-| **Sprint 3** | Gestión de servicios y categorías, Listar técnicos disponibles, Sistema de calificación |
-| **Sprint 4** | Integración de NLP, Filtros por urgencia y ubicación, Flujo del pago |
-| **Sprint 5** | Sistemas de matching y reputación, Geolocalización, Billeteras digitales |
+| Sprint       | Funcionalidades Principales                                                                          |
+| ------------ | ---------------------------------------------------------------------------------------------------- |
+| **Sprint 1** | Planeación y arquitectura, Crear repositorios, Conectar base de datos                                |
+| **Sprint 2** | Autenticación y registro con JWT, Implementación de roles, Solicitar servicios                       |
+| **Sprint 3** | Gestión de servicios y categorías, Listar técnicos disponibles, Sistema de calificación              |
+| **Sprint 4** | Integración de NLP, Filtros por urgencia y ubicación, Flujo del pago                                 |
+| **Sprint 5** | Sistemas de matching y reputación, Geolocalización, Billeteras digitales                             |
 | **Sprint 6** | Integración de pasarela de pagos, Verificación de antecedentes, Encriptación de información sensible |
-| **Sprint 7** | Seguridad y tratamiento de datos, Cumplimiento normativas |
+| **Sprint 7** | Seguridad y tratamiento de datos, Cumplimiento normativas                                            |
 
 ### Documentación Adicional
 

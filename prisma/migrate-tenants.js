@@ -15,7 +15,11 @@ const { execSync } = require('node:child_process');
 const { Client } = require('pg');
 
 // Lista de tenants (esquemas) a provisionar y migrar
-const TENANTS = ['public'];
+// Ejemplo: TENANTS=public,agente,medellin node prisma/migrate-tenants.js
+const TENANTS = (process.env.TENANTS || 'public')
+  .split(',')
+  .map((tenant) => tenant.trim())
+  .filter((tenant) => tenant.length > 0);
 
 const DATABASE_URL = process.env.DATABASE_URL;
 
