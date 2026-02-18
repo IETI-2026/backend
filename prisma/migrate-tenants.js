@@ -10,21 +10,21 @@
  *
  * Configura los tenants en la variable TENANTS
  */
-require('dotenv').config();
-const { execSync } = require('node:child_process');
-const { Client } = require('pg');
+require("dotenv").config();
+const { execSync } = require("node:child_process");
+const { Client } = require("pg");
 
 // Lista de tenants (esquemas) a provisionar y migrar
 // Ejemplo: TENANTS=public,agente,medellin node prisma/migrate-tenants.js
-const TENANTS = (process.env.TENANTS || 'public')
-  .split(',')
+const TENANTS = (process.env.TENANTS || "public")
+  .split(",")
   .map((tenant) => tenant.trim())
   .filter((tenant) => tenant.length > 0);
 
 const DATABASE_URL = process.env.DATABASE_URL;
 
 if (!DATABASE_URL) {
-  console.error('❌ ERROR: DATABASE_URL no está definida');
+  console.error("❌ ERROR: DATABASE_URL no está definida");
   process.exit(1);
 }
 
@@ -54,13 +54,13 @@ async function main() {
       await createSchemaIfNotExists(tenant);
 
       // 2. Aplicar migraciones
-      const tenantUrl = DATABASE_URL.includes('?')
+      const tenantUrl = DATABASE_URL.includes("?")
         ? `${DATABASE_URL}&schema=${tenant}`
         : `${DATABASE_URL}?schema=${tenant}`;
 
       console.log(`🔄 Aplicando migraciones para: ${tenant}`);
-      execSync('npx prisma migrate deploy', {
-        stdio: 'inherit',
+      execSync("npx prisma migrate deploy", {
+        stdio: "inherit",
         env: {
           ...process.env,
           DATABASE_URL: tenantUrl,
@@ -74,7 +74,7 @@ async function main() {
     }
   }
 
-  console.log('\n✅ Todos los tenants provisionados exitosamente');
+  console.log("\n✅ Todos los tenants provisionados exitosamente");
 }
 
 main();
