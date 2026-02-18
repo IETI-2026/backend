@@ -1,4 +1,4 @@
-import { describe } from 'node:test';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import type { IUserRepository } from '@users/domain';
