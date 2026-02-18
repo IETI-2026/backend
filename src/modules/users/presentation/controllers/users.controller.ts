@@ -10,11 +10,14 @@ import {
   Patch,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
+  ApiBearerAuth,
   ApiConflictResponse,
   ApiCreatedResponse,
+  ApiForbiddenResponse,
   ApiNoContentResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
@@ -22,7 +25,9 @@ import {
   ApiParam,
   ApiQuery,
   ApiTags,
+  ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import { RoleName } from '@prisma/client';
 import {
   CreateUserDto,
   GetUsersQueryDto,
@@ -30,9 +35,14 @@ import {
   UserResponseDto,
   UsersService,
 } from '@users/application';
+import { JwtPayloadEntity } from '../../../auth/domain/entities';
+import { CurrentUser, Roles } from '../../../auth/infrastructure/decorators';
+import { JwtAuthGuard, RolesGuard } from '../../../auth/infrastructure/guards';
 
 @ApiTags('users')
 @Controller('users')
+@UseGuards(JwtAuthGuard, RolesGuard) // 🔒 Proteger todo el controlador
+@ApiBearerAuth() // 📝 Documentar que requiere autenticación
 export class UsersController {
   private readonly logger = new Logger(UsersController.name);
 
@@ -40,10 +50,11 @@ export class UsersController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
+  @Roles(RoleName.ADMIN, RoleName.MODERATOR) // 🔐 Solo admins pueden crear usuarios
   @ApiOperation({
     summary: 'Crear nuevo usuario',
     description:
-      'Crea un nuevo usuario en el sistema con los datos proporcionados',
+      'Crea un nuevo usuario en el sistema con los datos proporcionados (Solo Admin/Moderador)',
   })
   @ApiCreatedResponse({
     description: 'Usuario creado exitosamente',
@@ -55,17 +66,27 @@ export class UsersController {
   @ApiConflictResponse({
     description: 'El email, teléfono o documento ya está en uso',
   })
-  async create(@Body() createUserDto: CreateUserDto): Promise<UserResponseDto> {
-    this.logger.log('POST /users - Creating new user');
+  @ApiForbiddenResponse({
+    description: 'Acceso denegado - Se requiere rol Admin o Moderador',
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Token de acceso inválido o expirado',
+  })
+  async create(
+    @Body() createUserDto: CreateUserDto,
+    @CurrentUser() currentUser: JwtPayloadEntity,
+  ): Promise<UserResponseDto> {
+    this.logger.log(`POST /users - Creating new user by ${currentUser.email}`);
     return await this.usersService.create(createUserDto);
   }
 
   @Get()
   @HttpCode(HttpStatus.OK)
+  @Roles(RoleName.ADMIN, RoleName.MODERATOR) // 🔐 Solo admins pueden listar todos los usuarios
   @ApiOperation({
     summary: 'Listar usuarios',
     description:
-      'Obtiene una lista paginada de usuarios con filtros opcionales',
+      'Obtiene una lista paginada de usuarios con filtros opcionales (Solo Admin/Moderador)',
   })
   @ApiQuery({
     name: 'page',
@@ -102,21 +123,32 @@ export class UsersController {
       },
     },
   })
-  async findAll(@Query() query: GetUsersQueryDto): Promise<{
+  @ApiForbiddenResponse({
+    description: 'Acceso denegado - Se requiere rol Admin o Moderador',
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Token de acceso inválido o expirado',
+  })
+  async findAll(
+    @Query() query: GetUsersQueryDto,
+    @CurrentUser() currentUser: JwtPayloadEntity,
+  ): Promise<{
     users: UserResponseDto[];
     total: number;
     page: number;
     limit: number;
   }> {
-    this.logger.log('GET /users - Fetching all users');
+    this.logger.log(`GET /users - Fetching all users by ${currentUser.email}`);
     return await this.usersService.findAll(query);
   }
 
   @Get(':id')
   @HttpCode(HttpStatus.OK)
+  @Roles(RoleName.ADMIN, RoleName.MODERATOR) // 🔐 Solo admins o el propio usuario
   @ApiOperation({
     summary: 'Obtener usuario por ID',
-    description: 'Obtiene los datos de un usuario específico mediante su ID',
+    description:
+      'Obtiene los datos de un usuario específico mediante su ID (Solo Admin/Moderador)',
   })
   @ApiParam({
     name: 'id',
@@ -131,16 +163,29 @@ export class UsersController {
   @ApiNotFoundResponse({
     description: 'Usuario no encontrado',
   })
-  async findOne(@Param('id') id: string): Promise<UserResponseDto> {
-    this.logger.log(`GET /users/${id} - Fetching user by ID`);
+  @ApiForbiddenResponse({
+    description: 'Acceso denegado - Se requiere rol Admin o Moderador',
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Token de acceso inválido o expirado',
+  })
+  async findOne(
+    @Param('id') id: string,
+    @CurrentUser() currentUser: JwtPayloadEntity,
+  ): Promise<UserResponseDto> {
+    this.logger.log(
+      `GET /users/${id} - Fetching user by ID by ${currentUser.email}`,
+    );
     return await this.usersService.findOne(id);
   }
 
   @Get('email/:email')
   @HttpCode(HttpStatus.OK)
+  @Roles(RoleName.ADMIN, RoleName.MODERATOR) // 🔐 Solo admins
   @ApiOperation({
     summary: 'Buscar usuario por email',
-    description: 'Busca un usuario específico mediante su dirección de email',
+    description:
+      'Busca un usuario específico mediante su dirección de email (Solo Admin/Moderador)',
   })
   @ApiParam({
     name: 'email',
@@ -155,16 +200,29 @@ export class UsersController {
   @ApiNotFoundResponse({
     description: 'Usuario no encontrado con ese email',
   })
-  async findByEmail(@Param('email') email: string): Promise<UserResponseDto> {
-    this.logger.log(`GET /users/email/${email} - Fetching user by email`);
+  @ApiForbiddenResponse({
+    description: 'Acceso denegado - Se requiere rol Admin o Moderador',
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Token de acceso inválido o expirado',
+  })
+  async findByEmail(
+    @Param('email') email: string,
+    @CurrentUser() currentUser: JwtPayloadEntity,
+  ): Promise<UserResponseDto> {
+    this.logger.log(
+      `GET /users/email/${email} - Fetching user by email by ${currentUser.email}`,
+    );
     return await this.usersService.findByEmail(email);
   }
 
   @Patch(':id')
   @HttpCode(HttpStatus.OK)
+  @Roles(RoleName.ADMIN, RoleName.MODERATOR) // 🔐 Solo admins o el propio usuario
   @ApiOperation({
     summary: 'Actualizar usuario',
-    description: 'Actualiza los datos de un usuario existente',
+    description:
+      'Actualiza los datos de un usuario existente (Solo Admin/Moderador)',
   })
   @ApiParam({
     name: 'id',
@@ -185,20 +243,30 @@ export class UsersController {
   @ApiConflictResponse({
     description: 'El email o teléfono ya está en uso por otro usuario',
   })
+  @ApiForbiddenResponse({
+    description: 'Acceso denegado - Se requiere rol Admin o Moderador',
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Token de acceso inválido o expirado',
+  })
   async update(
     @Param('id') id: string,
     @Body() updateUserDto: UpdateUserDto,
+    @CurrentUser() currentUser: JwtPayloadEntity,
   ): Promise<UserResponseDto> {
-    this.logger.log(`PATCH /users/${id} - Updating user`);
+    this.logger.log(
+      `PATCH /users/${id} - Updating user by ${currentUser.email}`,
+    );
     return await this.usersService.update(id, updateUserDto);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @Roles(RoleName.ADMIN) // 🔐 Solo admins pueden eliminar
   @ApiOperation({
     summary: 'Eliminar usuario (soft delete)',
     description:
-      'Marca el usuario como eliminado sin borrarlo permanentemente de la base de datos',
+      'Marca el usuario como eliminado sin borrarlo permanentemente de la base de datos (Solo Admin)',
   })
   @ApiParam({
     name: 'id',
@@ -212,17 +280,29 @@ export class UsersController {
   @ApiNotFoundResponse({
     description: 'Usuario no encontrado',
   })
-  async remove(@Param('id') id: string): Promise<void> {
-    this.logger.log(`DELETE /users/${id} - Soft deleting user`);
+  @ApiForbiddenResponse({
+    description: 'Acceso denegado - Se requiere rol Admin',
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Token de acceso inválido o expirado',
+  })
+  async remove(
+    @Param('id') id: string,
+    @CurrentUser() currentUser: JwtPayloadEntity,
+  ): Promise<void> {
+    this.logger.log(
+      `DELETE /users/${id} - Soft deleting user by ${currentUser.email}`,
+    );
     return await this.usersService.remove(id);
   }
 
   @Delete(':id/hard')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @Roles(RoleName.ADMIN) // 🔐 Solo admins pueden hacer hard delete
   @ApiOperation({
     summary: 'Eliminar usuario permanentemente (hard delete)',
     description:
-      '⚠️ PELIGRO: Elimina el usuario permanentemente de la base de datos. Esta acción no se puede deshacer.',
+      '⚠️ PELIGRO: Elimina el usuario permanentemente de la base de datos. Esta acción no se puede deshacer. (Solo Admin)',
   })
   @ApiParam({
     name: 'id',
@@ -236,8 +316,19 @@ export class UsersController {
   @ApiNotFoundResponse({
     description: 'Usuario no encontrado',
   })
-  async hardDelete(@Param('id') id: string): Promise<void> {
-    this.logger.log(`DELETE /users/${id}/hard - Hard deleting user`);
+  @ApiForbiddenResponse({
+    description: 'Acceso denegado - Se requiere rol Admin',
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Token de acceso inválido o expirado',
+  })
+  async hardDelete(
+    @Param('id') id: string,
+    @CurrentUser() currentUser: JwtPayloadEntity,
+  ): Promise<void> {
+    this.logger.log(
+      `DELETE /users/${id}/hard - Hard deleting user by ${currentUser.email}`,
+    );
     return await this.usersService.hardDelete(id);
   }
 }
