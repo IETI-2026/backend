@@ -27,7 +27,19 @@
     "prisma:push": "prisma db push",
     "prisma:pull": "prisma db pull",
     "prisma:format": "prisma format",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "docker:build": "docker-compose build",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f backend",
+    "docker:restart": "docker-compose restart backend",
+    "docker:clean": "docker-compose down -v",
+    "docker:dev": "docker-compose -f docker-compose.dev.yml up -d",
+    "docker:dev:build": "docker-compose -f docker-compose.dev.yml build",
+    "docker:dev:down": "docker-compose -f docker-compose.dev.yml down",
+    "docker:dev:logs": "docker-compose -f docker-compose.dev.yml logs -f backend-dev",
+    "docker:dev:clean": "docker-compose -f docker-compose.dev.yml down -v",
+    "docker:prisma:studio": "docker-compose -f docker-compose.dev.yml up -d prisma-studio"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

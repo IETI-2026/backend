@@ -6,6 +6,7 @@ import { ServiceRequestsModule } from './modules/service-requests';
 import { AuthModule } from './modules/auth';
 import { UsersModule } from './modules/users';
 import { TenantMiddleware, TenantModule } from './tenant';
+import { HealthController } from './common/health.controller';
 
 @Module({
   imports: [
@@ -20,7 +21,7 @@ import { TenantMiddleware, TenantModule } from './tenant';
     UsersModule,
     ServiceRequestsModule,
   ],
-  controllers: [],
+  controllers: [HealthController],
   providers: [],
 })
 export class AppModule implements NestModule {

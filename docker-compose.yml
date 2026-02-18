@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  # ============================================================
+  # NestJS Backend Application
+  # ============================================================
+  backend:
+    image: cameyoback.azurecr.io/cameyo-backend:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: cameyo-backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: ${PORT:-3000}
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL}
+      AZURE_AGENT_ENDPOINT: ${AZURE_AGENT_ENDPOINT}
+      AZURE_AGENT_API_KEY: ${AZURE_AGENT_API_KEY}
+      AZURE_AGENT_API_VERSION: ${AZURE_AGENT_API_VERSION}
+      FRONTEND_URL: ${FRONTEND_URL}
+    ports:
+      - "${PORT:-3000}:3000"
+    networks:
+      - cameyo-network
+    command: sh -c "npx prisma migrate deploy && node dist/main"
+
+# ============================================================
+# Networks
+# ============================================================
+networks:
+  cameyo-network:
+    driver: bridge
+
