@@ -9,7 +9,8 @@ export class VerifyOtpDto {
   @IsString()
   @IsNotEmpty()
   @Matches(/^\+\d{10,15}$/, {
-    message: 'Phone number must be in international format (e.g. +573001234567)',
+    message:
+      'Phone number must be in international format (e.g. +573001234567)',
   })
   phone!: string;
 

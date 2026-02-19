@@ -2,16 +2,25 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { RoleName } from '@prisma/client';
 
 class AuthUserDto {
-  @ApiProperty({ description: 'ID del usuario', example: '550e8400-e29b-41d4-a716-446655440000' })
+  @ApiProperty({
+    description: 'ID del usuario',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
   id: string;
 
-  @ApiProperty({ description: 'Email del usuario', example: 'usuario@example.com' })
+  @ApiProperty({
+    description: 'Email del usuario',
+    example: 'usuario@example.com',
+  })
   email: string;
 
   @ApiProperty({ description: 'Nombre completo', example: 'Juan Pérez' })
   fullName: string;
 
-  @ApiPropertyOptional({ description: 'URL de foto de perfil', example: 'https://example.com/photo.jpg' })
+  @ApiPropertyOptional({
+    description: 'URL de foto de perfil',
+    example: 'https://example.com/photo.jpg',
+  })
   profilePhotoUrl?: string;
 
   @ApiProperty({

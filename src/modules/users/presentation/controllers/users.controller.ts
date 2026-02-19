@@ -10,6 +10,7 @@ import {
   Patch,
   Post,
   Query,
+  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -160,8 +161,12 @@ export class UsersController {
   async getMe(
     @CurrentUser() currentUser: JwtPayloadEntity,
   ): Promise<UserResponseDto> {
-    this.logger.log(`GET /users/me - Fetching own profile by ${currentUser.email}`);
-    return await this.usersService.findOne(currentUser.sub!);
+    if (!currentUser.sub)
+      throw new UnauthorizedException('User ID not available');
+    this.logger.log(
+      `GET /users/me - Fetching own profile by ${currentUser.email}`,
+    );
+    return await this.usersService.findOne(currentUser.sub);
   }
 
   @Patch('me')
@@ -191,8 +196,10 @@ export class UsersController {
     this.logger.log(
       `PATCH /users/me - Updating own profile by ${currentUser.email}`,
     );
+    if (!currentUser.sub)
+      throw new UnauthorizedException('User ID not available');
     return await this.usersService.updateProfile(
-      currentUser.sub!,
+      currentUser.sub,
       updateProfileDto,
     );
   }

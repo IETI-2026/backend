@@ -26,7 +26,11 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     return super.canActivate(context);
   }
 
-  handleRequest<TUser>(err: Error | null, user: TUser, info: Error | undefined): TUser {
+  handleRequest<TUser>(
+    err: Error | null,
+    user: TUser,
+    info: Error | undefined,
+  ): TUser {
     if (err || !user) {
       const message = info?.message || 'Access token is missing or invalid';
       throw new UnauthorizedException(message);

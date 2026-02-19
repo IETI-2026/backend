@@ -17,7 +17,6 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { RoleName } from '@prisma/client';
 import type { Request, Response } from 'express';
 import {
   AuthResponseDto,
@@ -35,7 +34,7 @@ import {
   UserResponse,
 } from '../application/services/auth.service';
 import { JwtPayloadEntity } from '../domain/entities';
-import { CurrentUser, Public, Roles } from '../infrastructure/decorators';
+import { CurrentUser, Public } from '../infrastructure/decorators';
 import { JwtAuthGuard, RolesGuard } from '../infrastructure/guards';
 
 // Interface for Google OAuth callback request
@@ -138,7 +137,10 @@ export class AuthController {
   @Public()
   @HttpCode(200)
   @ApiOperation({ summary: 'Send OTP code to phone number (simulated)' })
-  @ApiResponse({ status: 200, description: 'OTP sent (check server logs in dev)' })
+  @ApiResponse({
+    status: 200,
+    description: 'OTP sent (check server logs in dev)',
+  })
   async sendOtp(
     @Body() sendOtpDto: SendOtpDto,
   ): Promise<{ message: string; expiresInSeconds: number }> {
@@ -148,7 +150,9 @@ export class AuthController {
   @Post('verify-otp')
   @Public()
   @HttpCode(200)
-  @ApiOperation({ summary: 'Verify OTP and login (creates account if new phone)' })
+  @ApiOperation({
+    summary: 'Verify OTP and login (creates account if new phone)',
+  })
   @ApiResponse({ status: 200, description: 'OTP verified, tokens returned' })
   @ApiResponse({ status: 401, description: 'Invalid or expired OTP' })
   async verifyOtp(
@@ -256,7 +260,10 @@ export class AuthController {
   @ApiBearerAuth()
   @HttpCode(200)
   @ApiOperation({ summary: 'Logout user and revoke all refresh tokens' })
-  @ApiResponse({ status: 200, description: 'Logout successful, all sessions revoked' })
+  @ApiResponse({
+    status: 200,
+    description: 'Logout successful, all sessions revoked',
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async logout(
     @CurrentUser() user: JwtPayloadEntity,

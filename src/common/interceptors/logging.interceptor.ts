@@ -22,12 +22,13 @@ export class LoggingInterceptor implements NestInterceptor {
       tap(() => {
         const response = context.switchToHttp().getResponse();
         const duration = Date.now() - now;
-        this.logger.log(`${method} ${url} ${response.statusCode} ${duration}ms`);
+        this.logger.log(
+          `${method} ${url} ${response.statusCode} ${duration}ms`,
+        );
       }),
       catchError((error) => {
         const duration = Date.now() - now;
-        const status =
-          error instanceof HttpException ? error.getStatus() : 500;
+        const status = error instanceof HttpException ? error.getStatus() : 500;
 
         if (status >= 500) {
           this.logger.error(`${method} ${url} ${status} ${duration}ms`);

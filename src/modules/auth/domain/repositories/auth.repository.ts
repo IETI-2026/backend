@@ -87,7 +87,12 @@ export interface IAuthRepository {
   findValidOtpCode(
     phone: string,
     code: string,
-  ): Promise<{ id: string; userId: string | null; phone: string; attempts: number } | null>;
+  ): Promise<{
+    id: string;
+    userId: string | null;
+    phone: string;
+    attempts: number;
+  } | null>;
   incrementOtpAttempts(otpId: string): Promise<void>;
   markOtpUsed(otpId: string): Promise<void>;
   invalidateOtpCodesForPhone(phone: string): Promise<void>;

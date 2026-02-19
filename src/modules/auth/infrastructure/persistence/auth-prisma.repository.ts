@@ -221,11 +221,7 @@ export class AuthPrismaRepository implements IAuthRepository {
     const record = await this.prisma.passwordResetToken.findUnique({
       where: { token },
     });
-    if (
-      !record ||
-      record.usedAt ||
-      new Date() > record.expiresAt
-    ) {
+    if (!record || record.usedAt || new Date() > record.expiresAt) {
       return null;
     }
     return {
@@ -261,7 +257,12 @@ export class AuthPrismaRepository implements IAuthRepository {
   async findValidOtpCode(
     phone: string,
     code: string,
-  ): Promise<{ id: string; userId: string | null; phone: string; attempts: number } | null> {
+  ): Promise<{
+    id: string;
+    userId: string | null;
+    phone: string;
+    attempts: number;
+  } | null> {
     const record = await this.prisma.otpCode.findFirst({
       where: { phone, code, usedAt: null },
       orderBy: { createdAt: 'desc' },

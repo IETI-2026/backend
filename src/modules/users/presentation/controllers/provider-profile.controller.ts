@@ -8,6 +8,7 @@ import {
   Param,
   Patch,
   Post,
+  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -51,16 +52,23 @@ export class ProviderProfileController {
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Registrarse como prestador',
-    description: 'Crea el perfil de prestador para el usuario autenticado y le asigna el rol PROVIDER',
+    description:
+      'Crea el perfil de prestador para el usuario autenticado y le asigna el rol PROVIDER',
   })
-  @ApiCreatedResponse({ description: 'Perfil de prestador creado', type: ProviderProfileResponseDto })
-  @ApiConflictResponse({ description: 'Ya existe un perfil de prestador para este usuario' })
+  @ApiCreatedResponse({
+    description: 'Perfil de prestador creado',
+    type: ProviderProfileResponseDto,
+  })
+  @ApiConflictResponse({
+    description: 'Ya existe un perfil de prestador para este usuario',
+  })
   async createMyProfile(
     @CurrentUser() user: JwtPayloadEntity,
     @Body() dto: CreateProviderProfileDto,
   ): Promise<ProviderProfileResponseDto> {
+    if (!user.sub) throw new UnauthorizedException('User ID not available');
     this.logger.log(`POST /users/me/provider-profile by ${user.email}`);
-    return this.providerProfileService.create(user.sub!, dto);
+    return this.providerProfileService.create(user.sub, dto);
   }
 
   @Get('me/provider-profile')
@@ -71,8 +79,9 @@ export class ProviderProfileController {
   async getMyProfile(
     @CurrentUser() user: JwtPayloadEntity,
   ): Promise<ProviderProfileResponseDto> {
+    if (!user.sub) throw new UnauthorizedException('User ID not available');
     this.logger.log(`GET /users/me/provider-profile by ${user.email}`);
-    return this.providerProfileService.findByUserId(user.sub!);
+    return this.providerProfileService.findByUserId(user.sub);
   }
 
   @Patch('me/provider-profile')
@@ -85,14 +94,17 @@ export class ProviderProfileController {
     @CurrentUser() user: JwtPayloadEntity,
     @Body() dto: UpdateProviderProfileDto,
   ): Promise<ProviderProfileResponseDto> {
+    if (!user.sub) throw new UnauthorizedException('User ID not available');
     this.logger.log(`PATCH /users/me/provider-profile by ${user.email}`);
-    return this.providerProfileService.update(user.sub!, dto);
+    return this.providerProfileService.update(user.sub, dto);
   }
 
   @Get(':id/provider-profile')
   @HttpCode(HttpStatus.OK)
   @Roles(RoleName.ADMIN, RoleName.MODERATOR)
-  @ApiOperation({ summary: 'Ver perfil de prestador de un usuario (Admin/Moderador)' })
+  @ApiOperation({
+    summary: 'Ver perfil de prestador de un usuario (Admin/Moderador)',
+  })
   @ApiParam({ name: 'id', description: 'ID del usuario' })
   @ApiOkResponse({ type: ProviderProfileResponseDto })
   @ApiNotFoundResponse({ description: 'Perfil de prestador no encontrado' })
@@ -107,7 +119,9 @@ export class ProviderProfileController {
   @Patch(':id/verify-provider')
   @HttpCode(HttpStatus.OK)
   @Roles(RoleName.ADMIN, RoleName.MODERATOR)
-  @ApiOperation({ summary: 'Verificar/rechazar/suspender prestador (Admin/Moderador)' })
+  @ApiOperation({
+    summary: 'Verificar/rechazar/suspender prestador (Admin/Moderador)',
+  })
   @ApiParam({ name: 'id', description: 'ID del usuario prestador' })
   @ApiOkResponse({ type: ProviderProfileResponseDto })
   @ApiNotFoundResponse({ description: 'Perfil de prestador no encontrado' })
@@ -116,7 +130,9 @@ export class ProviderProfileController {
     @Param('id') userId: string,
     @Body() dto: VerifyProviderDto,
   ): Promise<ProviderProfileResponseDto> {
-    this.logger.log(`PATCH /users/${userId}/verify-provider action=${dto.action}`);
+    this.logger.log(
+      `PATCH /users/${userId}/verify-provider action=${dto.action}`,
+    );
     return this.providerProfileService.verifyProvider(userId, dto.action);
   }
 }

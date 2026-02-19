@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import {
   BadRequestException,
   ConflictException,
@@ -10,7 +11,6 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { RoleName } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
-import { randomBytes } from 'node:crypto';
 import {
   AUTH_RESPONSE_EXPIRES_IN_SECONDS,
   JWT_ACCESS_TOKEN_EXPIRES_IN,
@@ -203,7 +203,9 @@ export class AuthService {
     return { message: 'Logout successful. All sessions revoked.' };
   }
 
-  async sendOtp(dto: SendOtpDto): Promise<{ message: string; expiresInSeconds: number }> {
+  async sendOtp(
+    dto: SendOtpDto,
+  ): Promise<{ message: string; expiresInSeconds: number }> {
     await this.authRepository.invalidateOtpCodesForPhone(dto.phone);
 
     const code = this.generateOtpCode();
@@ -251,9 +253,13 @@ export class AuthService {
         phoneNumber: dto.phone,
         emailVerified: false,
       });
-      await this.authRepository.updateUser(user.id, { lastLoginAt: new Date() });
+      await this.authRepository.updateUser(user.id, {
+        lastLoginAt: new Date(),
+      });
     } else {
-      await this.authRepository.updateUser(user.id, { lastLoginAt: new Date() });
+      await this.authRepository.updateUser(user.id, {
+        lastLoginAt: new Date(),
+      });
     }
 
     return this.generateAuthResponse(user.id, user.email || '');
@@ -297,8 +303,9 @@ export class AuthService {
   }
 
   async resetPassword(dto: ResetPasswordDto): Promise<{ message: string }> {
-    const record =
-      await this.authRepository.findValidPasswordResetToken(dto.token);
+    const record = await this.authRepository.findValidPasswordResetToken(
+      dto.token,
+    );
     if (!record) {
       throw new BadRequestException('Invalid or expired reset token');
     }

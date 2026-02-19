@@ -32,7 +32,9 @@ export class ProviderProfileService {
       where: { userId },
     });
     if (existing) {
-      throw new ConflictException('Provider profile already exists for this user');
+      throw new ConflictException(
+        'Provider profile already exists for this user',
+      );
     }
 
     const profile = await this.prisma.providerProfile.create({
@@ -84,13 +86,20 @@ export class ProviderProfileService {
 
     const updateData: Record<string, unknown> = {};
     if (dto.bio !== undefined) updateData.bio = dto.bio;
-    if (dto.coverageRadiusKm !== undefined) updateData.coverageRadiusKm = dto.coverageRadiusKm;
+    if (dto.coverageRadiusKm !== undefined)
+      updateData.coverageRadiusKm = dto.coverageRadiusKm;
     if (dto.isAvailable !== undefined) updateData.isAvailable = dto.isAvailable;
     if (dto.nequiNumber !== undefined) updateData.nequiNumber = dto.nequiNumber;
-    if (dto.daviplataNumber !== undefined) updateData.daviplataNumber = dto.daviplataNumber;
-    if (dto.currentLatitude !== undefined || dto.currentLongitude !== undefined) {
-      if (dto.currentLatitude !== undefined) updateData.currentLatitude = dto.currentLatitude;
-      if (dto.currentLongitude !== undefined) updateData.currentLongitude = dto.currentLongitude;
+    if (dto.daviplataNumber !== undefined)
+      updateData.daviplataNumber = dto.daviplataNumber;
+    if (
+      dto.currentLatitude !== undefined ||
+      dto.currentLongitude !== undefined
+    ) {
+      if (dto.currentLatitude !== undefined)
+        updateData.currentLatitude = dto.currentLatitude;
+      if (dto.currentLongitude !== undefined)
+        updateData.currentLongitude = dto.currentLongitude;
       updateData.lastLocationUpdate = new Date();
     }
 

@@ -65,7 +65,10 @@ async function bootstrap() {
       .setTitle('Cameyo API')
       .setDescription('API de la plataforma Cameyo - Servicios bajo demanda')
       .setVersion('1.0')
-      .addTag('Authentication', 'Registro, login, OAuth, OTP y gestión de tokens')
+      .addTag(
+        'Authentication',
+        'Registro, login, OAuth, OTP y gestión de tokens',
+      )
       .addTag('users', 'Gestión de usuarios y perfiles')
       .addTag('provider-profile', 'Perfil de prestador de servicios')
       .addTag('service-requests', 'Solicitudes de servicio')
@@ -77,7 +80,9 @@ async function bootstrap() {
       customSiteTitle: 'Cameyo API Docs',
     });
 
-    logger.log(`API Documentation: http://localhost:${configService.get<number>('app.port') || 3000}/api/docs`);
+    logger.log(
+      `API Documentation: http://localhost:${configService.get<number>('app.port') || 3000}/api/docs`,
+    );
   }
 
   const port = configService.get<number>('app.port') || 3000;

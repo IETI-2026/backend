@@ -12,7 +12,8 @@ import {
 export class CreateProviderProfileDto {
   @ApiPropertyOptional({
     description: 'Biografía o descripción del prestador',
-    example: 'Electricista con 10 años de experiencia en instalaciones residenciales',
+    example:
+      'Electricista con 10 años de experiencia en instalaciones residenciales',
     maxLength: 500,
   })
   @IsOptional()

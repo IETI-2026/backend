@@ -31,7 +31,8 @@ export class SignUpDto {
   fullName: string;
 
   @ApiProperty({
-    description: 'Contraseña (mínimo 8 caracteres, debe contener mayúscula, minúscula, número y carácter especial)',
+    description:
+      'Contraseña (mínimo 8 caracteres, debe contener mayúscula, minúscula, número y carácter especial)',
     example: 'MiPassword123!',
     minLength: 8,
   })
