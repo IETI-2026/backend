@@ -6,7 +6,7 @@ import {
   HttpStatus,
   Logger,
 } from '@nestjs/common';
-import { Response } from 'express';
+import { Request, Response } from 'express';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -15,10 +15,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
-    const request = ctx.getRequest();
+    const request = ctx.getRequest<Request>();
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
-    let message = 'Internal server error';
+    let message: string | string[] = 'Internal server error';
     let error = 'Internal Server Error';
 
     if (exception instanceof HttpException) {
@@ -28,22 +28,25 @@ export class AllExceptionsFilter implements ExceptionFilter {
       if (typeof exceptionResponse === 'string') {
         message = exceptionResponse;
       } else if (typeof exceptionResponse === 'object') {
-        const responseObj = exceptionResponse as {
-          message?: string;
-          error?: string;
-        };
-        message = responseObj.message || message;
-        error = responseObj.error || error;
+        const responseObj = exceptionResponse as Record<string, unknown>;
+        message = (responseObj.message as string | string[]) || message;
+        error = (responseObj.error as string) || error;
       }
     } else if (exception instanceof Error) {
       message = exception.message;
       error = exception.name;
     }
 
-    this.logger.error(
-      `Error occurred: ${message}`,
-      exception instanceof Error ? exception.stack : undefined,
-    );
+    const logMessage = `${request.method} ${request.url} ${status} - ${error}: ${Array.isArray(message) ? message.join(', ') : message}`;
+
+    if (status >= 500) {
+      this.logger.error(
+        logMessage,
+        exception instanceof Error ? exception.stack : undefined,
+      );
+    } else if (status >= 400 && status < 500) {
+      this.logger.warn(logMessage);
+    }
 
     response.status(status).json({
       statusCode: status,

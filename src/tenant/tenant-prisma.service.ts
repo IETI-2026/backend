@@ -66,7 +66,7 @@ export class TenantPrismaService implements OnModuleDestroy {
     try {
       const client = await task;
       this.clients.set(tenantId, client);
-      this.logger.log(`✅ Prisma listo para schema: ${schema}`);
+      this.logger.log(`Prisma client ready for schema: ${schema}`);
       return client;
     } finally {
       this.pending.delete(tenantId);
@@ -105,11 +105,10 @@ export class TenantPrismaService implements OnModuleDestroy {
       // 2. Aplicar migraciones de Prisma
       await this.applyMigrations(schema);
 
-      this.logger.log(`✅ Tenant "${schema}" provisionado exitosamente`);
+      this.logger.log(`Tenant "${schema}" provisioned successfully`);
     } catch (error) {
       this.logger.error(
-        `❌ Error provisionando tenant "${schema}"`,
-        error instanceof Error ? error.stack : String(error),
+        `Failed to provision tenant "${schema}": ${error instanceof Error ? error.message : String(error)}`,
       );
       throw new Error(
         `No se pudo provisionar el tenant "${schema}": ${error instanceof Error ? error.message : String(error)}`,
@@ -127,11 +126,10 @@ export class TenantPrismaService implements OnModuleDestroy {
       await tempClient.$executeRawUnsafe(
         `CREATE SCHEMA IF NOT EXISTS "${schema}"`,
       );
-      this.logger.log(`📁 Esquema "${schema}" creado/verificado`);
+      this.logger.log(`Schema "${schema}" created/verified`);
     } catch (error) {
       this.logger.error(
-        `❌ Error creando esquema ${schema}`,
-        error instanceof Error ? error.stack : String(error),
+        `Failed to create schema "${schema}": ${error instanceof Error ? error.message : String(error)}`,
       );
       throw error;
     } finally {
@@ -148,7 +146,7 @@ export class TenantPrismaService implements OnModuleDestroy {
       : `${this.databaseUrl}?schema=${schema}`;
 
     try {
-      this.logger.log(`🔄 Aplicando migraciones para: ${schema}`);
+      this.logger.log(`Applying migrations for schema: ${schema}`);
 
       execSync('npx prisma migrate deploy', {
         stdio: 'inherit',
@@ -158,11 +156,10 @@ export class TenantPrismaService implements OnModuleDestroy {
         },
       });
 
-      this.logger.log(`✅ Migraciones aplicadas para: ${schema}`);
+      this.logger.log(`Migrations applied for schema: ${schema}`);
     } catch (error) {
       this.logger.error(
-        `❌ Error aplicando migraciones para ${schema}`,
-        error instanceof Error ? error.stack : String(error),
+        `Failed to apply migrations for schema "${schema}": ${error instanceof Error ? error.message : String(error)}`,
       );
       throw error;
     }

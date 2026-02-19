@@ -1,13 +1,25 @@
 import { AllExceptionsFilter } from '@common/filters';
 import { LoggingInterceptor } from '@common/interceptors';
+import type { LogLevel } from '@nestjs/common';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 
+function getLogLevels(env: string): LogLevel[] {
+  if (env === 'production') {
+    return ['log', 'warn', 'error'];
+  }
+  return ['log', 'warn', 'error', 'debug', 'verbose'];
+}
+
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const nodeEnv = process.env.NODE_ENV || 'development';
+
+  const app = await NestFactory.create(AppModule, {
+    logger: getLogLevels(nodeEnv),
+  });
   const configService = app.get(ConfigService);
   const logger = new Logger('Bootstrap');
 
@@ -76,7 +88,6 @@ async function bootstrap() {
 
   // Get port from config
   const port = configService.get<number>('app.port') || 3000;
-  const nodeEnv = configService.get<string>('app.nodeEnv');
 
   await app.listen(port);
 
