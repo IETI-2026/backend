@@ -150,10 +150,11 @@ model User {
   deletedAt      DateTime?  // Soft delete
 
   // Relations
-  roles              UserRole[]
-  oauthAccounts      OAuthAccount[]
-  refreshTokens      RefreshToken[]
-  providerProfile    ProviderProfile?
+  roles                 UserRole[]
+  oauthAccounts         OAuthAccount[]
+  refreshTokens         RefreshToken[]
+  passwordResetTokens   PasswordResetToken[]
+  providerProfile       ProviderProfile?
   addresses          Address[]
   serviceRequests    ServiceRequest[]    @relation("RequestUser")
   payments           Payment[]           @relation("UserPayments")
@@ -199,6 +200,21 @@ model RefreshToken {
 
   @@index([userId])
   @@map("refresh_tokens")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String
+  token     String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@map("password_reset_tokens")
 }
 
 // ============================================================

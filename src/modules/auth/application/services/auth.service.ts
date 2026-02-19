@@ -1,17 +1,21 @@
 import {
+  BadRequestException,
   ConflictException,
   Inject,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { RoleName } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { randomBytes } from 'node:crypto';
 import {
   AUTH_RESPONSE_EXPIRES_IN_SECONDS,
   JWT_ACCESS_TOKEN_EXPIRES_IN,
   JWT_REFRESH_TOKEN_EXPIRES_IN,
+  PASSWORD_RESET_TOKEN_EXPIRY_HOURS,
   REFRESH_TOKEN_EXPIRY_DAYS,
 } from '../../domain/constants';
 import { JwtPayloadEntity } from '../../domain/entities';
@@ -19,7 +23,14 @@ import {
   AUTH_REPOSITORY,
   type IAuthRepository,
 } from '../../domain/repositories';
-import { AuthResponseDto, LoginDto, SignUpDto } from '../dtos';
+import {
+  AuthResponseDto,
+  ChangePasswordDto,
+  ForgotPasswordDto,
+  LoginDto,
+  ResetPasswordDto,
+  SignUpDto,
+} from '../dtos';
 
 // User response type for getCurrentUser method
 export interface UserResponse {
@@ -39,6 +50,7 @@ export interface UserResponse {
 @Injectable()
 export class AuthService {
   private readonly bcryptRounds = 10;
+  private readonly logger = new Logger(AuthService.name);
 
   constructor(
     @Inject(AUTH_REPOSITORY)
@@ -179,6 +191,70 @@ export class AuthService {
 
   async revokeRefreshToken(tokenId: string): Promise<void> {
     await this.authRepository.revokeRefreshToken(tokenId);
+  }
+
+  async forgotPassword(dto: ForgotPasswordDto): Promise<{ message: string }> {
+    const user = await this.authRepository.findUserByEmail(dto.email);
+    if (!user) {
+      return { message: 'If the email exists, you will receive a reset link' };
+    }
+    if (!user.passwordHash) {
+      return { message: 'If the email exists, you will receive a reset link' };
+    }
+
+    const token = randomBytes(32).toString('hex');
+    const expiresAt = new Date(
+      Date.now() + PASSWORD_RESET_TOKEN_EXPIRY_HOURS * 60 * 60 * 1000,
+    );
+    await this.authRepository.createPasswordResetToken({
+      userId: user.id,
+      token,
+      expiresAt,
+    });
+
+    const frontendUrl =
+      this.configService.get<string>('oauth.frontend.url') ||
+      'http://localhost:3000';
+    const resetLink = `${frontendUrl}/auth/reset-password?token=${token}`;
+    this.logger.log(
+      `Password reset requested for ${dto.email}. Link (dev): ${resetLink}`,
+    );
+    return {
+      message: 'If the email exists, you will receive a reset link',
+    };
+  }
+
+  async resetPassword(dto: ResetPasswordDto): Promise<{ message: string }> {
+    const record =
+      await this.authRepository.findValidPasswordResetToken(dto.token);
+    if (!record) {
+      throw new BadRequestException('Invalid or expired reset token');
+    }
+
+    const passwordHash = await this.hashPassword(dto.newPassword);
+    await this.authRepository.updateUser(record.userId, { passwordHash });
+    await this.authRepository.markPasswordResetTokenUsed(record.id);
+    return { message: 'Password has been reset successfully' };
+  }
+
+  async changePassword(
+    userId: string,
+    dto: ChangePasswordDto,
+  ): Promise<{ message: string }> {
+    const user = await this.authRepository.findUserById(userId);
+    if (!user || !user.passwordHash) {
+      throw new UnauthorizedException('User not found or has no password');
+    }
+    const isValid = await this.comparePassword(
+      dto.currentPassword,
+      user.passwordHash,
+    );
+    if (!isValid) {
+      throw new UnauthorizedException('Current password is incorrect');
+    }
+    const passwordHash = await this.hashPassword(dto.newPassword);
+    await this.authRepository.updateUser(userId, { passwordHash });
+    return { message: 'Password has been changed successfully' };
   }
 
   private async hashPassword(password: string): Promise<string> {

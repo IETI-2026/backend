@@ -21,8 +21,11 @@ import { RoleName } from '@prisma/client';
 import type { Request, Response } from 'express';
 import {
   AuthResponseDto,
+  ChangePasswordDto,
+  ForgotPasswordDto,
   LoginDto,
   RefreshTokenDto,
+  ResetPasswordDto,
   SignUpDto,
 } from '../application/dtos';
 import {
@@ -89,6 +92,46 @@ export class AuthController {
     return this.authService.refreshToken(refreshTokenDto.refreshToken);
   }
 
+  @Post('forgot-password')
+  @Public()
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Request password reset email' })
+  @ApiResponse({ status: 200, description: 'If email exists, reset link sent' })
+  async forgotPassword(
+    @Body() forgotPasswordDto: ForgotPasswordDto,
+  ): Promise<{ message: string }> {
+    return this.authService.forgotPassword(forgotPasswordDto);
+  }
+
+  @Post('reset-password')
+  @Public()
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Reset password with token from email' })
+  @ApiResponse({ status: 200, description: 'Password reset successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid or expired token' })
+  async resetPassword(
+    @Body() resetPasswordDto: ResetPasswordDto,
+  ): Promise<{ message: string }> {
+    return this.authService.resetPassword(resetPasswordDto);
+  }
+
+  @Post('change-password')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(200)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Change password for authenticated user' })
+  @ApiResponse({ status: 200, description: 'Password changed successfully' })
+  @ApiResponse({ status: 401, description: 'Current password incorrect' })
+  async changePassword(
+    @CurrentUser() user: JwtPayloadEntity,
+    @Body() changePasswordDto: ChangePasswordDto,
+  ): Promise<{ message: string }> {
+    if (!user.sub) {
+      throw new UnauthorizedException('User ID not available');
+    }
+    return this.authService.changePassword(user.sub, changePasswordDto);
+  }
+
   @Get('google')
   @Public()
   @ApiOperation({ summary: 'Get Google OAuth authorization URL' })
@@ -147,7 +190,7 @@ export class AuthController {
       }
 
       const frontendUrl =
-        this.configService.get<string>('frontend.url') ||
+        this.configService.get<string>('oauth.frontend.url') ||
         'http://localhost:3000';
       const redirectUrl =
         `${frontendUrl}/auth/callback?` +
@@ -159,7 +202,7 @@ export class AuthController {
       res.redirect(redirectUrl);
     } catch (error) {
       const frontendUrl =
-        this.configService.get<string>('frontend.url') ||
+        this.configService.get<string>('oauth.frontend.url') ||
         'http://localhost:3000';
       const errorMessage =
         error instanceof Error ? error.message : 'Authentication failed';

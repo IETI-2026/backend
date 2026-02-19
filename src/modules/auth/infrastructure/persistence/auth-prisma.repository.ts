@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import {
   AuthProvider,
   OAuthAccount,
+  PasswordResetToken,
   RefreshToken,
   RoleName,
   User,
@@ -183,5 +184,48 @@ export class AuthPrismaRepository implements IAuthRepository {
     });
 
     return userRoles.map((ur) => ur.role.name);
+  }
+
+  async createPasswordResetToken(data: {
+    userId: string;
+    token: string;
+    expiresAt: Date;
+  }): Promise<PasswordResetToken> {
+    return this.prisma.passwordResetToken.create({
+      data: {
+        userId: data.userId,
+        token: data.token,
+        expiresAt: data.expiresAt,
+      },
+    });
+  }
+
+  async findValidPasswordResetToken(token: string): Promise<{
+    id: string;
+    userId: string;
+    expiresAt: Date;
+  } | null> {
+    const record = await this.prisma.passwordResetToken.findUnique({
+      where: { token },
+    });
+    if (
+      !record ||
+      record.usedAt ||
+      new Date() > record.expiresAt
+    ) {
+      return null;
+    }
+    return {
+      id: record.id,
+      userId: record.userId,
+      expiresAt: record.expiresAt,
+    };
+  }
+
+  async markPasswordResetTokenUsed(tokenId: string): Promise<void> {
+    await this.prisma.passwordResetToken.update({
+      where: { id: tokenId },
+      data: { usedAt: new Date() },
+    });
   }
 }

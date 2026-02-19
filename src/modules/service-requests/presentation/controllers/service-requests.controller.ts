@@ -9,9 +9,11 @@ import {
   Patch,
   Post,
   Query,
+  UseGuards,
 } from "@nestjs/common";
 import {
   ApiBadRequestResponse,
+  ApiBearerAuth,
   ApiConflictResponse,
   ApiCreatedResponse,
   ApiNotFoundResponse,
@@ -20,6 +22,7 @@ import {
   ApiParam,
   ApiQuery,
   ApiTags,
+  ApiUnauthorizedResponse,
 } from "@nestjs/swagger";
 import {
   AcceptedTechnicianUserDto,
@@ -31,9 +34,13 @@ import {
   ServiceRequestResponseDto,
   ServiceRequestsService,
 } from "../../application";
+import { JwtAuthGuard } from "../../../auth/infrastructure/guards/jwt-auth.guard";
 
 @ApiTags("service-requests")
 @Controller("service-requests")
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
+@ApiUnauthorizedResponse({ description: "Token de acceso inválido o expirado" })
 export class ServiceRequestsController {
   private readonly logger = new Logger(ServiceRequestsController.name);
 

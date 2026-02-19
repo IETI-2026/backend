@@ -62,4 +62,16 @@ export interface IAuthRepository {
     assignedBy?: string,
   ): Promise<void>;
   getUserRoles(userId: string): Promise<string[]>;
+
+  createPasswordResetToken(data: {
+    userId: string;
+    token: string;
+    expiresAt: Date;
+  }): Promise<{ id: string; token: string; expiresAt: Date }>;
+  findValidPasswordResetToken(token: string): Promise<{
+    id: string;
+    userId: string;
+    expiresAt: Date;
+  } | null>;
+  markPasswordResetTokenUsed(tokenId: string): Promise<void>;
 }
