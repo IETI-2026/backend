@@ -20,15 +20,14 @@ import { AuthController } from './presentation';
     PassportModule,
     JwtModule.registerAsync({
       useFactory: (configService: ConfigService) => {
-        const expiresIn = configService.get<string>('jwt.expiresIn') ?? '15m';
+        const expiresIn = configService.get('jwt.expiresIn') ?? '15m';
         const secret = configService.get<string>('jwt.secret');
         if (!secret) {
           throw new Error('JWT secret is required');
         }
         return {
           secret,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          signOptions: { expiresIn: expiresIn as any },
+          signOptions: { expiresIn },
         };
       },
       inject: [ConfigService],

@@ -26,7 +26,9 @@ import {
   LoginDto,
   RefreshTokenDto,
   ResetPasswordDto,
+  SendOtpDto,
   SignUpDto,
+  VerifyOtpDto,
 } from '../application/dtos';
 import {
   AuthService,
@@ -132,6 +134,29 @@ export class AuthController {
     return this.authService.changePassword(user.sub, changePasswordDto);
   }
 
+  @Post('send-otp')
+  @Public()
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Send OTP code to phone number (simulated)' })
+  @ApiResponse({ status: 200, description: 'OTP sent (check server logs in dev)' })
+  async sendOtp(
+    @Body() sendOtpDto: SendOtpDto,
+  ): Promise<{ message: string; expiresInSeconds: number }> {
+    return this.authService.sendOtp(sendOtpDto);
+  }
+
+  @Post('verify-otp')
+  @Public()
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Verify OTP and login (creates account if new phone)' })
+  @ApiResponse({ status: 200, description: 'OTP verified, tokens returned' })
+  @ApiResponse({ status: 401, description: 'Invalid or expired OTP' })
+  async verifyOtp(
+    @Body() verifyOtpDto: VerifyOtpDto,
+  ): Promise<AuthResponseDto> {
+    return this.authService.verifyOtpAndLogin(verifyOtpDto);
+  }
+
   @Get('google')
   @Public()
   @ApiOperation({ summary: 'Get Google OAuth authorization URL' })
@@ -230,43 +255,15 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @HttpCode(200)
-  @ApiOperation({ summary: 'Logout user (revoke refresh token)' })
-  @ApiResponse({ status: 200, description: 'Logout successful' })
+  @ApiOperation({ summary: 'Logout user and revoke all refresh tokens' })
+  @ApiResponse({ status: 200, description: 'Logout successful, all sessions revoked' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async logout(
-    @CurrentUser() _user: JwtPayloadEntity,
+    @CurrentUser() user: JwtPayloadEntity,
   ): Promise<{ message: string }> {
-    // TODO: Revoke the user's refresh token(s) in the database
-    return { message: 'Logout successful' };
-  }
-
-  @Get('admin/users')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(RoleName.ADMIN, RoleName.MODERATOR)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'List all users (Admin only)' })
-  @ApiResponse({ status: 200, description: 'Users list retrieved' })
-  @ApiResponse({ status: 403, description: 'Forbidden - Admin role required' })
-  async adminListUsers(
-    @CurrentUser() _user: JwtPayloadEntity,
-  ): Promise<{ message: string }> {
-    return { message: 'Admin endpoint - users list' };
-  }
-
-  @Post('admin/verify-provider/:providerId')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(RoleName.ADMIN, RoleName.MODERATOR)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Verify a provider (Moderator/Admin only)' })
-  @ApiResponse({ status: 200, description: 'Provider verified' })
-  @ApiResponse({
-    status: 403,
-    description: 'Forbidden - Moderator/Admin role required',
-  })
-  async verifyProvider(
-    @CurrentUser() _user: JwtPayloadEntity,
-    @Req() _req: Request,
-  ): Promise<{ message: string }> {
-    return { message: 'Provider verification endpoint' };
+    if (!user.sub) {
+      throw new UnauthorizedException('User ID not available');
+    }
+    return this.authService.logout(user.sub);
   }
 }

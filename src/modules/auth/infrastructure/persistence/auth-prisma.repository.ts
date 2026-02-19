@@ -151,6 +151,19 @@ export class AuthPrismaRepository implements IAuthRepository {
     });
   }
 
+  async revokeAllUserRefreshTokens(userId: string): Promise<void> {
+    await this.prisma.refreshToken.updateMany({
+      where: { userId, isRevoked: false },
+      data: { isRevoked: true },
+    });
+  }
+
+  async findUserByPhone(phone: string): Promise<User | null> {
+    return this.prisma.user.findUnique({
+      where: { phoneNumber: phone },
+    });
+  }
+
   async assignRoleToUser(userId: string, roleName: string): Promise<void> {
     const role = await this.prisma.role.findUnique({
       where: { name: roleName as RoleName },
@@ -225,6 +238,62 @@ export class AuthPrismaRepository implements IAuthRepository {
   async markPasswordResetTokenUsed(tokenId: string): Promise<void> {
     await this.prisma.passwordResetToken.update({
       where: { id: tokenId },
+      data: { usedAt: new Date() },
+    });
+  }
+
+  async createOtpCode(data: {
+    userId?: string;
+    phone: string;
+    code: string;
+    expiresAt: Date;
+  }): Promise<void> {
+    await this.prisma.otpCode.create({
+      data: {
+        userId: data.userId,
+        phone: data.phone,
+        code: data.code,
+        expiresAt: data.expiresAt,
+      },
+    });
+  }
+
+  async findValidOtpCode(
+    phone: string,
+    code: string,
+  ): Promise<{ id: string; userId: string | null; phone: string; attempts: number } | null> {
+    const record = await this.prisma.otpCode.findFirst({
+      where: { phone, code, usedAt: null },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (!record || new Date() > record.expiresAt) {
+      return null;
+    }
+    return {
+      id: record.id,
+      userId: record.userId,
+      phone: record.phone,
+      attempts: record.attempts,
+    };
+  }
+
+  async incrementOtpAttempts(otpId: string): Promise<void> {
+    await this.prisma.otpCode.update({
+      where: { id: otpId },
+      data: { attempts: { increment: 1 } },
+    });
+  }
+
+  async markOtpUsed(otpId: string): Promise<void> {
+    await this.prisma.otpCode.update({
+      where: { id: otpId },
+      data: { usedAt: new Date() },
+    });
+  }
+
+  async invalidateOtpCodesForPhone(phone: string): Promise<void> {
+    await this.prisma.otpCode.updateMany({
+      where: { phone, usedAt: null },
       data: { usedAt: new Date() },
     });
   }

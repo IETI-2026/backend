@@ -15,6 +15,9 @@ import {
   AUTH_RESPONSE_EXPIRES_IN_SECONDS,
   JWT_ACCESS_TOKEN_EXPIRES_IN,
   JWT_REFRESH_TOKEN_EXPIRES_IN,
+  OTP_CODE_LENGTH,
+  OTP_EXPIRY_MINUTES,
+  OTP_MAX_ATTEMPTS,
   PASSWORD_RESET_TOKEN_EXPIRY_HOURS,
   REFRESH_TOKEN_EXPIRY_DAYS,
 } from '../../domain/constants';
@@ -29,7 +32,9 @@ import {
   ForgotPasswordDto,
   LoginDto,
   ResetPasswordDto,
+  SendOtpDto,
   SignUpDto,
+  VerifyOtpDto,
 } from '../dtos';
 
 // User response type for getCurrentUser method
@@ -191,6 +196,73 @@ export class AuthService {
 
   async revokeRefreshToken(tokenId: string): Promise<void> {
     await this.authRepository.revokeRefreshToken(tokenId);
+  }
+
+  async logout(userId: string): Promise<{ message: string }> {
+    await this.authRepository.revokeAllUserRefreshTokens(userId);
+    return { message: 'Logout successful. All sessions revoked.' };
+  }
+
+  async sendOtp(dto: SendOtpDto): Promise<{ message: string; expiresInSeconds: number }> {
+    await this.authRepository.invalidateOtpCodesForPhone(dto.phone);
+
+    const code = this.generateOtpCode();
+    const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
+
+    const user = await this.authRepository.findUserByPhone(dto.phone);
+
+    await this.authRepository.createOtpCode({
+      userId: user?.id,
+      phone: dto.phone,
+      code,
+      expiresAt,
+    });
+
+    this.logger.warn(
+      `[OTP SIMULADO] Código para ${dto.phone}: ${code} (expira en ${OTP_EXPIRY_MINUTES} min)`,
+    );
+
+    return {
+      message: `OTP sent to ${dto.phone}`,
+      expiresInSeconds: OTP_EXPIRY_MINUTES * 60,
+    };
+  }
+
+  async verifyOtpAndLogin(dto: VerifyOtpDto): Promise<AuthResponseDto> {
+    const otp = await this.authRepository.findValidOtpCode(dto.phone, dto.code);
+    if (!otp) {
+      throw new UnauthorizedException('Invalid or expired OTP code');
+    }
+
+    if (otp.attempts >= OTP_MAX_ATTEMPTS) {
+      await this.authRepository.markOtpUsed(otp.id);
+      throw new UnauthorizedException('Too many attempts. Request a new OTP.');
+    }
+
+    await this.authRepository.incrementOtpAttempts(otp.id);
+    await this.authRepository.markOtpUsed(otp.id);
+
+    let user = await this.authRepository.findUserByPhone(dto.phone);
+
+    if (!user) {
+      user = await this.authRepository.createUser({
+        email: '',
+        fullName: '',
+        phoneNumber: dto.phone,
+        emailVerified: false,
+      });
+      await this.authRepository.updateUser(user.id, { lastLoginAt: new Date() });
+    } else {
+      await this.authRepository.updateUser(user.id, { lastLoginAt: new Date() });
+    }
+
+    return this.generateAuthResponse(user.id, user.email || '');
+  }
+
+  private generateOtpCode(): string {
+    const min = 10 ** (OTP_CODE_LENGTH - 1);
+    const max = 10 ** OTP_CODE_LENGTH - 1;
+    return String(Math.floor(min + Math.random() * (max - min + 1)));
   }
 
   async forgotPassword(dto: ForgotPasswordDto): Promise<{ message: string }> {

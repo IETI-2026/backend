@@ -154,6 +154,7 @@ model User {
   oauthAccounts         OAuthAccount[]
   refreshTokens         RefreshToken[]
   passwordResetTokens   PasswordResetToken[]
+  otpCodes              OtpCode[]
   providerProfile       ProviderProfile?
   addresses          Address[]
   serviceRequests    ServiceRequest[]    @relation("RequestUser")
@@ -215,6 +216,23 @@ model PasswordResetToken {
   @@index([userId])
   @@index([token])
   @@map("password_reset_tokens")
+}
+
+model OtpCode {
+  id        String    @id @default(uuid())
+  userId    String?
+  phone     String
+  code      String
+  expiresAt DateTime
+  usedAt    DateTime?
+  attempts  Int       @default(0)
+  createdAt DateTime  @default(now())
+
+  user      User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([phone])
+  @@index([phone, code])
+  @@map("otp_codes")
 }
 
 // ============================================================
