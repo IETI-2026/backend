@@ -27,8 +27,7 @@ import { AuthController } from './presentation';
         }
         return {
           secret,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          signOptions: { expiresIn: expiresIn as any },
+          signOptions: { expiresIn: expiresIn },
         };
       },
       inject: [ConfigService],
