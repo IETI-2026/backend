@@ -46,6 +46,32 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.vars.outputs.image_tag }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.vars.outputs.image_tag }}-${{ github.sha }}
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.vars.outputs.image_tag }}
+
+  deploy-to-containerapp:
+    name: Deploy to Azure Container App
+    runs-on: ubuntu-latest
+    needs: docker-build-push
+    steps:
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Set container app name by branch
+        id: appname
+        run: |
+          if [ "${GITHUB_REF_NAME}" = "main" ]; then
+            echo "app_name=cameyo-backend-pro" >> "$GITHUB_OUTPUT"
+            echo "image_tag=prod" >> "$GITHUB_OUTPUT"
+          else
+            echo "app_name=cameyo-backend-dev" >> "$GITHUB_OUTPUT"
+            echo "image_tag=dev" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Update Container App image
+        run: |
+          az containerapp update \
+            --name ${{ steps.appname.outputs.app_name }} \
+            --resource-group CameYo \
+            --image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.appname.outputs.image_tag }}
