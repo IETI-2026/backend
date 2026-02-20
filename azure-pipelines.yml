@@ -148,12 +148,15 @@ stages:
                 $(latestTag)
                 $(tag)
 
-          # Security scan
-          - task: AzureContainerRegistry@0
-            displayName: 'Scan Docker Image for Vulnerabilities'
-            inputs:
-              azureSubscription: 'Azure for Students'
-              azureContainerRegistry: $(containerRegistry)
-              command: 'scan'
-              imageName: '$(imageRepository):$(latestTag)'
+          # Security scan using Trivy
+          - script: |
+              # Install Trivy
+              wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+              echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
+              sudo apt-get update
+              sudo apt-get install -y trivy
+
+              # Scan the Docker image
+              trivy image --severity HIGH,CRITICAL $(containerRegistry)/$(imageRepository):$(latestTag)
+            displayName: 'Scan Docker Image for Vulnerabilities with Trivy'
             continueOnError: true
