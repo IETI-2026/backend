@@ -62,4 +62,38 @@ export interface IAuthRepository {
     assignedBy?: string,
   ): Promise<void>;
   getUserRoles(userId: string): Promise<string[]>;
+
+  revokeAllUserRefreshTokens(userId: string): Promise<void>;
+  findUserByPhone(phone: string): Promise<User | null>;
+
+  createPasswordResetToken(data: {
+    userId: string;
+    token: string;
+    expiresAt: Date;
+  }): Promise<{ id: string; token: string; expiresAt: Date }>;
+  findValidPasswordResetToken(token: string): Promise<{
+    id: string;
+    userId: string;
+    expiresAt: Date;
+  } | null>;
+  markPasswordResetTokenUsed(tokenId: string): Promise<void>;
+
+  createOtpCode(data: {
+    userId?: string;
+    phone: string;
+    code: string;
+    expiresAt: Date;
+  }): Promise<void>;
+  findValidOtpCode(
+    phone: string,
+    code: string,
+  ): Promise<{
+    id: string;
+    userId: string | null;
+    phone: string;
+    attempts: number;
+  } | null>;
+  incrementOtpAttempts(otpId: string): Promise<void>;
+  markOtpUsed(otpId: string): Promise<void>;
+  invalidateOtpCodesForPhone(phone: string): Promise<void>;
 }

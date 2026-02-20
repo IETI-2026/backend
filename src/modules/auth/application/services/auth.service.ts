@@ -1,7 +1,10 @@
+import { randomBytes } from 'node:crypto';
 import {
+  BadRequestException,
   ConflictException,
   Inject,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -12,6 +15,10 @@ import {
   AUTH_RESPONSE_EXPIRES_IN_SECONDS,
   JWT_ACCESS_TOKEN_EXPIRES_IN,
   JWT_REFRESH_TOKEN_EXPIRES_IN,
+  OTP_CODE_LENGTH,
+  OTP_EXPIRY_MINUTES,
+  OTP_MAX_ATTEMPTS,
+  PASSWORD_RESET_TOKEN_EXPIRY_HOURS,
   REFRESH_TOKEN_EXPIRY_DAYS,
 } from '../../domain/constants';
 import { JwtPayloadEntity } from '../../domain/entities';
@@ -19,7 +26,16 @@ import {
   AUTH_REPOSITORY,
   type IAuthRepository,
 } from '../../domain/repositories';
-import { AuthResponseDto, LoginDto, SignUpDto } from '../dtos';
+import {
+  AuthResponseDto,
+  ChangePasswordDto,
+  ForgotPasswordDto,
+  LoginDto,
+  ResetPasswordDto,
+  SendOtpDto,
+  SignUpDto,
+  VerifyOtpDto,
+} from '../dtos';
 
 // User response type for getCurrentUser method
 export interface UserResponse {
@@ -39,6 +55,7 @@ export interface UserResponse {
 @Injectable()
 export class AuthService {
   private readonly bcryptRounds = 10;
+  private readonly logger = new Logger(AuthService.name);
 
   constructor(
     @Inject(AUTH_REPOSITORY)
@@ -179,6 +196,144 @@ export class AuthService {
 
   async revokeRefreshToken(tokenId: string): Promise<void> {
     await this.authRepository.revokeRefreshToken(tokenId);
+  }
+
+  async logout(userId: string): Promise<{ message: string }> {
+    await this.authRepository.revokeAllUserRefreshTokens(userId);
+    return { message: 'Logout successful. All sessions revoked.' };
+  }
+
+  async sendOtp(
+    dto: SendOtpDto,
+  ): Promise<{ message: string; expiresInSeconds: number }> {
+    await this.authRepository.invalidateOtpCodesForPhone(dto.phone);
+
+    const code = this.generateOtpCode();
+    const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
+
+    const user = await this.authRepository.findUserByPhone(dto.phone);
+
+    await this.authRepository.createOtpCode({
+      userId: user?.id,
+      phone: dto.phone,
+      code,
+      expiresAt,
+    });
+
+    this.logger.warn(
+      `[OTP SIMULADO] Código para ${dto.phone}: ${code} (expira en ${OTP_EXPIRY_MINUTES} min)`,
+    );
+
+    return {
+      message: `OTP sent to ${dto.phone}`,
+      expiresInSeconds: OTP_EXPIRY_MINUTES * 60,
+    };
+  }
+
+  async verifyOtpAndLogin(dto: VerifyOtpDto): Promise<AuthResponseDto> {
+    const otp = await this.authRepository.findValidOtpCode(dto.phone, dto.code);
+    if (!otp) {
+      throw new UnauthorizedException('Invalid or expired OTP code');
+    }
+
+    if (otp.attempts >= OTP_MAX_ATTEMPTS) {
+      await this.authRepository.markOtpUsed(otp.id);
+      throw new UnauthorizedException('Too many attempts. Request a new OTP.');
+    }
+
+    await this.authRepository.incrementOtpAttempts(otp.id);
+    await this.authRepository.markOtpUsed(otp.id);
+
+    let user = await this.authRepository.findUserByPhone(dto.phone);
+
+    if (!user) {
+      user = await this.authRepository.createUser({
+        email: '',
+        fullName: '',
+        phoneNumber: dto.phone,
+        emailVerified: false,
+      });
+      await this.authRepository.updateUser(user.id, {
+        lastLoginAt: new Date(),
+      });
+    } else {
+      await this.authRepository.updateUser(user.id, {
+        lastLoginAt: new Date(),
+      });
+    }
+
+    return this.generateAuthResponse(user.id, user.email || '');
+  }
+
+  private generateOtpCode(): string {
+    const min = 10 ** (OTP_CODE_LENGTH - 1);
+    const max = 10 ** OTP_CODE_LENGTH - 1;
+    return String(Math.floor(min + Math.random() * (max - min + 1)));
+  }
+
+  async forgotPassword(dto: ForgotPasswordDto): Promise<{ message: string }> {
+    const user = await this.authRepository.findUserByEmail(dto.email);
+    if (!user) {
+      return { message: 'If the email exists, you will receive a reset link' };
+    }
+    if (!user.passwordHash) {
+      return { message: 'If the email exists, you will receive a reset link' };
+    }
+
+    const token = randomBytes(32).toString('hex');
+    const expiresAt = new Date(
+      Date.now() + PASSWORD_RESET_TOKEN_EXPIRY_HOURS * 60 * 60 * 1000,
+    );
+    await this.authRepository.createPasswordResetToken({
+      userId: user.id,
+      token,
+      expiresAt,
+    });
+
+    const frontendUrl =
+      this.configService.get<string>('oauth.frontend.url') ||
+      'http://localhost:3000';
+    const resetLink = `${frontendUrl}/auth/reset-password?token=${token}`;
+    this.logger.log(
+      `Password reset requested for ${dto.email}. Link (dev): ${resetLink}`,
+    );
+    return {
+      message: 'If the email exists, you will receive a reset link',
+    };
+  }
+
+  async resetPassword(dto: ResetPasswordDto): Promise<{ message: string }> {
+    const record = await this.authRepository.findValidPasswordResetToken(
+      dto.token,
+    );
+    if (!record) {
+      throw new BadRequestException('Invalid or expired reset token');
+    }
+
+    const passwordHash = await this.hashPassword(dto.newPassword);
+    await this.authRepository.updateUser(record.userId, { passwordHash });
+    await this.authRepository.markPasswordResetTokenUsed(record.id);
+    return { message: 'Password has been reset successfully' };
+  }
+
+  async changePassword(
+    userId: string,
+    dto: ChangePasswordDto,
+  ): Promise<{ message: string }> {
+    const user = await this.authRepository.findUserById(userId);
+    if (!user || !user.passwordHash) {
+      throw new UnauthorizedException('User not found or has no password');
+    }
+    const isValid = await this.comparePassword(
+      dto.currentPassword,
+      user.passwordHash,
+    );
+    if (!isValid) {
+      throw new UnauthorizedException('Current password is incorrect');
+    }
+    const passwordHash = await this.hashPassword(dto.newPassword);
+    await this.authRepository.updateUser(userId, { passwordHash });
+    return { message: 'Password has been changed successfully' };
   }
 
   private async hashPassword(password: string): Promise<string> {
