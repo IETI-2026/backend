@@ -74,4 +74,7 @@ jobs:
           az containerapp update \
             --name ${{ steps.appname.outputs.app_name }} \
             --resource-group CameYo \
-            --image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.appname.outputs.image_tag }}
+            --image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.appname.outputs.image_tag }} \
+            --set-env-vars \
+              AZURE_STORAGE_CONNECTION_STRING="${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}" \
+              AZURE_STORAGE_CONTAINER_NAME="${{ secrets.AZURE_STORAGE_CONTAINER_NAME }}"

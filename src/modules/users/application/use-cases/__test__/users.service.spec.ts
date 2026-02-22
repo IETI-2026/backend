@@ -3,6 +3,7 @@ import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import type { IUserRepository } from '@users/domain';
 import { USER_REPOSITORY, UserStatus } from '@users/domain';
+import { BlobStorageService } from '@common/blob-storage.service';
 import type { CreateUserDto, UpdateUserDto } from '../../dtos';
 import { UsersService } from '../users.service';
 
@@ -50,6 +51,10 @@ describe('UsersService', () => {
         {
           provide: USER_REPOSITORY,
           useValue: mockUserRepository,
+        },
+        {
+          provide: BlobStorageService,
+          useValue: { upload: jest.fn() },
         },
       ],
     }).compile();

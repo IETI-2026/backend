@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import type { IUserRepository } from '@users/domain';
 import { USER_REPOSITORY, UserStatus } from '@users/domain';
+import { BlobStorageService } from '@common/blob-storage.service';
 import type {
   CreateUserDto,
   GetUsersQueryDto,
@@ -22,6 +23,7 @@ export class UsersService {
   constructor(
     @Inject(USER_REPOSITORY)
     private readonly userRepository: IUserRepository,
+    private readonly blobStorageService: BlobStorageService,
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<UserResponseDto> {
@@ -169,6 +171,22 @@ export class UsersService {
     this.logger.log(`User updated successfully with ID: ${id}`);
 
     return this.mapToResponse(user);
+  }
+
+  async uploadProfilePhoto(
+    userId: string,
+    file: Express.Multer.File,
+  ): Promise<UserResponseDto> {
+    this.logger.log(`Uploading profile photo for user: ${userId}`);
+
+    const photoUrl = await this.blobStorageService.upload(
+      file.buffer,
+      file.originalname,
+      file.mimetype,
+      userId,
+    );
+
+    return this.update(userId, { profilePhotoUrl: photoUrl });
   }
 
   async remove(id: string): Promise<void> {

@@ -1,3 +1,5 @@
+export * from './blob-storage.module';
+export * from './blob-storage.service';
 export * from './decorators';
 export * from './dto';
 export * from './filters';

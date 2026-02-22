@@ -82,6 +82,8 @@ jobs:
           ADMIN_PASSWORD: admin123
           ADMIN_FULLNAME: Admin User
           ADMIN_PHONE: +1234567890
+          AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}
+          AZURE_STORAGE_CONTAINER_NAME: ${{ secrets.AZURE_STORAGE_CONTAINER_NAME }}
         run: npm run test
 
       - name: Run e2e tests
@@ -97,6 +99,8 @@ jobs:
           ADMIN_PASSWORD: admin123
           ADMIN_FULLNAME: Admin User
           ADMIN_PHONE: +1234567890
+          AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}
+          AZURE_STORAGE_CONTAINER_NAME: ${{ secrets.AZURE_STORAGE_CONTAINER_NAME }}
         run: npm run test:e2e
 
   build:

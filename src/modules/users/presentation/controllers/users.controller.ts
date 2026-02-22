@@ -6,17 +6,24 @@ import {
   HttpCode,
   HttpStatus,
   Logger,
+  MaxFileSizeValidator,
   Param,
+  ParseFilePipe,
   Patch,
   Post,
   Query,
   UnauthorizedException,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
+  ApiBody,
   ApiConflictResponse,
+  ApiConsumes,
   ApiCreatedResponse,
   ApiForbiddenResponse,
   ApiNoContentResponse,
@@ -202,6 +209,57 @@ export class UsersController {
       currentUser.sub,
       updateProfileDto,
     );
+  }
+
+  @Post('me/profile-photo')
+  @HttpCode(HttpStatus.OK)
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary: 'Subir foto de perfil',
+    description:
+      'Sube una imagen al almacenamiento en Azure Blob Storage y actualiza la URL de foto de perfil del usuario autenticado. Formatos aceptados: JPEG, PNG, WebP. Tamaño máximo: 5 MB.',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'Imagen de perfil (JPEG, PNG o WebP, máx 5 MB)',
+        },
+      },
+      required: ['file'],
+    },
+  })
+  @ApiOkResponse({
+    description: 'Foto de perfil actualizada exitosamente',
+    type: UserResponseDto,
+  })
+  @ApiBadRequestResponse({
+    description: 'Archivo inválido (tipo o tamaño no permitido)',
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Token de acceso inválido o expirado',
+  })
+  async uploadProfilePhoto(
+    @CurrentUser() currentUser: JwtPayloadEntity,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 5 * 1024 * 1024 }), // 5 MB
+        ],
+      }),
+    )
+    file: Express.Multer.File,
+  ): Promise<UserResponseDto> {
+    if (!currentUser.sub)
+      throw new UnauthorizedException('User ID not available');
+    this.logger.log(
+      `POST /users/me/profile-photo - Uploading photo for ${currentUser.email}`,
+    );
+    return await this.usersService.uploadProfilePhoto(currentUser.sub, file);
   }
 
   @Get('email/:email')
