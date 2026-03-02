@@ -1,7 +1,5 @@
-import {
-  User as PrismaUser,
-  UserStatus as PrismaUserStatus,
-} from '@prisma/client';
+import { UserEntity as DbUserEntity } from '@/database/entities';
+import { UserStatus as DbUserStatus } from '@/database/enums';
 import type {
   CreateUserEntity,
   UpdateUserEntity,
@@ -9,29 +7,29 @@ import type {
 } from '@users/domain';
 import { UserStatus } from '@users/domain';
 
-export function toDomain(prismaUser: PrismaUser): UserEntity {
+export function toDomain(dbUser: DbUserEntity): UserEntity {
   return {
-    id: prismaUser.id,
-    email: prismaUser.email,
-    phoneNumber: prismaUser.phoneNumber,
-    fullName: prismaUser.fullName,
-    documentId: prismaUser.documentId,
-    profilePhotoUrl: prismaUser.profilePhotoUrl,
-    skills: prismaUser.skills,
-    currentLatitude: prismaUser.currentLatitude,
-    currentLongitude: prismaUser.currentLongitude,
-    lastLocationUpdate: prismaUser.lastLocationUpdate,
-    status: prismaUser.status as UserStatus,
-    emailVerified: prismaUser.emailVerified,
-    phoneVerified: prismaUser.phoneVerified,
-    createdAt: prismaUser.createdAt,
-    updatedAt: prismaUser.updatedAt,
-    lastLoginAt: prismaUser.lastLoginAt,
-    deletedAt: prismaUser.deletedAt,
+    id: dbUser.id,
+    email: dbUser.email,
+    phoneNumber: dbUser.phoneNumber,
+    fullName: dbUser.fullName,
+    documentId: dbUser.documentId,
+    profilePhotoUrl: dbUser.profilePhotoUrl,
+    skills: dbUser.skills,
+    currentLatitude: dbUser.currentLatitude,
+    currentLongitude: dbUser.currentLongitude,
+    lastLocationUpdate: dbUser.lastLocationUpdate,
+    status: dbUser.status as UserStatus,
+    emailVerified: dbUser.emailVerified,
+    phoneVerified: dbUser.phoneVerified,
+    createdAt: dbUser.createdAt,
+    updatedAt: dbUser.updatedAt,
+    lastLoginAt: dbUser.lastLoginAt,
+    deletedAt: dbUser.deletedAt,
   };
 }
 
-export function toPrismaCreate(data: CreateUserEntity) {
+export function toCreateData(data: CreateUserEntity) {
   return {
     email: data.email,
     phoneNumber: data.phoneNumber,
@@ -43,11 +41,11 @@ export function toPrismaCreate(data: CreateUserEntity) {
     currentLatitude: data.currentLatitude,
     currentLongitude: data.currentLongitude,
     lastLocationUpdate: data.lastLocationUpdate,
-    status: data.status as PrismaUserStatus | undefined,
+    status: data.status as DbUserStatus | undefined,
   };
 }
 
-export function toPrismaUpdate(data: UpdateUserEntity) {
+export function toUpdateData(data: UpdateUserEntity) {
   return {
     email: data.email,
     phoneNumber: data.phoneNumber,
@@ -58,7 +56,7 @@ export function toPrismaUpdate(data: UpdateUserEntity) {
     currentLatitude: data.currentLatitude,
     currentLongitude: data.currentLongitude,
     lastLocationUpdate: data.lastLocationUpdate,
-    status: data.status as PrismaUserStatus | undefined,
+    status: data.status as DbUserStatus | undefined,
     emailVerified: data.emailVerified,
     phoneVerified: data.phoneVerified,
     lastLoginAt: data.lastLoginAt,

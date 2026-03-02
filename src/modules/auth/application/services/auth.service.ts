@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { RoleName } from '@prisma/client';
+import { RoleName } from '@/database/enums';
 import * as bcrypt from 'bcrypt';
 import {
   AUTH_RESPONSE_EXPIRES_IN_SECONDS,

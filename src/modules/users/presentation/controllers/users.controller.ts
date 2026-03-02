@@ -28,7 +28,7 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import { RoleName } from '@prisma/client';
+import { RoleName } from '@/database/enums';
 import {
   CreateUserDto,
   GetUsersQueryDto,

@@ -5,8 +5,13 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { ProviderVerificationStatus, RoleName } from '@prisma/client';
-import { PrismaService } from '@/prisma/prisma.service';
+import { DataSource, Repository } from 'typeorm';
+import {
+  ProviderProfileEntity,
+  UserEntity as DbUserEntity,
+} from '@/database/entities';
+import { ProviderVerificationStatus, RoleName } from '@/database/enums';
+import { TENANT_DATA_SOURCE } from '@/tenant';
 import { AUTH_REPOSITORY } from '../../../auth/domain/repositories';
 import type { IAuthRepository } from '../../../auth/domain/repositories/auth.repository';
 import type { CreateProviderProfileDto } from '../dtos/create-provider-profile.dto';
@@ -17,69 +22,67 @@ import { VerificationAction } from '../dtos/verify-provider.dto';
 @Injectable()
 export class ProviderProfileService {
   private readonly logger = new Logger(ProviderProfileService.name);
+  private readonly profileRepo: Repository<ProviderProfileEntity>;
+  private readonly userRepo: Repository<DbUserEntity>;
 
   constructor(
-    private readonly prisma: PrismaService,
+    @Inject(TENANT_DATA_SOURCE)
+    dataSource: DataSource,
     @Inject(AUTH_REPOSITORY)
     private readonly authRepository: IAuthRepository,
-  ) {}
+  ) {
+    this.profileRepo = dataSource.getRepository(ProviderProfileEntity);
+    this.userRepo = dataSource.getRepository(DbUserEntity);
+  }
 
   async create(
     userId: string,
     dto: CreateProviderProfileDto,
   ): Promise<ProviderProfileResponseDto> {
-    const existing = await this.prisma.providerProfile.findUnique({
-      where: { userId },
-    });
+    const existing = await this.profileRepo.findOne({ where: { userId } });
     if (existing) {
       throw new ConflictException(
         'Provider profile already exists for this user',
       );
     }
 
-    const profile = await this.prisma.providerProfile.create({
-      data: {
-        userId,
-        bio: dto.bio,
-        coverageRadiusKm: dto.coverageRadiusKm ?? 10.0,
-        isAvailable: dto.isAvailable ?? false,
-        nequiNumber: dto.nequiNumber,
-        daviplataNumber: dto.daviplataNumber,
-        verificationStatus: ProviderVerificationStatus.UNVERIFIED,
-      },
+    const profile = this.profileRepo.create({
+      userId,
+      bio: dto.bio ?? null,
+      coverageRadiusKm: dto.coverageRadiusKm ?? 10.0,
+      isAvailable: dto.isAvailable ?? false,
+      nequiNumber: dto.nequiNumber ?? null,
+      daviplataNumber: dto.daviplataNumber ?? null,
+      verificationStatus: ProviderVerificationStatus.UNVERIFIED,
     });
+    const saved = await this.profileRepo.save(profile);
 
     if (dto.skills?.length) {
-      await this.prisma.user.update({
-        where: { id: userId },
-        data: { skills: dto.skills },
-      });
+      await this.userRepo.update(userId, { skills: dto.skills });
     }
 
     await this.authRepository.assignRoleToUser(userId, RoleName.PROVIDER);
 
     this.logger.log(`Provider profile created for user ${userId}`);
-    return this.mapToResponse(profile, dto.skills ?? []);
+    return this.mapToResponse(saved, dto.skills ?? []);
   }
 
   async findByUserId(userId: string): Promise<ProviderProfileResponseDto> {
-    const profile = await this.prisma.providerProfile.findUnique({
+    const profile = await this.profileRepo.findOne({
       where: { userId },
-      include: { user: { select: { skills: true } } },
+      relations: ['user'],
     });
     if (!profile) {
       throw new NotFoundException('Provider profile not found');
     }
-    return this.mapToResponse(profile, profile.user.skills);
+    return this.mapToResponse(profile, profile.user?.skills ?? []);
   }
 
   async update(
     userId: string,
     dto: UpdateProviderProfileDto,
   ): Promise<ProviderProfileResponseDto> {
-    const existing = await this.prisma.providerProfile.findUnique({
-      where: { userId },
-    });
+    const existing = await this.profileRepo.findOne({ where: { userId } });
     if (!existing) {
       throw new NotFoundException('Provider profile not found');
     }
@@ -103,23 +106,20 @@ export class ProviderProfileService {
       updateData.lastLocationUpdate = new Date();
     }
 
-    const profile = await this.prisma.providerProfile.update({
+    await this.profileRepo.update({ userId }, updateData);
+    const profile = await this.profileRepo.findOneOrFail({
       where: { userId },
-      data: updateData,
     });
 
     let skills: string[] = [];
     if (dto.skills !== undefined) {
-      const user = await this.prisma.user.update({
+      await this.userRepo.update(userId, { skills: dto.skills });
+      const user = await this.userRepo.findOneOrFail({
         where: { id: userId },
-        data: { skills: dto.skills },
       });
       skills = user.skills;
     } else {
-      const user = await this.prisma.user.findUnique({
-        where: { id: userId },
-        select: { skills: true },
-      });
+      const user = await this.userRepo.findOne({ where: { id: userId } });
       skills = user?.skills ?? [];
     }
 
@@ -131,9 +131,9 @@ export class ProviderProfileService {
     providerUserId: string,
     action: VerificationAction,
   ): Promise<ProviderProfileResponseDto> {
-    const profile = await this.prisma.providerProfile.findUnique({
+    const profile = await this.profileRepo.findOne({
       where: { userId: providerUserId },
-      include: { user: { select: { skills: true } } },
+      relations: ['user'],
     });
     if (!profile) {
       throw new NotFoundException('Provider profile not found');
@@ -145,15 +145,18 @@ export class ProviderProfileService {
       [VerificationAction.SUSPEND]: ProviderVerificationStatus.SUSPENDED,
     };
 
-    const updated = await this.prisma.providerProfile.update({
+    await this.profileRepo.update(
+      { userId: providerUserId },
+      { verificationStatus: statusMap[action] },
+    );
+    const updated = await this.profileRepo.findOneOrFail({
       where: { userId: providerUserId },
-      data: { verificationStatus: statusMap[action] },
     });
 
     this.logger.log(
       `Provider ${providerUserId} verification: ${action} → ${statusMap[action]}`,
     );
-    return this.mapToResponse(updated, profile.user.skills);
+    return this.mapToResponse(updated, profile.user?.skills ?? []);
   }
 
   private mapToResponse(

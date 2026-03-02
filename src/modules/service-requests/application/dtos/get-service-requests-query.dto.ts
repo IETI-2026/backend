@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { ServiceRequestStatus } from '@prisma/client';
+import { ServiceRequestStatus } from '@/database/enums';
 import { Type } from 'class-transformer';
 import {
   IsEnum,
