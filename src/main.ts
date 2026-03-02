@@ -73,6 +73,13 @@ async function bootstrap() {
       .addTag('provider-profile', 'Perfil de prestador de servicios')
       .addTag('service-requests', 'Solicitudes de servicio')
       .addBearerAuth()
+      .addGlobalParameters({
+        name: 'X-Tenant-ID',
+        in: 'header',
+        required: false,
+        description: 'Tenant ID (schema). Si no se envía, se usa "public".',
+        schema: { type: 'string', default: 'public' },
+      })
       .build();
 
     const document = SwaggerModule.createDocument(app, swaggerConfig);
