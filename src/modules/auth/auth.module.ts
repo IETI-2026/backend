@@ -1,18 +1,18 @@
-import { Module } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { JwtModule } from '@nestjs/jwt';
-import { PassportModule } from '@nestjs/passport';
-import { TenantModule } from '@/tenant';
-import { AuthService } from './application/services/auth.service';
-import { AUTH_REPOSITORY } from './domain/repositories';
-import { JwtAuthGuard, RolesGuard } from './infrastructure/guards';
-import { AuthTypeOrmRepository } from './infrastructure/persistence';
+import { Module } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { JwtModule } from "@nestjs/jwt";
+import { PassportModule } from "@nestjs/passport";
+import { TenantModule } from "@/tenant";
+import { AuthService } from "./application/services/auth.service";
+import { AUTH_REPOSITORY } from "./domain/repositories";
+import { JwtAuthGuard, RolesGuard } from "./infrastructure/guards";
+import { AuthTypeOrmRepository } from "./infrastructure/persistence";
 import {
   GoogleOAuthStrategy,
   JwtRefreshStrategy,
   JwtStrategy,
-} from './infrastructure/strategies';
-import { AuthController } from './presentation';
+} from "./infrastructure/strategies";
+import { AuthController } from "./presentation";
 
 @Module({
   imports: [
@@ -20,10 +20,10 @@ import { AuthController } from './presentation';
     PassportModule,
     JwtModule.registerAsync({
       useFactory: (configService: ConfigService) => {
-        const expiresIn = configService.get('jwt.expiresIn') ?? '15m';
-        const secret = configService.get<string>('jwt.secret');
+        const expiresIn = configService.get("jwt.expiresIn") ?? "15m";
+        const secret = configService.get<string>("jwt.secret");
         if (!secret) {
-          throw new Error('JWT secret is required');
+          throw new Error("JWT secret is required");
         }
         return {
           secret,

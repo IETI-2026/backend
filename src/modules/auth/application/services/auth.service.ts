@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto';
+import { randomBytes } from "node:crypto";
 import {
   BadRequestException,
   ConflictException,
@@ -6,11 +6,11 @@ import {
   Injectable,
   Logger,
   UnauthorizedException,
-} from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { JwtService } from '@nestjs/jwt';
-import { RoleName } from '@/database/enums';
-import * as bcrypt from 'bcrypt';
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { JwtService } from "@nestjs/jwt";
+import { RoleName } from "@/database/enums";
+import * as bcrypt from "bcrypt";
 import {
   AUTH_RESPONSE_EXPIRES_IN_SECONDS,
   JWT_ACCESS_TOKEN_EXPIRES_IN,
@@ -20,12 +20,12 @@ import {
   OTP_MAX_ATTEMPTS,
   PASSWORD_RESET_TOKEN_EXPIRY_HOURS,
   REFRESH_TOKEN_EXPIRY_DAYS,
-} from '../../domain/constants';
-import { JwtPayloadEntity } from '../../domain/entities';
+} from "../../domain/constants";
+import { JwtPayloadEntity } from "../../domain/entities";
 import {
   AUTH_REPOSITORY,
   type IAuthRepository,
-} from '../../domain/repositories';
+} from "../../domain/repositories";
 import {
   AuthResponseDto,
   ChangePasswordDto,
@@ -35,7 +35,7 @@ import {
   SendOtpDto,
   SignUpDto,
   VerifyOtpDto,
-} from '../dtos';
+} from "../dtos";
 
 // User response type for getCurrentUser method
 export interface UserResponse {
@@ -69,20 +69,20 @@ export class AuthService {
 
     const existingUser = await this.authRepository.findUserByEmail(email);
     if (existingUser) {
-      throw new ConflictException('Email already registered');
+      throw new ConflictException("Email already registered");
     }
 
     const passwordHash = await this.hashPassword(password);
 
     const user = await this.authRepository.createUser({
-      email: email || '',
-      fullName: fullName || '',
+      email: email || "",
+      fullName: fullName || "",
       passwordHash,
       phoneNumber,
       emailVerified: false,
     });
 
-    return this.generateAuthResponse(user.id, user.email || '');
+    return this.generateAuthResponse(user.id, user.email || "");
   }
 
   async login(loginDto: LoginDto): Promise<AuthResponseDto> {
@@ -90,7 +90,7 @@ export class AuthService {
 
     const user = await this.authRepository.findUserByEmail(email);
     if (!user || !user.passwordHash) {
-      throw new UnauthorizedException('Invalid email or password');
+      throw new UnauthorizedException("Invalid email or password");
     }
 
     const isPasswordValid = await this.comparePassword(
@@ -98,20 +98,20 @@ export class AuthService {
       user.passwordHash,
     );
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid email or password');
+      throw new UnauthorizedException("Invalid email or password");
     }
 
     await this.authRepository.updateUser(user.id, {
       lastLoginAt: new Date(),
     });
 
-    return this.generateAuthResponse(user.id, user.email || '');
+    return this.generateAuthResponse(user.id, user.email || "");
   }
 
   async refreshToken(refreshToken: string): Promise<AuthResponseDto> {
     try {
       const decoded = this.jwtService.verify(refreshToken, {
-        secret: this.configService.get<string>('jwt.refreshSecret'),
+        secret: this.configService.get<string>("jwt.refreshSecret"),
       });
 
       const storedToken =
@@ -121,17 +121,17 @@ export class AuthService {
         storedToken.isRevoked ||
         new Date() > storedToken.expiresAt
       ) {
-        throw new UnauthorizedException('Refresh token expired or revoked');
+        throw new UnauthorizedException("Refresh token expired or revoked");
       }
 
       const user = await this.authRepository.findUserById(decoded.sub);
       if (!user) {
-        throw new UnauthorizedException('User not found');
+        throw new UnauthorizedException("User not found");
       }
 
-      return this.generateAuthResponse(user.id, user.email || '');
+      return this.generateAuthResponse(user.id, user.email || "");
     } catch (_error) {
-      throw new UnauthorizedException('Invalid refresh token');
+      throw new UnauthorizedException("Invalid refresh token");
     }
   }
 
@@ -146,7 +146,7 @@ export class AuthService {
     const { providerId, email, fullName, accessToken, refreshToken } = profile;
 
     const oauthAccount = await this.authRepository.findOAuthAccount(
-      'GOOGLE',
+      "GOOGLE",
       providerId,
     );
 
@@ -154,14 +154,14 @@ export class AuthService {
       const user = await this.authRepository.findUserById(oauthAccount.userId);
       if (!user) {
         throw new UnauthorizedException(
-          'User associated with OAuth account not found',
+          "User associated with OAuth account not found",
         );
       }
 
       if (accessToken) {
         await this.authRepository.createOAuthAccount({
           userId: user.id,
-          provider: 'GOOGLE',
+          provider: "GOOGLE",
           providerUserId: providerId,
           accessToken,
           refreshToken,
@@ -169,7 +169,7 @@ export class AuthService {
         });
       }
 
-      return this.generateAuthResponse(user.id, user.email || '');
+      return this.generateAuthResponse(user.id, user.email || "");
     }
 
     let user = await this.authRepository.findUserByEmail(email);
@@ -184,14 +184,14 @@ export class AuthService {
 
     await this.authRepository.createOAuthAccount({
       userId: user.id,
-      provider: 'GOOGLE',
+      provider: "GOOGLE",
       providerUserId: providerId,
       accessToken,
       refreshToken,
       expiresAt: new Date(Date.now() + 3600 * 1000),
     });
 
-    return this.generateAuthResponse(user.id, user.email || '');
+    return this.generateAuthResponse(user.id, user.email || "");
   }
 
   async revokeRefreshToken(tokenId: string): Promise<void> {
@@ -200,7 +200,7 @@ export class AuthService {
 
   async logout(userId: string): Promise<{ message: string }> {
     await this.authRepository.revokeAllUserRefreshTokens(userId);
-    return { message: 'Logout successful. All sessions revoked.' };
+    return { message: "Logout successful. All sessions revoked." };
   }
 
   async sendOtp(
@@ -233,12 +233,12 @@ export class AuthService {
   async verifyOtpAndLogin(dto: VerifyOtpDto): Promise<AuthResponseDto> {
     const otp = await this.authRepository.findValidOtpCode(dto.phone, dto.code);
     if (!otp) {
-      throw new UnauthorizedException('Invalid or expired OTP code');
+      throw new UnauthorizedException("Invalid or expired OTP code");
     }
 
     if (otp.attempts >= OTP_MAX_ATTEMPTS) {
       await this.authRepository.markOtpUsed(otp.id);
-      throw new UnauthorizedException('Too many attempts. Request a new OTP.');
+      throw new UnauthorizedException("Too many attempts. Request a new OTP.");
     }
 
     await this.authRepository.incrementOtpAttempts(otp.id);
@@ -248,8 +248,8 @@ export class AuthService {
 
     if (!user) {
       user = await this.authRepository.createUser({
-        email: '',
-        fullName: '',
+        email: "",
+        fullName: "",
         phoneNumber: dto.phone,
         emailVerified: false,
       });
@@ -262,7 +262,7 @@ export class AuthService {
       });
     }
 
-    return this.generateAuthResponse(user.id, user.email || '');
+    return this.generateAuthResponse(user.id, user.email || "");
   }
 
   private generateOtpCode(): string {
@@ -274,13 +274,13 @@ export class AuthService {
   async forgotPassword(dto: ForgotPasswordDto): Promise<{ message: string }> {
     const user = await this.authRepository.findUserByEmail(dto.email);
     if (!user) {
-      return { message: 'If the email exists, you will receive a reset link' };
+      return { message: "If the email exists, you will receive a reset link" };
     }
     if (!user.passwordHash) {
-      return { message: 'If the email exists, you will receive a reset link' };
+      return { message: "If the email exists, you will receive a reset link" };
     }
 
-    const token = randomBytes(32).toString('hex');
+    const token = randomBytes(32).toString("hex");
     const expiresAt = new Date(
       Date.now() + PASSWORD_RESET_TOKEN_EXPIRY_HOURS * 60 * 60 * 1000,
     );
@@ -291,14 +291,14 @@ export class AuthService {
     });
 
     const frontendUrl =
-      this.configService.get<string>('oauth.frontend.url') ||
-      'http://localhost:3000';
+      this.configService.get<string>("oauth.frontend.url") ||
+      "http://localhost:3000";
     const resetLink = `${frontendUrl}/auth/reset-password?token=${token}`;
     this.logger.log(
       `Password reset requested for ${dto.email}. Link (dev): ${resetLink}`,
     );
     return {
-      message: 'If the email exists, you will receive a reset link',
+      message: "If the email exists, you will receive a reset link",
     };
   }
 
@@ -307,13 +307,13 @@ export class AuthService {
       dto.token,
     );
     if (!record) {
-      throw new BadRequestException('Invalid or expired reset token');
+      throw new BadRequestException("Invalid or expired reset token");
     }
 
     const passwordHash = await this.hashPassword(dto.newPassword);
     await this.authRepository.updateUser(record.userId, { passwordHash });
     await this.authRepository.markPasswordResetTokenUsed(record.id);
-    return { message: 'Password has been reset successfully' };
+    return { message: "Password has been reset successfully" };
   }
 
   async changePassword(
@@ -322,18 +322,18 @@ export class AuthService {
   ): Promise<{ message: string }> {
     const user = await this.authRepository.findUserById(userId);
     if (!user || !user.passwordHash) {
-      throw new UnauthorizedException('User not found or has no password');
+      throw new UnauthorizedException("User not found or has no password");
     }
     const isValid = await this.comparePassword(
       dto.currentPassword,
       user.passwordHash,
     );
     if (!isValid) {
-      throw new UnauthorizedException('Current password is incorrect');
+      throw new UnauthorizedException("Current password is incorrect");
     }
     const passwordHash = await this.hashPassword(dto.newPassword);
     await this.authRepository.updateUser(userId, { passwordHash });
-    return { message: 'Password has been changed successfully' };
+    return { message: "Password has been changed successfully" };
   }
 
   private async hashPassword(password: string): Promise<string> {
@@ -352,8 +352,8 @@ export class AuthService {
     email: string,
     roles: string[],
   ): Promise<{ accessToken: string; refreshToken: string }> {
-    const jwtSecret = this.configService.get<string>('jwt.secret');
-    const refreshSecret = this.configService.get<string>('jwt.refreshSecret');
+    const jwtSecret = this.configService.get<string>("jwt.secret");
+    const refreshSecret = this.configService.get<string>("jwt.refreshSecret");
 
     const jwtPayload: JwtPayloadEntity = {
       sub: userId,
@@ -368,7 +368,7 @@ export class AuthService {
 
     const refreshTokenPayload = {
       ...jwtPayload,
-      type: 'refresh',
+      type: "refresh",
     };
 
     const refreshToken = this.jwtService.sign(refreshTokenPayload, {
@@ -403,17 +403,17 @@ export class AuthService {
     const user = await this.authRepository.findUserById(userId);
 
     if (!user) {
-      throw new UnauthorizedException('User not found');
+      throw new UnauthorizedException("User not found");
     }
 
     return {
       accessToken,
       refreshToken,
       expiresIn: AUTH_RESPONSE_EXPIRES_IN_SECONDS,
-      tokenType: 'Bearer',
+      tokenType: "Bearer",
       user: {
         id: user.id,
-        email: user.email || '',
+        email: user.email || "",
         fullName: user.fullName,
         profilePhotoUrl: user.profilePhotoUrl || undefined,
         roles: roles as RoleName[],
@@ -425,18 +425,18 @@ export class AuthService {
     payload: JwtPayloadEntity,
   ): Promise<JwtPayloadEntity> {
     if (!payload.sub) {
-      throw new UnauthorizedException('Invalid JWT payload');
+      throw new UnauthorizedException("Invalid JWT payload");
     }
 
     const user = await this.authRepository.findUserById(payload.sub);
-    if (!user || user.status !== 'ACTIVE') {
-      throw new UnauthorizedException('User not found or inactive');
+    if (!user || user.status !== "ACTIVE") {
+      throw new UnauthorizedException("User not found or inactive");
     }
 
     const roles = await this.authRepository.getUserRoles(user.id);
     return {
       sub: user.id,
-      email: user.email || '',
+      email: user.email || "",
       roles: roles as RoleName[],
     };
   }
@@ -444,7 +444,7 @@ export class AuthService {
   async getCurrentUser(userId: string): Promise<UserResponse> {
     const user = await this.authRepository.findUserWithRoles(userId);
     if (!user) {
-      throw new UnauthorizedException('User not found');
+      throw new UnauthorizedException("User not found");
     }
 
     const roles = user.roles?.map((ur) => ur.role.name) || [];

@@ -1,9 +1,9 @@
-import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
-import { TenantService } from './tenant.service';
-import { TenantContext } from './tenant-context';
-import { TenantDataSourceService } from './tenant-datasource.service';
-import { tenantDataSourceProvider } from './tenant-datasource.provider';
+import { Module } from "@nestjs/common";
+import { ConfigModule } from "@nestjs/config";
+import { TenantService } from "./tenant.service";
+import { TenantContext } from "./tenant-context";
+import { TenantDataSourceService } from "./tenant-datasource.service";
+import { tenantDataSourceProvider } from "./tenant-datasource.provider";
 
 @Module({
   imports: [ConfigModule],

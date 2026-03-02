@@ -3,12 +3,12 @@ import {
   Injectable,
   Logger,
   OnModuleDestroy,
-} from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { DataSource } from 'typeorm';
-import { ALL_ENTITIES } from '../database/entities';
-import { RoleEntity } from '../database/entities/role.entity';
-import { RoleName } from '../database/enums';
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { DataSource } from "typeorm";
+import { ALL_ENTITIES } from "../database/entities";
+import { RoleEntity } from "../database/entities/role.entity";
+import { RoleName } from "../database/enums";
 
 @Injectable()
 export class TenantDataSourceService implements OnModuleDestroy {
@@ -23,12 +23,12 @@ export class TenantDataSourceService implements OnModuleDestroy {
 
   constructor(private readonly configService: ConfigService) {
     this.databaseUrl =
-      this.configService.get<string>('database.url') ||
-      this.configService.get<string>('DATABASE_URL') ||
-      '';
+      this.configService.get<string>("database.url") ||
+      this.configService.get<string>("DATABASE_URL") ||
+      "";
 
     if (!this.databaseUrl) {
-      throw new Error('DATABASE_URL no está configurada');
+      throw new Error("DATABASE_URL no está configurada");
     }
   }
 
@@ -42,7 +42,7 @@ export class TenantDataSourceService implements OnModuleDestroy {
 
   async getDataSource(tenantId: string): Promise<DataSource> {
     this.validateTenantId(tenantId);
-    const schema = tenantId === 'public' ? 'public' : tenantId;
+    const schema = tenantId === "public" ? "public" : tenantId;
     return this.getOrCreateDataSource(tenantId, schema);
   }
 
@@ -78,7 +78,7 @@ export class TenantDataSourceService implements OnModuleDestroy {
     await this.ensureSchemaExists(schema);
 
     const ds = new DataSource({
-      type: 'postgres',
+      type: "postgres",
       url: this.databaseUrl,
       schema,
       entities: ALL_ENTITIES,
@@ -106,7 +106,7 @@ export class TenantDataSourceService implements OnModuleDestroy {
 
   private async ensureSchemaExists(schema: string): Promise<void> {
     const tempDs = new DataSource({
-      type: 'postgres',
+      type: "postgres",
       url: this.databaseUrl,
     });
 

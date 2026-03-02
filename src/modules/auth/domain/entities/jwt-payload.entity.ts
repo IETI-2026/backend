@@ -1,4 +1,4 @@
-import { RoleName } from '@/database/enums';
+import { RoleName } from "@/database/enums";
 
 export class JwtPayloadEntity {
   sub?: string;

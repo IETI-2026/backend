@@ -1,16 +1,13 @@
-import { Module } from '@nestjs/common';
-import { TenantModule } from '@/tenant';
-import { AuthModule } from '../auth';
-import { ProviderProfileService, UsersService } from './application';
-import { USER_REPOSITORY } from './domain';
-import { UserTypeOrmRepository } from './infrastructure';
-import { ProviderProfileController, UsersController } from './presentation';
+import { Module } from "@nestjs/common";
+import { TenantModule } from "@/tenant";
+import { AuthModule } from "../auth";
+import { ProviderProfileService, UsersService } from "./application";
+import { USER_REPOSITORY } from "./domain";
+import { UserTypeOrmRepository } from "./infrastructure";
+import { ProviderProfileController, UsersController } from "./presentation";
 
 @Module({
-  imports: [
-    TenantModule,
-    AuthModule,
-  ],
+  imports: [TenantModule, AuthModule],
   controllers: [UsersController, ProviderProfileController],
   providers: [
     UsersService,

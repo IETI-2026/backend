@@ -7,69 +7,69 @@ import {
   OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
-} from 'typeorm';
-import { RoleName, UserStatus } from '../enums';
-import { AddressEntity } from './address.entity';
-import { AuditLogEntity } from './audit-log.entity';
-import { ChatMessageEntity } from './chat-message.entity';
-import { NotificationEntity } from './notification.entity';
-import { OAuthAccountEntity } from './oauth-account.entity';
-import { OtpCodeEntity } from './otp-code.entity';
-import { PasswordResetTokenEntity } from './password-reset-token.entity';
-import { PaymentEntity } from './payment.entity';
-import { ProviderProfileEntity } from './provider-profile.entity';
-import { RatingEntity } from './rating.entity';
-import { RefreshTokenEntity } from './refresh-token.entity';
-import { ServiceRequestEntity } from './service-request.entity';
-import { ServiceRequestTechnicianResponseEntity } from './service-request-technician-response.entity';
-import { UserRoleEntity } from './user-role.entity';
-import { UserSubscriptionEntity } from './user-subscription.entity';
+} from "typeorm";
+import { RoleName, UserStatus } from "../enums";
+import { AddressEntity } from "./address.entity";
+import { AuditLogEntity } from "./audit-log.entity";
+import { ChatMessageEntity } from "./chat-message.entity";
+import { NotificationEntity } from "./notification.entity";
+import { OAuthAccountEntity } from "./oauth-account.entity";
+import { OtpCodeEntity } from "./otp-code.entity";
+import { PasswordResetTokenEntity } from "./password-reset-token.entity";
+import { PaymentEntity } from "./payment.entity";
+import { ProviderProfileEntity } from "./provider-profile.entity";
+import { RatingEntity } from "./rating.entity";
+import { RefreshTokenEntity } from "./refresh-token.entity";
+import { ServiceRequestEntity } from "./service-request.entity";
+import { ServiceRequestTechnicianResponseEntity } from "./service-request-technician-response.entity";
+import { UserRoleEntity } from "./user-role.entity";
+import { UserSubscriptionEntity } from "./user-subscription.entity";
 
-@Entity('users')
+@Entity("users")
 export class UserEntity {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn("uuid")
   id!: string;
 
-  @Column({ type: 'varchar', unique: true, nullable: true })
+  @Column({ type: "varchar", unique: true, nullable: true })
   email!: string | null;
 
-  @Column({ type: 'varchar', unique: true, nullable: true })
+  @Column({ type: "varchar", unique: true, nullable: true })
   phoneNumber!: string | null;
 
-  @Column({ type: 'varchar', nullable: true })
+  @Column({ type: "varchar", nullable: true })
   passwordHash!: string | null;
 
-  @Column({ type: 'varchar' })
+  @Column({ type: "varchar" })
   fullName!: string;
 
-  @Column({ type: 'varchar', unique: true, nullable: true })
+  @Column({ type: "varchar", unique: true, nullable: true })
   documentId!: string | null;
 
-  @Column({ type: 'varchar', nullable: true })
+  @Column({ type: "varchar", nullable: true })
   profilePhotoUrl!: string | null;
 
-  @Column('text', { array: true, default: '{}' })
+  @Column("text", { array: true, default: "{}" })
   skills!: string[];
 
-  @Column({ type: 'float', nullable: true })
+  @Column({ type: "float", nullable: true })
   currentLatitude!: number | null;
 
-  @Column({ type: 'float', nullable: true })
+  @Column({ type: "float", nullable: true })
   currentLongitude!: number | null;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: "timestamp", nullable: true })
   lastLocationUpdate!: Date | null;
 
-  @Column({ type: 'enum', enum: UserStatus, default: UserStatus.ACTIVE })
+  @Column({ type: "enum", enum: UserStatus, default: UserStatus.ACTIVE })
   status!: UserStatus;
 
-  @Column({ type: 'boolean', default: false })
+  @Column({ type: "boolean", default: false })
   emailVerified!: boolean;
 
-  @Column({ type: 'boolean', default: false })
+  @Column({ type: "boolean", default: false })
   phoneVerified!: boolean;
 
-  @Column({ type: 'enum', enum: RoleName, default: RoleName.USER })
+  @Column({ type: "enum", enum: RoleName, default: RoleName.USER })
   primaryRole!: RoleName;
 
   @CreateDateColumn()
@@ -78,10 +78,10 @@ export class UserEntity {
   @UpdateDateColumn()
   updatedAt!: Date;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: "timestamp", nullable: true })
   lastLoginAt!: Date | null;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: "timestamp", nullable: true })
   deletedAt!: Date | null;
 
   // Relations
@@ -133,6 +133,9 @@ export class UserEntity {
   @OneToMany(() => UserSubscriptionEntity, (us) => us.user)
   subscriptions!: UserSubscriptionEntity[];
 
-  @OneToMany(() => ServiceRequestTechnicianResponseEntity, (tr) => tr.technicianUser)
+  @OneToMany(
+    () => ServiceRequestTechnicianResponseEntity,
+    (tr) => tr.technicianUser,
+  )
   technicianResponses!: ServiceRequestTechnicianResponseEntity[];
 }

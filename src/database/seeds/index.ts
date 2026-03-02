@@ -1,1 +1,1 @@
-export * from './roles.seed';
+export * from "./roles.seed";

@@ -1,20 +1,20 @@
-import { configs } from '@config/index';
-import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
-import { DatabaseModule } from '@/database/database.module';
-import { HealthController } from './common/health.controller';
-import { GeocodingModule } from './modules/geocoding';
-import { AuthModule } from './modules/auth';
-import { ServiceRequestsModule } from './modules/service-requests';
-import { UsersModule } from './modules/users';
-import { TenantMiddleware, TenantModule } from './tenant';
+import { configs } from "@config/index";
+import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
+import { ConfigModule } from "@nestjs/config";
+import { DatabaseModule } from "@/database/database.module";
+import { HealthController } from "./common/health.controller";
+import { GeocodingModule } from "./modules/geocoding";
+import { AuthModule } from "./modules/auth";
+import { ServiceRequestsModule } from "./modules/service-requests";
+import { UsersModule } from "./modules/users";
+import { TenantMiddleware, TenantModule } from "./tenant";
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       load: configs,
-      envFilePath: '.env',
+      envFilePath: ".env",
     }),
     DatabaseModule,
     TenantModule,
@@ -28,6 +28,6 @@ import { TenantMiddleware, TenantModule } from './tenant';
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(TenantMiddleware).forRoutes('*');
+    consumer.apply(TenantMiddleware).forRoutes("*");
   }
 }

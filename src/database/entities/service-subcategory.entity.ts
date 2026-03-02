@@ -6,32 +6,32 @@ import {
   OneToMany,
   PrimaryGeneratedColumn,
   Unique,
-} from 'typeorm';
-import { ServiceCategoryEntity } from './service-category.entity';
-import { ServiceRequestEntity } from './service-request.entity';
+} from "typeorm";
+import { ServiceCategoryEntity } from "./service-category.entity";
+import { ServiceRequestEntity } from "./service-request.entity";
 
-@Entity('service_subcategories')
-@Unique(['categoryId', 'slug'])
+@Entity("service_subcategories")
+@Unique(["categoryId", "slug"])
 export class ServiceSubcategoryEntity {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn("uuid")
   id!: string;
 
-  @Column('uuid')
+  @Column("uuid")
   categoryId!: string;
 
-  @Column({ type: 'varchar' })
+  @Column({ type: "varchar" })
   name!: string;
 
-  @Column({ type: 'varchar' })
+  @Column({ type: "varchar" })
   slug!: string;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ type: "text", nullable: true })
   description!: string | null;
 
-  @Column({ type: 'boolean', default: true })
+  @Column({ type: "boolean", default: true })
   isActive!: boolean;
 
-  @Column({ type: 'int', default: 0 })
+  @Column({ type: "int", default: 0 })
   sortOrder!: number;
 
   @CreateDateColumn()

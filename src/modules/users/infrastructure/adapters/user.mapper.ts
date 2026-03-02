@@ -1,11 +1,11 @@
-import { UserEntity as DbUserEntity } from '@/database/entities';
-import { UserStatus as DbUserStatus } from '@/database/enums';
+import { UserEntity as DbUserEntity } from "@/database/entities";
+import { UserStatus as DbUserStatus } from "@/database/enums";
 import type {
   CreateUserEntity,
   UpdateUserEntity,
   UserEntity,
-} from '@users/domain';
-import { UserStatus } from '@users/domain';
+} from "@users/domain";
+import { UserStatus } from "@users/domain";
 
 export function toDomain(dbUser: DbUserEntity): UserEntity {
   return {

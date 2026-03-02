@@ -1,8 +1,8 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { RoleEntity } from '../entities/role.entity';
-import { RoleName } from '../enums';
+import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { RoleEntity } from "../entities/role.entity";
+import { RoleName } from "../enums";
 
 @Injectable()
 export class RolesSeed implements OnModuleInit {

@@ -5,36 +5,36 @@ import {
   OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
-} from 'typeorm';
-import { UserSubscriptionEntity } from './user-subscription.entity';
+} from "typeorm";
+import { UserSubscriptionEntity } from "./user-subscription.entity";
 
-@Entity('subscription_plans')
+@Entity("subscription_plans")
 export class SubscriptionPlanEntity {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn("uuid")
   id!: string;
 
-  @Column({ type: 'varchar', unique: true })
+  @Column({ type: "varchar", unique: true })
   name!: string;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ type: "text", nullable: true })
   description!: string | null;
 
-  @Column({ type: 'decimal', precision: 12, scale: 2 })
+  @Column({ type: "decimal", precision: 12, scale: 2 })
   priceMonthly!: string;
 
-  @Column({ type: 'varchar', default: 'COP' })
+  @Column({ type: "varchar", default: "COP" })
   currency!: string;
 
-  @Column({ type: 'jsonb' })
+  @Column({ type: "jsonb" })
   features!: unknown;
 
-  @Column({ type: 'float', default: 0.0 })
+  @Column({ type: "float", default: 0.0 })
   priorityBoost!: number;
 
-  @Column({ type: 'int', nullable: true })
+  @Column({ type: "int", nullable: true })
   maxRequestsDay!: number | null;
 
-  @Column({ type: 'boolean', default: true })
+  @Column({ type: "boolean", default: true })
   isActive!: boolean;
 
   @CreateDateColumn()

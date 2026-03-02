@@ -4,20 +4,20 @@ import {
   Injectable,
   Logger,
   NotFoundException,
-} from '@nestjs/common';
-import { DataSource, Repository } from 'typeorm';
+} from "@nestjs/common";
+import { DataSource, Repository } from "typeorm";
 import {
   ProviderProfileEntity,
   UserEntity as DbUserEntity,
-} from '@/database/entities';
-import { ProviderVerificationStatus, RoleName } from '@/database/enums';
-import { TENANT_DATA_SOURCE } from '@/tenant';
-import { AUTH_REPOSITORY } from '../../../auth/domain/repositories';
-import type { IAuthRepository } from '../../../auth/domain/repositories/auth.repository';
-import type { CreateProviderProfileDto } from '../dtos/create-provider-profile.dto';
-import { ProviderProfileResponseDto } from '../dtos/provider-profile-response.dto';
-import type { UpdateProviderProfileDto } from '../dtos/update-provider-profile.dto';
-import { VerificationAction } from '../dtos/verify-provider.dto';
+} from "@/database/entities";
+import { ProviderVerificationStatus, RoleName } from "@/database/enums";
+import { TENANT_DATA_SOURCE } from "@/tenant";
+import { AUTH_REPOSITORY } from "../../../auth/domain/repositories";
+import type { IAuthRepository } from "../../../auth/domain/repositories/auth.repository";
+import type { CreateProviderProfileDto } from "../dtos/create-provider-profile.dto";
+import { ProviderProfileResponseDto } from "../dtos/provider-profile-response.dto";
+import type { UpdateProviderProfileDto } from "../dtos/update-provider-profile.dto";
+import { VerificationAction } from "../dtos/verify-provider.dto";
 
 @Injectable()
 export class ProviderProfileService {
@@ -42,7 +42,7 @@ export class ProviderProfileService {
     const existing = await this.profileRepo.findOne({ where: { userId } });
     if (existing) {
       throw new ConflictException(
-        'Provider profile already exists for this user',
+        "Provider profile already exists for this user",
       );
     }
 
@@ -70,10 +70,10 @@ export class ProviderProfileService {
   async findByUserId(userId: string): Promise<ProviderProfileResponseDto> {
     const profile = await this.profileRepo.findOne({
       where: { userId },
-      relations: ['user'],
+      relations: ["user"],
     });
     if (!profile) {
-      throw new NotFoundException('Provider profile not found');
+      throw new NotFoundException("Provider profile not found");
     }
     return this.mapToResponse(profile, profile.user?.skills ?? []);
   }
@@ -84,7 +84,7 @@ export class ProviderProfileService {
   ): Promise<ProviderProfileResponseDto> {
     const existing = await this.profileRepo.findOne({ where: { userId } });
     if (!existing) {
-      throw new NotFoundException('Provider profile not found');
+      throw new NotFoundException("Provider profile not found");
     }
 
     const updateData: Record<string, unknown> = {};
@@ -133,10 +133,10 @@ export class ProviderProfileService {
   ): Promise<ProviderProfileResponseDto> {
     const profile = await this.profileRepo.findOne({
       where: { userId: providerUserId },
-      relations: ['user'],
+      relations: ["user"],
     });
     if (!profile) {
-      throw new NotFoundException('Provider profile not found');
+      throw new NotFoundException("Provider profile not found");
     }
 
     const statusMap: Record<VerificationAction, ProviderVerificationStatus> = {
