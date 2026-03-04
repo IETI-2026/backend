@@ -1,8 +1,8 @@
-import { Global, Module } from "@nestjs/common";
-import { ConfigModule, ConfigService } from "@nestjs/config";
-import { TypeOrmModule } from "@nestjs/typeorm";
-import { ALL_ENTITIES } from "./entities";
-import { RolesSeed } from "./seeds";
+import { Global, Module } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { ALL_ENTITIES } from './entities';
+import { RolesSeed } from './seeds';
 
 @Global()
 @Module({
@@ -11,9 +11,9 @@ import { RolesSeed } from "./seeds";
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
-        const url = configService.get<string>("database.url");
+        const url = configService.get<string>('database.url');
         return {
-          type: "postgres" as const,
+          type: 'postgres' as const,
           url,
           entities: ALL_ENTITIES,
           synchronize: true,

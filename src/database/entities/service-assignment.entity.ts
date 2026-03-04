@@ -7,43 +7,43 @@ import {
   OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
-} from "typeorm";
-import { ProviderProfileEntity } from "./provider-profile.entity";
-import { ServiceRequestEntity } from "./service-request.entity";
+} from 'typeorm';
+import { ProviderProfileEntity } from './provider-profile.entity';
+import { ServiceRequestEntity } from './service-request.entity';
 
-@Entity("service_assignments")
+@Entity('service_assignments')
 export class ServiceAssignmentEntity {
-  @PrimaryGeneratedColumn("uuid")
+  @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ type: "uuid", unique: true })
+  @Column({ type: 'uuid', unique: true })
   serviceRequestId!: string;
 
-  @Column("uuid")
+  @Column('uuid')
   providerProfileId!: string;
 
-  @Column({ type: "float", nullable: true })
+  @Column({ type: 'float', nullable: true })
   distanceKm!: number | null;
 
-  @Column({ type: "float", nullable: true })
+  @Column({ type: 'float', nullable: true })
   compatibilityScore!: number | null;
 
-  @Column({ type: "jsonb", nullable: true })
+  @Column({ type: 'jsonb', nullable: true })
   scoringBreakdown!: Record<string, unknown> | null;
 
-  @Column({ type: "timestamp", default: () => "now()" })
+  @Column({ type: 'timestamp', default: () => 'now()' })
   offeredAt!: Date;
 
-  @Column({ type: "timestamp" })
+  @Column({ type: 'timestamp' })
   responseDeadline!: Date;
 
-  @Column({ type: "timestamp", nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   acceptedAt!: Date | null;
 
-  @Column({ type: "timestamp", nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   rejectedAt!: Date | null;
 
-  @Column({ type: "text", nullable: true })
+  @Column({ type: 'text', nullable: true })
   rejectionReason!: string | null;
 
   @CreateDateColumn()
@@ -52,10 +52,16 @@ export class ServiceAssignmentEntity {
   @UpdateDateColumn()
   updatedAt!: Date;
 
-  @OneToOne(() => ServiceRequestEntity, (sr) => sr.assignment)
-  @JoinColumn({ name: "serviceRequestId" })
+  @OneToOne(
+    () => ServiceRequestEntity,
+    (sr) => sr.assignment,
+  )
+  @JoinColumn({ name: 'serviceRequestId' })
   serviceRequest!: ServiceRequestEntity;
 
-  @ManyToOne(() => ProviderProfileEntity, (pp) => pp.assignments)
+  @ManyToOne(
+    () => ProviderProfileEntity,
+    (pp) => pp.assignments,
+  )
   provider!: ProviderProfileEntity;
 }

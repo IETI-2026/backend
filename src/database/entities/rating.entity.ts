@@ -8,32 +8,32 @@ import {
   OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
-} from "typeorm";
-import { ServiceRequestEntity } from "./service-request.entity";
-import { RatingPhotoEntity } from "./rating-photo.entity";
-import { UserEntity } from "./user.entity";
+} from 'typeorm';
+import { RatingPhotoEntity } from './rating-photo.entity';
+import { ServiceRequestEntity } from './service-request.entity';
+import { UserEntity } from './user.entity';
 
-@Entity("ratings")
+@Entity('ratings')
 export class RatingEntity {
-  @PrimaryGeneratedColumn("uuid")
+  @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ type: "uuid", unique: true })
+  @Column({ type: 'uuid', unique: true })
   serviceRequestId!: string;
 
-  @Column("uuid")
+  @Column('uuid')
   authorId!: string;
 
-  @Column("uuid")
+  @Column('uuid')
   targetId!: string;
 
-  @Column({ type: "int" })
+  @Column({ type: 'int' })
   stars!: number;
 
-  @Column({ type: "varchar", length: 500, nullable: true })
+  @Column({ type: 'varchar', length: 500, nullable: true })
   comment!: string | null;
 
-  @Column({ type: "boolean", default: true })
+  @Column({ type: 'boolean', default: true })
   isPublic!: boolean;
 
   @CreateDateColumn()
@@ -42,16 +42,28 @@ export class RatingEntity {
   @UpdateDateColumn()
   updatedAt!: Date;
 
-  @OneToOne(() => ServiceRequestEntity, (sr) => sr.rating)
-  @JoinColumn({ name: "serviceRequestId" })
+  @OneToOne(
+    () => ServiceRequestEntity,
+    (sr) => sr.rating,
+  )
+  @JoinColumn({ name: 'serviceRequestId' })
   serviceRequest!: ServiceRequestEntity;
 
-  @ManyToOne(() => UserEntity, (u) => u.ratingsGiven)
+  @ManyToOne(
+    () => UserEntity,
+    (u) => u.ratingsGiven,
+  )
   author!: UserEntity;
 
-  @ManyToOne(() => UserEntity, (u) => u.ratingsReceived)
+  @ManyToOne(
+    () => UserEntity,
+    (u) => u.ratingsReceived,
+  )
   target!: UserEntity;
 
-  @OneToMany(() => RatingPhotoEntity, (rp) => rp.rating)
+  @OneToMany(
+    () => RatingPhotoEntity,
+    (rp) => rp.rating,
+  )
   photos!: RatingPhotoEntity[];
 }

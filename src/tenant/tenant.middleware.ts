@@ -2,10 +2,10 @@ import {
   BadRequestException,
   Injectable,
   NestMiddleware,
-} from "@nestjs/common";
-import { NextFunction, Request, Response } from "express";
-import { TenantContext } from "./tenant-context";
-import { TenantDataSourceService } from "./tenant-datasource.service";
+} from '@nestjs/common';
+import { NextFunction, Request, Response } from 'express';
+import { TenantContext } from './tenant-context';
+import { TenantDataSourceService } from './tenant-datasource.service';
 
 @Injectable()
 export class TenantMiddleware implements NestMiddleware {
@@ -39,19 +39,19 @@ export class TenantMiddleware implements NestMiddleware {
 
   private resolveTenant(req: Request): string {
     // Solo se resuelve por header X-Tenant-ID
-    const headerTenant = req.header("X-Tenant-ID");
+    const headerTenant = req.header('X-Tenant-ID');
     if (headerTenant) {
       return this.normalizeTenant(headerTenant);
     }
 
     // Fallback al tenant público
-    return "public";
+    return 'public';
   }
 
   private normalizeTenant(value?: string | null): string {
-    const tenant = value?.trim().toLowerCase() ?? "";
+    const tenant = value?.trim().toLowerCase() ?? '';
     if (!tenant) {
-      return "public";
+      return 'public';
     }
 
     if (!this.TENANT_ID_PATTERN.test(tenant)) {

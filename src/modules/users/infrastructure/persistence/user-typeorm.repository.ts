@@ -1,15 +1,15 @@
-import { Inject, Injectable, NotFoundException } from "@nestjs/common";
-import { DataSource, Repository } from "typeorm";
-import { UserEntity as DbUserEntity } from "@/database/entities";
-import { UserStatus as DbUserStatus } from "@/database/enums";
-import { TENANT_DATA_SOURCE } from "@/tenant";
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type {
   CreateUserEntity,
   IUserRepository,
   UpdateUserEntity,
   UserEntity,
-} from "@users/domain";
-import * as UserMapper from "../adapters/user.mapper";
+} from '@users/domain';
+import { DataSource, Repository } from 'typeorm';
+import { UserEntity as DbUserEntity } from '@/database/entities';
+import { UserStatus as DbUserStatus } from '@/database/enums';
+import { TENANT_DATA_SOURCE } from '@/tenant';
+import * as UserMapper from '../adapters/user.mapper';
 
 @Injectable()
 export class UserTypeOrmRepository implements IUserRepository {
@@ -62,7 +62,7 @@ export class UserTypeOrmRepository implements IUserRepository {
       where,
       skip,
       take,
-      order: { createdAt: "DESC" },
+      order: { createdAt: 'DESC' },
     });
 
     return {

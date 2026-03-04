@@ -1,11 +1,10 @@
+import { HttpService } from '@nestjs/axios';
 import {
   BadRequestException,
   Injectable,
   InternalServerErrorException,
-  Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { HttpService } from '@nestjs/axios';
 import { lastValueFrom } from 'rxjs';
 import { ReverseGeocodeDto } from './dto/reverse-geocode.dto';
 
@@ -30,8 +29,6 @@ export interface GoogleGeocodeResponse {
 
 @Injectable()
 export class GeocodingService {
-  private readonly logger = new Logger(GeocodingService.name);
-
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
@@ -42,7 +39,9 @@ export class GeocodingService {
     console.log(`Using Google Maps API key: ${apiKey}`);
 
     if (!apiKey) {
-      throw new InternalServerErrorException('Google Maps API key is not configured');
+      throw new InternalServerErrorException(
+        'Google Maps API key is not configured',
+      );
     }
 
     const url = 'https://maps.googleapis.com/maps/api/geocode/json';
@@ -59,12 +58,17 @@ export class GeocodingService {
     const payload = response.data;
 
     if (!payload || payload.status !== 'OK' || payload.results.length === 0) {
-      const reason = payload?.error_message || payload?.status || 'Unknown error';
-      throw new BadRequestException(`Google Maps could not resolve the address: ${reason}`);
+      const reason =
+        payload?.error_message || payload?.status || 'Unknown error';
+      throw new BadRequestException(
+        `Google Maps could not resolve the address: ${reason}`,
+      );
     }
 
     const primary = payload.results[0];
-    const tenantCandidate = this.deriveTenantCandidate(primary.address_components);
+    const tenantCandidate = this.deriveTenantCandidate(
+      primary.address_components,
+    );
 
     return {
       formattedAddress: primary.formatted_address,
@@ -79,7 +83,9 @@ export class GeocodingService {
     return { tenant: result.tenantCandidate ?? 'public' };
   }
 
-  private deriveTenantCandidate(components: GoogleAddressComponent[]): string | null {
+  private deriveTenantCandidate(
+    components: GoogleAddressComponent[],
+  ): string | null {
     const tenantSource = this.findFirstComponent(components, [
       'locality',
       'administrative_area_level_1',

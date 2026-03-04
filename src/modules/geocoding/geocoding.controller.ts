@@ -1,6 +1,6 @@
 import { Body, Controller, Post } from '@nestjs/common';
-import { GeocodingService } from './geocoding.service';
 import { ReverseGeocodeDto } from './dto/reverse-geocode.dto';
+import { GeocodingService } from './geocoding.service';
 
 @Controller('geocoding')
 export class GeocodingController {
@@ -12,7 +12,9 @@ export class GeocodingController {
   }
 
   @Post('tenant')
-  async getTenant(@Body() payload: ReverseGeocodeDto): Promise<{ tenant: string }> {
+  async getTenant(
+    @Body() payload: ReverseGeocodeDto,
+  ): Promise<{ tenant: string }> {
     return this.geocodingService.resolveTenant(payload);
   }
 }

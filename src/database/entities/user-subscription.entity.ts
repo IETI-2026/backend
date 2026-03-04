@@ -6,43 +6,43 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
-} from "typeorm";
-import { SubscriptionStatus } from "../enums";
-import { SubscriptionPlanEntity } from "./subscription-plan.entity";
-import { UserEntity } from "./user.entity";
+} from 'typeorm';
+import { SubscriptionStatus } from '../enums';
+import { SubscriptionPlanEntity } from './subscription-plan.entity';
+import { UserEntity } from './user.entity';
 
-@Entity("user_subscriptions")
-@Index(["userId", "status"])
+@Entity('user_subscriptions')
+@Index(['userId', 'status'])
 export class UserSubscriptionEntity {
-  @PrimaryGeneratedColumn("uuid")
+  @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column("uuid")
+  @Column('uuid')
   userId!: string;
 
-  @Column("uuid")
+  @Column('uuid')
   planId!: string;
 
   @Column({
-    type: "enum",
+    type: 'enum',
     enum: SubscriptionStatus,
     default: SubscriptionStatus.PENDING,
   })
   status!: SubscriptionStatus;
 
-  @Column({ type: "timestamp", default: () => "now()" })
+  @Column({ type: 'timestamp', default: () => 'now()' })
   startedAt!: Date;
 
-  @Column({ type: "timestamp" })
+  @Column({ type: 'timestamp' })
   expiresAt!: Date;
 
-  @Column({ type: "timestamp", nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   cancelledAt!: Date | null;
 
-  @Column({ type: "boolean", default: true })
+  @Column({ type: 'boolean', default: true })
   autoRenew!: boolean;
 
-  @Column({ type: "varchar", nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   paymentRef!: string | null;
 
   @CreateDateColumn()
@@ -51,9 +51,16 @@ export class UserSubscriptionEntity {
   @UpdateDateColumn()
   updatedAt!: Date;
 
-  @ManyToOne(() => UserEntity, (u) => u.subscriptions, { onDelete: "CASCADE" })
+  @ManyToOne(
+    () => UserEntity,
+    (u) => u.subscriptions,
+    { onDelete: 'CASCADE' },
+  )
   user!: UserEntity;
 
-  @ManyToOne(() => SubscriptionPlanEntity, (sp) => sp.subscriptions)
+  @ManyToOne(
+    () => SubscriptionPlanEntity,
+    (sp) => sp.subscriptions,
+  )
   plan!: SubscriptionPlanEntity;
 }

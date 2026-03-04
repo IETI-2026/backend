@@ -4,43 +4,52 @@ import {
   Entity,
   OneToMany,
   PrimaryGeneratedColumn,
-} from "typeorm";
-import { ProviderServiceEntity } from "./provider-service.entity";
-import { ServiceRequestEntity } from "./service-request.entity";
-import { ServiceSubcategoryEntity } from "./service-subcategory.entity";
+} from 'typeorm';
+import { ProviderServiceEntity } from './provider-service.entity';
+import { ServiceRequestEntity } from './service-request.entity';
+import { ServiceSubcategoryEntity } from './service-subcategory.entity';
 
-@Entity("service_categories")
+@Entity('service_categories')
 export class ServiceCategoryEntity {
-  @PrimaryGeneratedColumn("uuid")
+  @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ type: "varchar", unique: true })
+  @Column({ type: 'varchar', unique: true })
   name!: string;
 
-  @Column({ type: "varchar", unique: true })
+  @Column({ type: 'varchar', unique: true })
   slug!: string;
 
-  @Column({ type: "text", nullable: true })
+  @Column({ type: 'text', nullable: true })
   description!: string | null;
 
-  @Column({ type: "varchar", nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   iconUrl!: string | null;
 
-  @Column({ type: "boolean", default: true })
+  @Column({ type: 'boolean', default: true })
   isActive!: boolean;
 
-  @Column({ type: "int", default: 0 })
+  @Column({ type: 'int', default: 0 })
   sortOrder!: number;
 
   @CreateDateColumn()
   createdAt!: Date;
 
-  @OneToMany(() => ServiceSubcategoryEntity, (sc) => sc.category)
+  @OneToMany(
+    () => ServiceSubcategoryEntity,
+    (sc) => sc.category,
+  )
   subcategories!: ServiceSubcategoryEntity[];
 
-  @OneToMany(() => ProviderServiceEntity, (ps) => ps.category)
+  @OneToMany(
+    () => ProviderServiceEntity,
+    (ps) => ps.category,
+  )
   providerServices!: ProviderServiceEntity[];
 
-  @OneToMany(() => ServiceRequestEntity, (sr) => sr.category)
+  @OneToMany(
+    () => ServiceRequestEntity,
+    (sr) => sr.category,
+  )
   requests!: ServiceRequestEntity[];
 }

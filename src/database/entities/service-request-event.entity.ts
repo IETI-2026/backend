@@ -5,39 +5,43 @@ import {
   Index,
   ManyToOne,
   PrimaryGeneratedColumn,
-} from "typeorm";
-import { ServiceRequestStatus } from "../enums";
-import { ServiceRequestEntity } from "./service-request.entity";
+} from 'typeorm';
+import { ServiceRequestStatus } from '../enums';
+import { ServiceRequestEntity } from './service-request.entity';
 
-@Entity("service_request_events")
-@Index(["serviceRequestId"])
+@Entity('service_request_events')
+@Index(['serviceRequestId'])
 export class ServiceRequestEventEntity {
-  @PrimaryGeneratedColumn("uuid")
+  @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column("uuid")
+  @Column('uuid')
   serviceRequestId!: string;
 
-  @Column({ type: "enum", enum: ServiceRequestStatus, nullable: true })
+  @Column({ type: 'enum', enum: ServiceRequestStatus, nullable: true })
   previousStatus!: ServiceRequestStatus | null;
 
-  @Column({ type: "enum", enum: ServiceRequestStatus })
+  @Column({ type: 'enum', enum: ServiceRequestStatus })
   newStatus!: ServiceRequestStatus;
 
-  @Column({ type: "uuid", nullable: true })
+  @Column({ type: 'uuid', nullable: true })
   triggeredBy!: string | null;
 
-  @Column({ type: "text", nullable: true })
+  @Column({ type: 'text', nullable: true })
   notes!: string | null;
 
-  @Column({ type: "jsonb", nullable: true })
+  @Column({ type: 'jsonb', nullable: true })
   metadata!: Record<string, unknown> | null;
 
   @CreateDateColumn()
   createdAt!: Date;
 
-  @ManyToOne(() => ServiceRequestEntity, (sr) => sr.events, {
-    onDelete: "CASCADE",
-  })
+  @ManyToOne(
+    () => ServiceRequestEntity,
+    (sr) => sr.events,
+    {
+      onDelete: 'CASCADE',
+    },
+  )
   serviceRequest!: ServiceRequestEntity;
 }

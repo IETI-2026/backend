@@ -4,23 +4,27 @@ import {
   Entity,
   ManyToOne,
   PrimaryGeneratedColumn,
-} from "typeorm";
-import { RatingEntity } from "./rating.entity";
+} from 'typeorm';
+import { RatingEntity } from './rating.entity';
 
-@Entity("rating_photos")
+@Entity('rating_photos')
 export class RatingPhotoEntity {
-  @PrimaryGeneratedColumn("uuid")
+  @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column("uuid")
+  @Column('uuid')
   ratingId!: string;
 
-  @Column({ type: "varchar" })
+  @Column({ type: 'varchar' })
   url!: string;
 
   @CreateDateColumn()
   createdAt!: Date;
 
-  @ManyToOne(() => RatingEntity, (r) => r.photos, { onDelete: "CASCADE" })
+  @ManyToOne(
+    () => RatingEntity,
+    (r) => r.photos,
+    { onDelete: 'CASCADE' },
+  )
   rating!: RatingEntity;
 }

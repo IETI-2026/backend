@@ -2,74 +2,73 @@ import {
   Column,
   CreateDateColumn,
   Entity,
-  Index,
   OneToMany,
   OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
-} from "typeorm";
-import { RoleName, UserStatus } from "../enums";
-import { AddressEntity } from "./address.entity";
-import { AuditLogEntity } from "./audit-log.entity";
-import { ChatMessageEntity } from "./chat-message.entity";
-import { NotificationEntity } from "./notification.entity";
-import { OAuthAccountEntity } from "./oauth-account.entity";
-import { OtpCodeEntity } from "./otp-code.entity";
-import { PasswordResetTokenEntity } from "./password-reset-token.entity";
-import { PaymentEntity } from "./payment.entity";
-import { ProviderProfileEntity } from "./provider-profile.entity";
-import { RatingEntity } from "./rating.entity";
-import { RefreshTokenEntity } from "./refresh-token.entity";
-import { ServiceRequestEntity } from "./service-request.entity";
-import { ServiceRequestTechnicianResponseEntity } from "./service-request-technician-response.entity";
-import { UserRoleEntity } from "./user-role.entity";
-import { UserSubscriptionEntity } from "./user-subscription.entity";
+} from 'typeorm';
+import { RoleName, UserStatus } from '../enums';
+import { AddressEntity } from './address.entity';
+import { AuditLogEntity } from './audit-log.entity';
+import { ChatMessageEntity } from './chat-message.entity';
+import { NotificationEntity } from './notification.entity';
+import { OAuthAccountEntity } from './oauth-account.entity';
+import { OtpCodeEntity } from './otp-code.entity';
+import { PasswordResetTokenEntity } from './password-reset-token.entity';
+import { PaymentEntity } from './payment.entity';
+import { ProviderProfileEntity } from './provider-profile.entity';
+import { RatingEntity } from './rating.entity';
+import { RefreshTokenEntity } from './refresh-token.entity';
+import { ServiceRequestEntity } from './service-request.entity';
+import { ServiceRequestTechnicianResponseEntity } from './service-request-technician-response.entity';
+import { UserRoleEntity } from './user-role.entity';
+import { UserSubscriptionEntity } from './user-subscription.entity';
 
-@Entity("users")
+@Entity('users')
 export class UserEntity {
-  @PrimaryGeneratedColumn("uuid")
+  @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ type: "varchar", unique: true, nullable: true })
+  @Column({ type: 'varchar', unique: true, nullable: true })
   email!: string | null;
 
-  @Column({ type: "varchar", unique: true, nullable: true })
+  @Column({ type: 'varchar', unique: true, nullable: true })
   phoneNumber!: string | null;
 
-  @Column({ type: "varchar", nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   passwordHash!: string | null;
 
-  @Column({ type: "varchar" })
+  @Column({ type: 'varchar' })
   fullName!: string;
 
-  @Column({ type: "varchar", unique: true, nullable: true })
+  @Column({ type: 'varchar', unique: true, nullable: true })
   documentId!: string | null;
 
-  @Column({ type: "varchar", nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   profilePhotoUrl!: string | null;
 
-  @Column("text", { array: true, default: "{}" })
+  @Column('text', { array: true, default: '{}' })
   skills!: string[];
 
-  @Column({ type: "float", nullable: true })
+  @Column({ type: 'float', nullable: true })
   currentLatitude!: number | null;
 
-  @Column({ type: "float", nullable: true })
+  @Column({ type: 'float', nullable: true })
   currentLongitude!: number | null;
 
-  @Column({ type: "timestamp", nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   lastLocationUpdate!: Date | null;
 
-  @Column({ type: "enum", enum: UserStatus, default: UserStatus.ACTIVE })
+  @Column({ type: 'enum', enum: UserStatus, default: UserStatus.ACTIVE })
   status!: UserStatus;
 
-  @Column({ type: "boolean", default: false })
+  @Column({ type: 'boolean', default: false })
   emailVerified!: boolean;
 
-  @Column({ type: "boolean", default: false })
+  @Column({ type: 'boolean', default: false })
   phoneVerified!: boolean;
 
-  @Column({ type: "enum", enum: RoleName, default: RoleName.USER })
+  @Column({ type: 'enum', enum: RoleName, default: RoleName.USER })
   primaryRole!: RoleName;
 
   @CreateDateColumn()
@@ -78,59 +77,107 @@ export class UserEntity {
   @UpdateDateColumn()
   updatedAt!: Date;
 
-  @Column({ type: "timestamp", nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   lastLoginAt!: Date | null;
 
-  @Column({ type: "timestamp", nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   deletedAt!: Date | null;
 
   // Relations
-  @OneToMany(() => UserRoleEntity, (ur) => ur.user)
+  @OneToMany(
+    () => UserRoleEntity,
+    (ur) => ur.user,
+  )
   roles!: UserRoleEntity[];
 
-  @OneToMany(() => OAuthAccountEntity, (oa) => oa.user)
+  @OneToMany(
+    () => OAuthAccountEntity,
+    (oa) => oa.user,
+  )
   oauthAccounts!: OAuthAccountEntity[];
 
-  @OneToMany(() => RefreshTokenEntity, (rt) => rt.user)
+  @OneToMany(
+    () => RefreshTokenEntity,
+    (rt) => rt.user,
+  )
   refreshTokens!: RefreshTokenEntity[];
 
-  @OneToMany(() => PasswordResetTokenEntity, (prt) => prt.user)
+  @OneToMany(
+    () => PasswordResetTokenEntity,
+    (prt) => prt.user,
+  )
   passwordResetTokens!: PasswordResetTokenEntity[];
 
-  @OneToMany(() => OtpCodeEntity, (otp) => otp.user)
+  @OneToMany(
+    () => OtpCodeEntity,
+    (otp) => otp.user,
+  )
   otpCodes!: OtpCodeEntity[];
 
-  @OneToOne(() => ProviderProfileEntity, (pp) => pp.user)
+  @OneToOne(
+    () => ProviderProfileEntity,
+    (pp) => pp.user,
+  )
   providerProfile!: ProviderProfileEntity;
 
-  @OneToMany(() => AddressEntity, (a) => a.user)
+  @OneToMany(
+    () => AddressEntity,
+    (a) => a.user,
+  )
   addresses!: AddressEntity[];
 
-  @OneToMany(() => ServiceRequestEntity, (sr) => sr.user)
+  @OneToMany(
+    () => ServiceRequestEntity,
+    (sr) => sr.user,
+  )
   serviceRequests!: ServiceRequestEntity[];
 
-  @OneToMany(() => ServiceRequestEntity, (sr) => sr.assignedTechnician)
+  @OneToMany(
+    () => ServiceRequestEntity,
+    (sr) => sr.assignedTechnician,
+  )
   assignedRequests!: ServiceRequestEntity[];
 
-  @OneToMany(() => PaymentEntity, (p) => p.user)
+  @OneToMany(
+    () => PaymentEntity,
+    (p) => p.user,
+  )
   payments!: PaymentEntity[];
 
-  @OneToMany(() => RatingEntity, (r) => r.author)
+  @OneToMany(
+    () => RatingEntity,
+    (r) => r.author,
+  )
   ratingsGiven!: RatingEntity[];
 
-  @OneToMany(() => RatingEntity, (r) => r.target)
+  @OneToMany(
+    () => RatingEntity,
+    (r) => r.target,
+  )
   ratingsReceived!: RatingEntity[];
 
-  @OneToMany(() => NotificationEntity, (n) => n.user)
+  @OneToMany(
+    () => NotificationEntity,
+    (n) => n.user,
+  )
   notifications!: NotificationEntity[];
 
-  @OneToMany(() => AuditLogEntity, (al) => al.user)
+  @OneToMany(
+    () => AuditLogEntity,
+    (al) => al.user,
+  )
   auditLogs!: AuditLogEntity[];
 
-  @OneToMany(() => ChatMessageEntity, (cm) => cm.sender)
+  @OneToMany(
+    () => ChatMessageEntity,
+    (cm) => cm.sender,
+  )
   chatMessages!: ChatMessageEntity[];
 
-  @OneToMany(() => UserSubscriptionEntity, (us) => us.user)
+  @OneToMany(
+    () => UserSubscriptionEntity,
+    (us) => us.user,
+  )
   subscriptions!: UserSubscriptionEntity[];
 
   @OneToMany(
