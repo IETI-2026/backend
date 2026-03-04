@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { TechnicianResponseStatus } from '@prisma/client';
+import { TechnicianResponseStatus } from '@/database/enums';
 
 export class TechnicianResponseDto {
   @ApiProperty({

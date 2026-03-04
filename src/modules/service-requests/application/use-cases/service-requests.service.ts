@@ -7,13 +7,19 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { DataSource, Repository } from 'typeorm';
 import {
-  type PrismaClient,
+  UserEntity as DbUserEntity,
+  ServiceRequestEntity,
+  ServiceRequestEventEntity,
+  ServiceRequestTechnicianResponseEntity,
+} from '@/database/entities';
+import {
   ServiceRequestStatus,
   TechnicianResponseStatus,
   UrgencyLevel,
-} from '@prisma/client';
-import { TENANT_PRISMA_CLIENT } from '@/tenant';
+} from '@/database/enums';
+import { TENANT_DATA_SOURCE } from '@/tenant';
 import {
   type AcceptedTechnicianUserDto,
   type AcceptServiceRequestDto,
@@ -46,19 +52,30 @@ type ChatCompletionsResponse = {
 @Injectable()
 export class ServiceRequestsService {
   private readonly logger = new Logger(ServiceRequestsService.name);
+  private readonly requestRepo: Repository<ServiceRequestEntity>;
+  private readonly responseRepo: Repository<ServiceRequestTechnicianResponseEntity>;
+  private readonly eventRepo: Repository<ServiceRequestEventEntity>;
+  private readonly userRepo: Repository<DbUserEntity>;
 
   constructor(
-    @Inject(TENANT_PRISMA_CLIENT)
-    private readonly prisma: PrismaClient,
+    @Inject(TENANT_DATA_SOURCE)
+    dataSource: DataSource,
     private readonly configService: ConfigService,
-  ) {}
+  ) {
+    this.requestRepo = dataSource.getRepository(ServiceRequestEntity);
+    this.responseRepo = dataSource.getRepository(
+      ServiceRequestTechnicianResponseEntity,
+    );
+    this.eventRepo = dataSource.getRepository(ServiceRequestEventEntity);
+    this.userRepo = dataSource.getRepository(DbUserEntity);
+  }
 
   async create(
     dto: CreateServiceRequestDto,
   ): Promise<ServiceRequestResponseDto> {
-    const user = await this.prisma.user.findUnique({
+    const user = await this.userRepo.findOne({
       where: { id: dto.userId },
-      select: { id: true },
+      select: ['id'],
     });
 
     if (!user) {
@@ -67,22 +84,21 @@ export class ServiceRequestsService {
 
     const classification = await this.classifyProblemWithAgent(dto.problema);
 
-    const request = await this.prisma.serviceRequest.create({
-      data: {
-        userId: dto.userId,
-        rawDescription: dto.problema,
-        serviceCity: dto.serviceCity.trim().toLowerCase(),
-        requestedSkills: classification.skills,
-        latitude: dto.latitude,
-        longitude: dto.longitude,
-        addressText: dto.addressText,
-        urgency: classification.urgency,
-      },
-      include: {
-        technicianResponses: {
-          orderBy: { respondedAt: 'desc' },
-        },
-      },
+    const entity = this.requestRepo.create({
+      userId: dto.userId,
+      rawDescription: dto.problema,
+      serviceCity: dto.serviceCity.trim().toLowerCase(),
+      requestedSkills: classification.skills,
+      latitude: dto.latitude,
+      longitude: dto.longitude,
+      addressText: dto.addressText,
+      urgency: classification.urgency,
+    });
+    const saved = await this.requestRepo.save(entity);
+
+    const request = await this.requestRepo.findOneOrFail({
+      where: { id: saved.id },
+      relations: ['technicianResponses'],
     });
 
     return this.toResponse(request);
@@ -98,29 +114,20 @@ export class ServiceRequestsService {
     const limit = query.limit ?? 20;
     const serviceCity = query.serviceCity?.trim().toLowerCase();
 
-    const where = {
-      ...(query.status ? { status: query.status } : {}),
-      ...(query.userId ? { userId: query.userId } : {}),
-      ...(query.technicianUserId
-        ? { assignedTechnicianId: query.technicianUserId }
-        : {}),
-      ...(serviceCity ? { serviceCity } : {}),
-    };
+    const where: Record<string, unknown> = {};
+    if (query.status) where.status = query.status;
+    if (query.userId) where.userId = query.userId;
+    if (query.technicianUserId)
+      where.assignedTechnicianId = query.technicianUserId;
+    if (serviceCity) where.serviceCity = serviceCity;
 
-    const [requests, total] = await Promise.all([
-      this.prisma.serviceRequest.findMany({
-        where,
-        skip: page * limit,
-        take: limit,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          technicianResponses: {
-            orderBy: { respondedAt: 'desc' },
-          },
-        },
-      }),
-      this.prisma.serviceRequest.count({ where }),
-    ]);
+    const [requests, total] = await this.requestRepo.findAndCount({
+      where,
+      skip: page * limit,
+      take: limit,
+      order: { createdAt: 'DESC' },
+      relations: ['technicianResponses'],
+    });
 
     return {
       requests: requests.map((request) => this.toResponse(request)),
@@ -133,9 +140,9 @@ export class ServiceRequestsService {
   async findAcceptedTechnicians(
     serviceRequestId: string,
   ): Promise<AcceptedTechnicianUserDto[]> {
-    const serviceRequest = await this.prisma.serviceRequest.findUnique({
+    const serviceRequest = await this.requestRepo.findOne({
       where: { id: serviceRequestId },
-      select: { id: true },
+      select: ['id'],
     });
 
     if (!serviceRequest) {
@@ -144,27 +151,14 @@ export class ServiceRequestsService {
       );
     }
 
-    const responses =
-      await this.prisma.serviceRequestTechnicianResponse.findMany({
-        where: {
-          serviceRequestId,
-          status: TechnicianResponseStatus.ACCEPTED,
-        },
-        orderBy: { respondedAt: 'desc' },
-        include: {
-          technicianUser: {
-            select: {
-              id: true,
-              fullName: true,
-              email: true,
-              phoneNumber: true,
-              skills: true,
-              currentLatitude: true,
-              currentLongitude: true,
-            },
-          },
-        },
-      });
+    const responses = await this.responseRepo.find({
+      where: {
+        serviceRequestId,
+        status: TechnicianResponseStatus.ACCEPTED,
+      },
+      order: { respondedAt: 'DESC' },
+      relations: ['technicianUser'],
+    });
 
     return responses.map((response) => ({
       id: response.technicianUser.id,
@@ -181,9 +175,9 @@ export class ServiceRequestsService {
   async findAvailableForTechnician(
     technicianUserId: string,
   ): Promise<ServiceRequestResponseDto[]> {
-    const technician = await this.prisma.user.findUnique({
+    const technician = await this.userRepo.findOne({
       where: { id: technicianUserId },
-      select: { id: true, skills: true },
+      select: ['id', 'skills'],
     });
 
     if (!technician) {
@@ -198,27 +192,23 @@ export class ServiceRequestsService {
       return [];
     }
 
-    const requests = await this.prisma.serviceRequest.findMany({
-      where: {
-        status: ServiceRequestStatus.REQUESTED,
-        requestedSkills: {
-          hasSome: normalizedSkills,
-        },
-        NOT: {
-          technicianResponses: {
-            some: {
-              technicianUserId,
-            },
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-      include: {
-        technicianResponses: {
-          orderBy: { respondedAt: 'desc' },
-        },
-      },
-    });
+    // Use query builder for array overlap and NOT EXISTS subquery
+    const qb = this.requestRepo
+      .createQueryBuilder('sr')
+      .leftJoinAndSelect('sr.technicianResponses', 'tr')
+      .where('sr.status = :status', { status: ServiceRequestStatus.REQUESTED })
+      .andWhere('sr."requestedSkills" && :skills', { skills: normalizedSkills })
+      .andWhere(
+        `NOT EXISTS (
+          SELECT 1 FROM service_request_technician_responses trx
+          WHERE trx."serviceRequestId" = sr.id
+          AND trx."technicianUserId" = :technicianUserId
+        )`,
+        { technicianUserId },
+      )
+      .orderBy('sr."createdAt"', 'DESC');
+
+    const requests = await qb.getMany();
 
     return requests.map((request) => this.toResponse(request));
   }
@@ -227,9 +217,9 @@ export class ServiceRequestsService {
     serviceRequestId: string,
     dto: AcceptServiceRequestDto,
   ): Promise<ServiceRequestResponseDto> {
-    const technician = await this.prisma.user.findUnique({
+    const technician = await this.userRepo.findOne({
       where: { id: dto.technicianUserId },
-      select: { id: true },
+      select: ['id'],
     });
 
     if (!technician) {
@@ -238,9 +228,9 @@ export class ServiceRequestsService {
       );
     }
 
-    const request = await this.prisma.serviceRequest.findUnique({
+    const request = await this.requestRepo.findOne({
       where: { id: serviceRequestId },
-      select: { id: true, status: true },
+      select: ['id', 'status'],
     });
 
     if (!request) {
@@ -255,37 +245,34 @@ export class ServiceRequestsService {
       );
     }
 
-    await this.prisma.serviceRequestTechnicianResponse.upsert({
-      where: {
-        serviceRequestId_technicianUserId: {
-          serviceRequestId,
-          technicianUserId: dto.technicianUserId,
-        },
-      },
-      create: {
+    // Upsert: find existing or create
+    let existingResponse = await this.responseRepo.findOne({
+      where: { serviceRequestId, technicianUserId: dto.technicianUserId },
+    });
+
+    if (existingResponse) {
+      existingResponse.status = TechnicianResponseStatus.ACCEPTED;
+      existingResponse.reason = null;
+      existingResponse.respondedAt = new Date();
+      await this.responseRepo.save(existingResponse);
+    } else {
+      existingResponse = this.responseRepo.create({
         serviceRequestId,
         technicianUserId: dto.technicianUserId,
         status: TechnicianResponseStatus.ACCEPTED,
         respondedAt: new Date(),
-      },
-      update: {
-        status: TechnicianResponseStatus.ACCEPTED,
-        reason: null,
-        respondedAt: new Date(),
-      },
-    });
+      });
+      await this.responseRepo.save(existingResponse);
+    }
 
-    await this.prisma.serviceRequestEvent.create({
-      data: {
-        serviceRequestId,
-        previousStatus: ServiceRequestStatus.REQUESTED,
-        newStatus: ServiceRequestStatus.REQUESTED,
-        triggeredBy: dto.technicianUserId,
-        metadata: {
-          action: 'TECHNICIAN_ACCEPTED',
-        },
-      },
+    const event = this.eventRepo.create({
+      serviceRequestId,
+      previousStatus: ServiceRequestStatus.REQUESTED,
+      newStatus: ServiceRequestStatus.REQUESTED,
+      triggeredBy: dto.technicianUserId,
+      metadata: { action: 'TECHNICIAN_ACCEPTED' },
     });
+    await this.eventRepo.save(event);
 
     return this.findByIdOrThrow(serviceRequestId);
   }
@@ -294,9 +281,9 @@ export class ServiceRequestsService {
     serviceRequestId: string,
     dto: RejectServiceRequestDto,
   ): Promise<{ message: string }> {
-    const technician = await this.prisma.user.findUnique({
+    const technician = await this.userRepo.findOne({
       where: { id: dto.technicianUserId },
-      select: { id: true },
+      select: ['id'],
     });
 
     if (!technician) {
@@ -305,9 +292,9 @@ export class ServiceRequestsService {
       );
     }
 
-    const request = await this.prisma.serviceRequest.findUnique({
+    const request = await this.requestRepo.findOne({
       where: { id: serviceRequestId },
-      select: { id: true, status: true },
+      select: ['id', 'status'],
     });
 
     if (!request) {
@@ -322,39 +309,36 @@ export class ServiceRequestsService {
       );
     }
 
-    await this.prisma.serviceRequestTechnicianResponse.upsert({
-      where: {
-        serviceRequestId_technicianUserId: {
-          serviceRequestId,
-          technicianUserId: dto.technicianUserId,
-        },
-      },
-      create: {
+    // Upsert: find existing or create
+    let existingResponse = await this.responseRepo.findOne({
+      where: { serviceRequestId, technicianUserId: dto.technicianUserId },
+    });
+
+    if (existingResponse) {
+      existingResponse.status = TechnicianResponseStatus.REJECTED;
+      existingResponse.reason = dto.reason ?? null;
+      existingResponse.respondedAt = new Date();
+      await this.responseRepo.save(existingResponse);
+    } else {
+      existingResponse = this.responseRepo.create({
         serviceRequestId,
         technicianUserId: dto.technicianUserId,
         status: TechnicianResponseStatus.REJECTED,
         reason: dto.reason ?? null,
         respondedAt: new Date(),
-      },
-      update: {
-        status: TechnicianResponseStatus.REJECTED,
-        reason: dto.reason ?? null,
-        respondedAt: new Date(),
-      },
-    });
+      });
+      await this.responseRepo.save(existingResponse);
+    }
 
-    await this.prisma.serviceRequestEvent.create({
-      data: {
-        serviceRequestId,
-        previousStatus: ServiceRequestStatus.REQUESTED,
-        newStatus: ServiceRequestStatus.REQUESTED,
-        triggeredBy: dto.technicianUserId,
-        notes: dto.reason ?? null,
-        metadata: {
-          action: 'TECHNICIAN_REJECTED',
-        },
-      },
+    const event = this.eventRepo.create({
+      serviceRequestId,
+      previousStatus: ServiceRequestStatus.REQUESTED,
+      newStatus: ServiceRequestStatus.REQUESTED,
+      triggeredBy: dto.technicianUserId,
+      notes: dto.reason ?? null,
+      metadata: { action: 'TECHNICIAN_REJECTED' },
     });
+    await this.eventRepo.save(event);
 
     return {
       message: `Service request ${serviceRequestId} rejected by technician ${dto.technicianUserId}`,
@@ -365,13 +349,9 @@ export class ServiceRequestsService {
     serviceRequestId: string,
     dto: ChooseTechnicianDto,
   ): Promise<ServiceRequestResponseDto> {
-    const request = await this.prisma.serviceRequest.findUnique({
+    const request = await this.requestRepo.findOne({
       where: { id: serviceRequestId },
-      select: {
-        id: true,
-        userId: true,
-        status: true,
-      },
+      select: ['id', 'userId', 'status'],
     });
 
     if (!request) {
@@ -392,18 +372,13 @@ export class ServiceRequestsService {
       );
     }
 
-    const acceptedResponse =
-      await this.prisma.serviceRequestTechnicianResponse.findUnique({
-        where: {
-          serviceRequestId_technicianUserId: {
-            serviceRequestId,
-            technicianUserId: dto.technicianUserId,
-          },
-        },
-        select: {
-          status: true,
-        },
-      });
+    const acceptedResponse = await this.responseRepo.findOne({
+      where: {
+        serviceRequestId,
+        technicianUserId: dto.technicianUserId,
+      },
+      select: ['status'],
+    });
 
     if (
       !acceptedResponse ||
@@ -414,27 +389,23 @@ export class ServiceRequestsService {
       );
     }
 
-    await this.prisma.serviceRequest.update({
-      where: { id: serviceRequestId },
-      data: {
-        assignedTechnicianId: dto.technicianUserId,
-        status: ServiceRequestStatus.ASSIGNED,
-        assignedAt: new Date(),
-      },
+    await this.requestRepo.update(serviceRequestId, {
+      assignedTechnicianId: dto.technicianUserId,
+      status: ServiceRequestStatus.ASSIGNED,
+      assignedAt: new Date(),
     });
 
-    await this.prisma.serviceRequestEvent.create({
-      data: {
-        serviceRequestId,
-        previousStatus: ServiceRequestStatus.REQUESTED,
-        newStatus: ServiceRequestStatus.ASSIGNED,
-        triggeredBy: dto.customerUserId,
-        metadata: {
-          action: 'CUSTOMER_SELECTED_TECHNICIAN',
-          technicianUserId: dto.technicianUserId,
-        },
+    const event = this.eventRepo.create({
+      serviceRequestId,
+      previousStatus: ServiceRequestStatus.REQUESTED,
+      newStatus: ServiceRequestStatus.ASSIGNED,
+      triggeredBy: dto.customerUserId,
+      metadata: {
+        action: 'CUSTOMER_SELECTED_TECHNICIAN',
+        technicianUserId: dto.technicianUserId,
       },
     });
+    await this.eventRepo.save(event);
 
     return this.findByIdOrThrow(serviceRequestId);
   }
@@ -442,13 +413,9 @@ export class ServiceRequestsService {
   private async findByIdOrThrow(
     serviceRequestId: string,
   ): Promise<ServiceRequestResponseDto> {
-    const request = await this.prisma.serviceRequest.findUnique({
+    const request = await this.requestRepo.findOne({
       where: { id: serviceRequestId },
-      include: {
-        technicianResponses: {
-          orderBy: { respondedAt: 'desc' },
-        },
-      },
+      relations: ['technicianResponses'],
     });
 
     if (!request) {

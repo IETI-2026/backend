@@ -28,7 +28,6 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import { RoleName } from '@prisma/client';
 import {
   CreateUserDto,
   GetUsersQueryDto,
@@ -37,6 +36,7 @@ import {
   UserResponseDto,
   UsersService,
 } from '@users/application';
+import { RoleName } from '@/database/enums';
 import { JwtPayloadEntity } from '../../../auth/domain/entities';
 import { CurrentUser, Roles } from '../../../auth/infrastructure/decorators';
 import { JwtAuthGuard, RolesGuard } from '../../../auth/infrastructure/guards';

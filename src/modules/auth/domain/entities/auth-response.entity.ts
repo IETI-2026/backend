@@ -1,4 +1,4 @@
-import { RoleName } from '@prisma/client';
+import { RoleName } from '@/database/enums';
 
 export class AuthResponseEntity {
   accessToken?: string;

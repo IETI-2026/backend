@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { ServiceRequestStatus, UrgencyLevel } from '@prisma/client';
+import { ServiceRequestStatus, UrgencyLevel } from '@/database/enums';
 import { TechnicianResponseDto } from './technician-response.dto';
 
 export class ServiceRequestResponseDto {

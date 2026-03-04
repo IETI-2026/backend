@@ -26,9 +26,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Generate Prisma Client
-        run: npm run prisma:generate
-
   test:
     name: Run Tests
     runs-on: ubuntu-latest
@@ -60,14 +57,6 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Generate Prisma Client
-        run: npm run prisma:generate
-
-      - name: Run Prisma migrations
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/cameyo_test?schema=public
-        run: npm run prisma:migrate:prod
 
       - name: Run unit tests
         env:
@@ -116,9 +105,6 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Generate Prisma Client
-        run: npm run prisma:generate
 
       - name: Build application
         run: npm run build

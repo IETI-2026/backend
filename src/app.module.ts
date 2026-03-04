@@ -1,10 +1,10 @@
 import { configs } from '@config/index';
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { PrismaModule } from '@/prisma/prisma.module';
+import { DatabaseModule } from '@/database/database.module';
 import { HealthController } from './common/health.controller';
-import { GeocodingModule } from './modules/geocoding';
 import { AuthModule } from './modules/auth';
+import { GeocodingModule } from './modules/geocoding';
 import { ServiceRequestsModule } from './modules/service-requests';
 import { UsersModule } from './modules/users';
 import { TenantMiddleware, TenantModule } from './tenant';
@@ -16,7 +16,7 @@ import { TenantMiddleware, TenantModule } from './tenant';
       load: configs,
       envFilePath: '.env',
     }),
-    PrismaModule,
+    DatabaseModule,
     TenantModule,
     GeocodingModule,
     AuthModule,

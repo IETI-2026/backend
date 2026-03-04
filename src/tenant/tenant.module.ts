@@ -2,22 +2,22 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TenantService } from './tenant.service';
 import { TenantContext } from './tenant-context';
-import { TenantPrismaService } from './tenant-prisma.service';
-import { tenantPrismaClientProvider } from './tenant-prisma-client.provider';
+import { tenantDataSourceProvider } from './tenant-datasource.provider';
+import { TenantDataSourceService } from './tenant-datasource.service';
 
 @Module({
   imports: [ConfigModule],
   providers: [
     TenantContext,
     TenantService,
-    TenantPrismaService,
-    tenantPrismaClientProvider,
+    TenantDataSourceService,
+    tenantDataSourceProvider,
   ],
   exports: [
     TenantContext,
     TenantService,
-    TenantPrismaService,
-    tenantPrismaClientProvider,
+    TenantDataSourceService,
+    tenantDataSourceProvider,
   ],
 })
 export class TenantModule {}
