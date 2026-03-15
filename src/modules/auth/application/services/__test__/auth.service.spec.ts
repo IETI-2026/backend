@@ -56,6 +56,7 @@ describe('AuthService', () => {
   const mockAuthRepository: jest.Mocked<IAuthRepository> = {
     findUserByEmail: jest.fn(),
     findUserById: jest.fn(),
+    ensureUserInCurrentTenant: jest.fn(),
     findUserWithRoles: jest.fn(),
     createUser: jest.fn(),
     updateUser: jest.fn(),

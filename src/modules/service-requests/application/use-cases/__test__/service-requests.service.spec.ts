@@ -12,6 +12,7 @@ import {
   UserEntity,
 } from '@/database/entities';
 import { TENANT_DATA_SOURCE } from '@/tenant/tenant-datasource.provider';
+import { TenantDataSourceService } from '@/tenant';
 import { ServiceRequestsService } from '../service-requests.service';
 import {
   ServiceRequestStatus,
@@ -102,6 +103,14 @@ describe('ServiceRequestsService', () => {
       getRepository: jest.fn((entity: unknown) => repoMap.get(entity) ?? buildMockRepo()),
     };
 
+    const mockPublicDataSource = {
+      getRepository: jest.fn().mockReturnValue(userRepo),
+    };
+
+    const mockTenantDataSourceService = {
+      getDataSource: jest.fn().mockResolvedValue(mockPublicDataSource),
+    };
+
     mockConfigService = {
       get: jest.fn((key: string) => {
         const cfg: Record<string, string> = {
@@ -118,6 +127,7 @@ describe('ServiceRequestsService', () => {
         ServiceRequestsService,
         { provide: TENANT_DATA_SOURCE, useValue: mockDataSource },
         { provide: ConfigService, useValue: mockConfigService },
+        { provide: TenantDataSourceService, useValue: mockTenantDataSourceService },
       ],
     }).compile();
 
