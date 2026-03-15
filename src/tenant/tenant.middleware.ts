@@ -2,14 +2,19 @@ import {
   BadRequestException,
   Injectable,
   NestMiddleware,
-} from '@nestjs/common';
-import { NextFunction, Request, Response } from 'express';
-import { TenantContext } from './tenant-context';
-import { TenantDataSourceService } from './tenant-datasource.service';
+} from "@nestjs/common";
+import { NextFunction, Request, Response } from "express";
+import { TenantContext } from "./tenant-context";
+import { TenantDataSourceService } from "./tenant-datasource.service";
 
 @Injectable()
 export class TenantMiddleware implements NestMiddleware {
   private readonly TENANT_ID_PATTERN = /^[a-z0-9_-]+$/;
+  private readonly ALWAYS_PUBLIC_ROUTE_PREFIXES = [
+    "/auth",
+    "/users",
+    "/provider-profile",
+  ];
 
   constructor(
     private readonly tenantContext: TenantContext,
@@ -38,20 +43,26 @@ export class TenantMiddleware implements NestMiddleware {
   }
 
   private resolveTenant(req: Request): string {
+    const requestPath = this.normalizePath(req.originalUrl || req.url || "");
+
+    if (this.isAlwaysPublicRoute(requestPath)) {
+      return "public";
+    }
+
     // Solo se resuelve por header X-Tenant-ID
-    const headerTenant = req.header('X-Tenant-ID');
+    const headerTenant = req.header("X-Tenant-ID");
     if (headerTenant) {
       return this.normalizeTenant(headerTenant);
     }
 
     // Fallback al tenant público
-    return 'public';
+    return "public";
   }
 
   private normalizeTenant(value?: string | null): string {
-    const tenant = value?.trim().toLowerCase() ?? '';
+    const tenant = value?.trim().toLowerCase() ?? "";
     if (!tenant) {
-      return 'public';
+      return "public";
     }
 
     if (!this.TENANT_ID_PATTERN.test(tenant)) {
@@ -61,5 +72,26 @@ export class TenantMiddleware implements NestMiddleware {
     }
 
     return tenant;
+  }
+
+  private normalizePath(rawPath: string): string {
+    const path = rawPath.split("?")[0].toLowerCase();
+
+    // Las rutas reales del app usan /api como prefijo global.
+    if (path === "/api") {
+      return "/";
+    }
+
+    if (path.startsWith("/api/")) {
+      return path.slice(4);
+    }
+
+    return path;
+  }
+
+  private isAlwaysPublicRoute(path: string): boolean {
+    return this.ALWAYS_PUBLIC_ROUTE_PREFIXES.some(
+      (prefix) => path === prefix || path.startsWith(`${prefix}/`),
+    );
   }
 }

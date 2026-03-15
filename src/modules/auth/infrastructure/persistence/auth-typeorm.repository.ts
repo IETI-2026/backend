@@ -46,6 +46,13 @@ export class AuthTypeOrmRepository implements IAuthRepository {
     return dataSource.getRepository(entity);
   }
 
+  private async repoInPublic<T extends object>(
+    entity: new () => T,
+  ): Promise<Repository<T>> {
+    const dataSource = await this.tenantDataSourceService.getDataSource('public');
+    return dataSource.getRepository(entity);
+  }
+
   /* ---------------------------------------------------------- */
   /*  Users                                                      */
   /* ---------------------------------------------------------- */
@@ -56,12 +63,61 @@ export class AuthTypeOrmRepository implements IAuthRepository {
   }
 
   async findUserById(userId: string): Promise<UserEntity | null> {
-    const r = await this.repo(UserEntity);
+    const r = await this.repoInPublic(UserEntity);
     return r.findOne({ where: { id: userId } });
   }
 
+  async ensureUserInCurrentTenant(userId: string): Promise<void> {
+    const tenantId = this.tenantContext.getTenantId() ?? 'public';
+    if (tenantId === 'public') {
+      return;
+    }
+
+    const publicRepo = await this.repoInPublic(UserEntity);
+    const sourceUser = await publicRepo.findOne({ where: { id: userId } });
+    if (!sourceUser) {
+      return;
+    }
+
+    const tenantDataSource = await this.tenantDataSourceService.getDataSource(
+      tenantId,
+    );
+    const tenantUserRepo = tenantDataSource.getRepository(UserEntity);
+    const existingUser = await tenantUserRepo.findOne({ where: { id: userId } });
+
+    const projectionData = {
+      email: sourceUser.email,
+      phoneNumber: sourceUser.phoneNumber,
+      passwordHash: sourceUser.passwordHash,
+      fullName: sourceUser.fullName,
+      documentId: sourceUser.documentId,
+      profilePhotoUrl: sourceUser.profilePhotoUrl,
+      skills: sourceUser.skills,
+      currentLatitude: sourceUser.currentLatitude,
+      currentLongitude: sourceUser.currentLongitude,
+      lastLocationUpdate: sourceUser.lastLocationUpdate,
+      status: sourceUser.status,
+      emailVerified: sourceUser.emailVerified,
+      phoneVerified: sourceUser.phoneVerified,
+      primaryRole: sourceUser.primaryRole,
+      lastLoginAt: sourceUser.lastLoginAt,
+      deletedAt: sourceUser.deletedAt,
+    };
+
+    if (existingUser) {
+      await tenantUserRepo.update(userId, projectionData);
+      return;
+    }
+
+    const projection = tenantUserRepo.create({
+      id: sourceUser.id,
+      ...projectionData,
+    });
+    await tenantUserRepo.save(projection);
+  }
+
   async findUserWithRoles(userId: string): Promise<UserWithRoles | null> {
-    const r = await this.repo(UserEntity);
+    const r = await this.repoInPublic(UserEntity);
     const user = await r.findOne({
       where: { id: userId },
       relations: ['roles', 'roles.role'],
@@ -213,7 +269,7 @@ export class AuthTypeOrmRepository implements IAuthRepository {
   }
 
   async getUserRoles(userId: string): Promise<string[]> {
-    const r = await this.repo(UserRoleEntity);
+    const r = await this.repoInPublic(UserRoleEntity);
     const userRoles = await r.find({
       where: { userId },
       relations: ['role'],
