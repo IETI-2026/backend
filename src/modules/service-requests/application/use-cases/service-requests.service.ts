@@ -5,21 +5,21 @@ import {
   InternalServerErrorException,
   Logger,
   NotFoundException,
-} from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { DataSource, Repository } from 'typeorm';
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { DataSource, Repository } from "typeorm";
 import {
   UserEntity as DbUserEntity,
   ServiceRequestEntity,
   ServiceRequestEventEntity,
   ServiceRequestTechnicianResponseEntity,
-} from '@/database/entities';
+} from "@/database/entities";
 import {
   ServiceRequestStatus,
   TechnicianResponseStatus,
   UrgencyLevel,
-} from '@/database/enums';
-import { TENANT_DATA_SOURCE, TenantDataSourceService } from '@/tenant';
+} from "@/database/enums";
+import { TENANT_DATA_SOURCE, TenantDataSourceService } from "@/tenant";
 import {
   type AcceptedTechnicianUserDto,
   type AcceptServiceRequestDto,
@@ -28,7 +28,7 @@ import {
   type GetServiceRequestsQueryDto,
   type RejectServiceRequestDto,
   ServiceRequestResponseDto,
-} from '../dtos';
+} from "../dtos";
 
 type AgentClassificationResponse = {
   categoria?: unknown;
@@ -72,9 +72,8 @@ export class ServiceRequestsService {
   }
 
   private async getPublicUserRepo(): Promise<Repository<DbUserEntity>> {
-    const publicDataSource = await this.tenantDataSourceService.getDataSource(
-      'public',
-    );
+    const publicDataSource =
+      await this.tenantDataSourceService.getDataSource("public");
     return publicDataSource.getRepository(DbUserEntity);
   }
 
@@ -108,7 +107,7 @@ export class ServiceRequestsService {
 
     const request = await this.requestRepo.findOneOrFail({
       where: { id: saved.id },
-      relations: ['technicianResponses'],
+      relations: ["technicianResponses"],
     });
 
     return this.toResponse(request);
@@ -135,8 +134,8 @@ export class ServiceRequestsService {
       where,
       skip: page * limit,
       take: limit,
-      order: { createdAt: 'DESC' },
-      relations: ['technicianResponses'],
+      order: { createdAt: "DESC" },
+      relations: ["technicianResponses"],
     });
 
     return {
@@ -152,7 +151,7 @@ export class ServiceRequestsService {
   ): Promise<AcceptedTechnicianUserDto[]> {
     const serviceRequest = await this.requestRepo.findOne({
       where: { id: serviceRequestId },
-      select: ['id'],
+      select: ["id"],
     });
 
     if (!serviceRequest) {
@@ -166,8 +165,8 @@ export class ServiceRequestsService {
         serviceRequestId,
         status: TechnicianResponseStatus.ACCEPTED,
       },
-      order: { respondedAt: 'DESC' },
-      relations: ['technicianUser'],
+      order: { respondedAt: "DESC" },
+      relations: ["technicianUser"],
     });
 
     return responses.map((response) => ({
@@ -206,9 +205,9 @@ export class ServiceRequestsService {
 
     // Use query builder for array overlap and NOT EXISTS subquery
     const qb = this.requestRepo
-      .createQueryBuilder('sr')
-      .leftJoinAndSelect('sr.technicianResponses', 'tr')
-      .where('sr.status = :status', { status: ServiceRequestStatus.REQUESTED })
+      .createQueryBuilder("sr")
+      .leftJoinAndSelect("sr.technicianResponses", "tr")
+      .where("sr.status = :status", { status: ServiceRequestStatus.REQUESTED })
       .andWhere('sr."requestedSkills" && :skills', { skills: normalizedSkills })
       .andWhere(
         `NOT EXISTS (
@@ -218,7 +217,7 @@ export class ServiceRequestsService {
         )`,
         { technicianUserId },
       )
-      .orderBy('sr."createdAt"', 'DESC');
+      .orderBy('sr."createdAt"', "DESC");
 
     const requests = await qb.getMany();
 
@@ -244,7 +243,7 @@ export class ServiceRequestsService {
 
     const request = await this.requestRepo.findOne({
       where: { id: serviceRequestId },
-      select: ['id', 'status'],
+      select: ["id", "status"],
     });
 
     if (!request) {
@@ -284,7 +283,7 @@ export class ServiceRequestsService {
       previousStatus: ServiceRequestStatus.REQUESTED,
       newStatus: ServiceRequestStatus.REQUESTED,
       triggeredBy: dto.technicianUserId,
-      metadata: { action: 'TECHNICIAN_ACCEPTED' },
+      metadata: { action: "TECHNICIAN_ACCEPTED" },
     });
     await this.eventRepo.save(event);
 
@@ -310,7 +309,7 @@ export class ServiceRequestsService {
 
     const request = await this.requestRepo.findOne({
       where: { id: serviceRequestId },
-      select: ['id', 'status'],
+      select: ["id", "status"],
     });
 
     if (!request) {
@@ -352,7 +351,7 @@ export class ServiceRequestsService {
       newStatus: ServiceRequestStatus.REQUESTED,
       triggeredBy: dto.technicianUserId,
       notes: dto.reason ?? null,
-      metadata: { action: 'TECHNICIAN_REJECTED' },
+      metadata: { action: "TECHNICIAN_REJECTED" },
     });
     await this.eventRepo.save(event);
 
@@ -367,7 +366,7 @@ export class ServiceRequestsService {
   ): Promise<ServiceRequestResponseDto> {
     const request = await this.requestRepo.findOne({
       where: { id: serviceRequestId },
-      select: ['id', 'userId', 'status'],
+      select: ["id", "userId", "status"],
     });
 
     if (!request) {
@@ -393,7 +392,7 @@ export class ServiceRequestsService {
         serviceRequestId,
         technicianUserId: dto.technicianUserId,
       },
-      select: ['status'],
+      select: ["status"],
     });
 
     if (
@@ -417,7 +416,7 @@ export class ServiceRequestsService {
       newStatus: ServiceRequestStatus.ASSIGNED,
       triggeredBy: dto.customerUserId,
       metadata: {
-        action: 'CUSTOMER_SELECTED_TECHNICIAN',
+        action: "CUSTOMER_SELECTED_TECHNICIAN",
         technicianUserId: dto.technicianUserId,
       },
     });
@@ -431,7 +430,7 @@ export class ServiceRequestsService {
   ): Promise<ServiceRequestResponseDto> {
     const request = await this.requestRepo.findOne({
       where: { id: serviceRequestId },
-      relations: ['technicianResponses'],
+      relations: ["technicianResponses"],
     });
 
     if (!request) {
@@ -454,7 +453,7 @@ export class ServiceRequestsService {
   private async ensureTenantUserProjection(user: DbUserEntity): Promise<void> {
     const existing = await this.tenantUserRepo.findOne({
       where: { id: user.id },
-      select: ['id'],
+      select: ["id"],
     });
 
     if (existing) {
@@ -487,50 +486,50 @@ export class ServiceRequestsService {
     skills: string[];
     urgency: UrgencyLevel;
   }> {
-    const endpoint = this.configService.get<string>('azureAgent.endpoint');
-    const apiKey = this.configService.get<string>('azureAgent.apiKey');
-    const apiVersion = this.configService.get<string>('azureAgent.apiVersion');
+    const endpoint = this.configService.get<string>("azureAgent.endpoint");
+    const apiKey = this.configService.get<string>("azureAgent.apiKey");
+    const apiVersion = this.configService.get<string>("azureAgent.apiVersion");
 
     if (!endpoint || !apiKey) {
       throw new InternalServerErrorException(
-        'Azure agent configuration is missing. Set AZURE_AGENT_ENDPOINT and AZURE_AGENT_API_KEY.',
+        "Azure agent configuration is missing. Set AZURE_AGENT_ENDPOINT and AZURE_AGENT_API_KEY.",
       );
     }
 
-    const normalizedEndpoint = endpoint.includes('api-version=')
+    const normalizedEndpoint = endpoint.includes("api-version=")
       ? endpoint
-      : `${endpoint}${endpoint.includes('?') ? '&' : '?'}api-version=${apiVersion}`;
+      : `${endpoint}${endpoint.includes("?") ? "&" : "?"}api-version=${apiVersion}`;
 
     let response: Response;
     try {
       response = await fetch(normalizedEndpoint, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'api-key': apiKey,
+          "Content-Type": "application/json",
+          "api-key": apiKey,
         },
         body: JSON.stringify({
           messages: [
             {
-              role: 'system',
+              role: "system",
               content:
                 'Eres un sistema de clasificación para la aplicación CameYo en Colombia. Debes analizar el problema descrito por un usuario y responder únicamente en JSON válido con este esquema EXACTO: { "categoria": "plomeria | electricidad | cerrajeria | gas | albanileria | carpinteria | refrigeracion | tecnologia | jardineria | pintura | limpieza | impermeabilizacion | techos | vidrieria | soldadura | mantenimiento | mascotas | mudanza | otro", "urgencia": "baja | media | alta"} Reglas estrictas: - SOLO puedes usar exactamente uno de los valores indicados en "categoria". - No puedes inventar nuevas categorías. - No puedes cambiar la ortografía. - No puedes usar acentos. - Si no encaja claramente en ninguna, usa "otro". - Si hay riesgo inmediato (inundación, fuga de gas, corto circuito, persona atrapada), la urgencia es "alta". - Si el usuario expresa prisa ("urgente", "ya", "ahora mismo"), es "alta". - Si el problema impide usar algo esencial (sin agua, sin luz), es mínimo "media". - No agregues texto fuera del JSON.',
             },
             {
-              role: 'user',
+              role: "user",
               content: `Problema: ${problema}`,
             },
           ],
           temperature: 0,
           response_format: {
-            type: 'json_object',
+            type: "json_object",
           },
         }),
       });
     } catch (error) {
-      this.logger.error('Azure agent request failed', error);
+      this.logger.error("Azure agent request failed", error);
       throw new InternalServerErrorException(
-        'Failed to contact Azure agent service',
+        "Failed to contact Azure agent service",
       );
     }
 
@@ -540,7 +539,7 @@ export class ServiceRequestsService {
         `Azure agent responded with status ${response.status}: ${body}`,
       );
       throw new InternalServerErrorException(
-        'Azure agent service returned an error',
+        "Azure agent service returned an error",
       );
     }
 
@@ -550,7 +549,7 @@ export class ServiceRequestsService {
 
     if (!content) {
       throw new InternalServerErrorException(
-        'Azure agent response did not include assistant content',
+        "Azure agent response did not include assistant content",
       );
     }
 
@@ -560,7 +559,7 @@ export class ServiceRequestsService {
     } catch {
       this.logger.error(`Azure agent returned non-JSON content: ${content}`);
       throw new InternalServerErrorException(
-        'Azure agent response is not valid JSON',
+        "Azure agent response is not valid JSON",
       );
     }
 
@@ -570,7 +569,7 @@ export class ServiceRequestsService {
 
     if (skills.length === 0) {
       throw new InternalServerErrorException(
-        'Azure agent response did not include a valid categoria',
+        "Azure agent response did not include a valid categoria",
       );
     }
 
@@ -581,14 +580,14 @@ export class ServiceRequestsService {
   }
 
   private parseCategoryToSkills(rawCategory: unknown): string[] {
-    if (typeof rawCategory === 'string') {
+    if (typeof rawCategory === "string") {
       return this.normalizeSkills([rawCategory]);
     }
 
     if (Array.isArray(rawCategory)) {
       return this.normalizeSkills(
         rawCategory.filter(
-          (value): value is string => typeof value === 'string',
+          (value): value is string => typeof value === "string",
         ),
       );
     }
@@ -605,36 +604,36 @@ export class ServiceRequestsService {
         }>
       | undefined,
   ): string {
-    if (typeof content === 'string') {
+    if (typeof content === "string") {
       return content.trim();
     }
 
     if (Array.isArray(content)) {
       return content
-        .map((part) => (typeof part.text === 'string' ? part.text : ''))
-        .join('')
+        .map((part) => (typeof part.text === "string" ? part.text : ""))
+        .join("")
         .trim();
     }
 
-    return '';
+    return "";
   }
 
   private mapUrgency(rawUrgency: unknown): UrgencyLevel {
-    if (typeof rawUrgency !== 'string') {
+    if (typeof rawUrgency !== "string") {
       return UrgencyLevel.media;
     }
 
     const value = rawUrgency.trim().toLowerCase();
 
-    if (value === 'baja' || value === 'low') {
+    if (value === "baja" || value === "low") {
       return UrgencyLevel.baja;
     }
 
-    if (value === 'media' || value === 'medium') {
+    if (value === "media" || value === "medium") {
       return UrgencyLevel.media;
     }
 
-    if (value === 'alta' || value === 'high') {
+    if (value === "alta" || value === "high") {
       return UrgencyLevel.alta;
     }
 

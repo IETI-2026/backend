@@ -1,5 +1,5 @@
-import { Injectable } from '@nestjs/common';
-import { DataSource, IsNull, Repository } from 'typeorm';
+import { Injectable } from "@nestjs/common";
+import { DataSource, IsNull, Repository } from "typeorm";
 import {
   OAuthAccountEntity,
   OtpCodeEntity,
@@ -8,13 +8,13 @@ import {
   RoleEntity,
   UserEntity,
   UserRoleEntity,
-} from '@/database/entities';
-import { AuthProvider, RoleName, UserStatus } from '@/database/enums';
-import { TenantContext, TenantDataSourceService } from '@/tenant';
+} from "@/database/entities";
+import { AuthProvider, RoleName, UserStatus } from "@/database/enums";
+import { TenantContext, TenantDataSourceService } from "@/tenant";
 import {
   IAuthRepository,
   UserWithRoles,
-} from '../../domain/repositories/auth.repository';
+} from "../../domain/repositories/auth.repository";
 
 /**
  * Tenant-aware auth repository.
@@ -35,7 +35,7 @@ export class AuthTypeOrmRepository implements IAuthRepository {
   /* ---------------------------------------------------------- */
 
   private async ds(): Promise<DataSource> {
-    const tenantId = this.tenantContext.getTenantId() ?? 'public';
+    const tenantId = this.tenantContext.getTenantId() ?? "public";
     return this.tenantDataSourceService.getDataSource(tenantId);
   }
 
@@ -49,7 +49,8 @@ export class AuthTypeOrmRepository implements IAuthRepository {
   private async repoInPublic<T extends object>(
     entity: new () => T,
   ): Promise<Repository<T>> {
-    const dataSource = await this.tenantDataSourceService.getDataSource('public');
+    const dataSource =
+      await this.tenantDataSourceService.getDataSource("public");
     return dataSource.getRepository(entity);
   }
 
@@ -68,8 +69,8 @@ export class AuthTypeOrmRepository implements IAuthRepository {
   }
 
   async ensureUserInCurrentTenant(userId: string): Promise<void> {
-    const tenantId = this.tenantContext.getTenantId() ?? 'public';
-    if (tenantId === 'public') {
+    const tenantId = this.tenantContext.getTenantId() ?? "public";
+    if (tenantId === "public") {
       return;
     }
 
@@ -79,11 +80,12 @@ export class AuthTypeOrmRepository implements IAuthRepository {
       return;
     }
 
-    const tenantDataSource = await this.tenantDataSourceService.getDataSource(
-      tenantId,
-    );
+    const tenantDataSource =
+      await this.tenantDataSourceService.getDataSource(tenantId);
     const tenantUserRepo = tenantDataSource.getRepository(UserEntity);
-    const existingUser = await tenantUserRepo.findOne({ where: { id: userId } });
+    const existingUser = await tenantUserRepo.findOne({
+      where: { id: userId },
+    });
 
     const projectionData = {
       email: sourceUser.email,
@@ -120,7 +122,7 @@ export class AuthTypeOrmRepository implements IAuthRepository {
     const r = await this.repoInPublic(UserEntity);
     const user = await r.findOne({
       where: { id: userId },
-      relations: ['roles', 'roles.role'],
+      relations: ["roles", "roles.role"],
     });
     return user as UserWithRoles | null;
   }
@@ -176,7 +178,7 @@ export class AuthTypeOrmRepository implements IAuthRepository {
         provider: provider as AuthProvider,
         providerUserId,
       },
-      relations: ['user'],
+      relations: ["user"],
     });
   }
 
@@ -206,7 +208,7 @@ export class AuthTypeOrmRepository implements IAuthRepository {
 
   async findRefreshToken(token: string): Promise<RefreshTokenEntity | null> {
     const r = await this.repo(RefreshTokenEntity);
-    return r.findOne({ where: { token }, relations: ['user'] });
+    return r.findOne({ where: { token }, relations: ["user"] });
   }
 
   async createRefreshToken(data: {
@@ -272,7 +274,7 @@ export class AuthTypeOrmRepository implements IAuthRepository {
     const r = await this.repoInPublic(UserRoleEntity);
     const userRoles = await r.find({
       where: { userId },
-      relations: ['role'],
+      relations: ["role"],
     });
     return userRoles.map((ur) => ur.role.name);
   }
@@ -349,7 +351,7 @@ export class AuthTypeOrmRepository implements IAuthRepository {
     const r = await this.repo(OtpCodeEntity);
     const record = await r.findOne({
       where: { phone, code, usedAt: IsNull() },
-      order: { createdAt: 'DESC' },
+      order: { createdAt: "DESC" },
     });
     if (!record || new Date() > record.expiresAt) {
       return null;
@@ -364,7 +366,7 @@ export class AuthTypeOrmRepository implements IAuthRepository {
 
   async incrementOtpAttempts(otpId: string): Promise<void> {
     const r = await this.repo(OtpCodeEntity);
-    await r.increment({ id: otpId }, 'attempts', 1);
+    await r.increment({ id: otpId }, "attempts", 1);
   }
 
   async markOtpUsed(otpId: string): Promise<void> {
