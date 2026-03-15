@@ -77,7 +77,8 @@ async function bootstrap() {
         name: 'X-Tenant-ID',
         in: 'header',
         required: false,
-        description: 'Tenant ID (schema). Si no se envía, se usa "public".',
+        description:
+          'Tenant ID (schema). Si no se envía, se usa "public". En rutas /auth, /users y /provider-profile siempre se fuerza "public".',
         schema: { type: 'string', default: 'public' },
       })
       .build();

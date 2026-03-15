@@ -430,8 +430,13 @@ export class AuthService {
 
     const user = await this.authRepository.findUserById(payload.sub);
     if (!user || user.status !== 'ACTIVE') {
+      this.logger.warn(
+        `validateJwtPayload: user not found or inactive for sub=${payload.sub} (found=${!!user}, status=${user?.status ?? 'N/A'})`,
+      );
       throw new UnauthorizedException('User not found or inactive');
     }
+
+    await this.authRepository.ensureUserInCurrentTenant(user.id);
 
     const roles = await this.authRepository.getUserRoles(user.id);
     return {

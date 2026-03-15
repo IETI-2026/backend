@@ -14,6 +14,7 @@ export type UserWithRoles = UserEntity & {
 export interface IAuthRepository {
   findUserByEmail(email: string): Promise<UserEntity | null>;
   findUserById(userId: string): Promise<UserEntity | null>;
+  ensureUserInCurrentTenant(userId: string): Promise<void>;
   findUserWithRoles(userId: string): Promise<UserWithRoles | null>;
 
   createUser(data: {

@@ -19,7 +19,7 @@ import {
   TechnicianResponseStatus,
   UrgencyLevel,
 } from '@/database/enums';
-import { TENANT_DATA_SOURCE } from '@/tenant';
+import { TENANT_DATA_SOURCE, TenantDataSourceService } from '@/tenant';
 import {
   type AcceptedTechnicianUserDto,
   type AcceptServiceRequestDto,
@@ -55,32 +55,41 @@ export class ServiceRequestsService {
   private readonly requestRepo: Repository<ServiceRequestEntity>;
   private readonly responseRepo: Repository<ServiceRequestTechnicianResponseEntity>;
   private readonly eventRepo: Repository<ServiceRequestEventEntity>;
-  private readonly userRepo: Repository<DbUserEntity>;
+  private readonly tenantUserRepo: Repository<DbUserEntity>;
 
   constructor(
     @Inject(TENANT_DATA_SOURCE)
     dataSource: DataSource,
     private readonly configService: ConfigService,
+    private readonly tenantDataSourceService: TenantDataSourceService,
   ) {
     this.requestRepo = dataSource.getRepository(ServiceRequestEntity);
     this.responseRepo = dataSource.getRepository(
       ServiceRequestTechnicianResponseEntity,
     );
     this.eventRepo = dataSource.getRepository(ServiceRequestEventEntity);
-    this.userRepo = dataSource.getRepository(DbUserEntity);
+    this.tenantUserRepo = dataSource.getRepository(DbUserEntity);
+  }
+
+  private async getPublicUserRepo(): Promise<Repository<DbUserEntity>> {
+    const publicDataSource =
+      await this.tenantDataSourceService.getDataSource('public');
+    return publicDataSource.getRepository(DbUserEntity);
   }
 
   async create(
     dto: CreateServiceRequestDto,
   ): Promise<ServiceRequestResponseDto> {
-    const user = await this.userRepo.findOne({
+    const publicUserRepo = await this.getPublicUserRepo();
+    const user = await publicUserRepo.findOne({
       where: { id: dto.userId },
-      select: ['id'],
     });
 
     if (!user) {
       throw new NotFoundException(`User with ID ${dto.userId} not found`);
     }
+
+    await this.ensureTenantUserProjection(user);
 
     const classification = await this.classifyProblemWithAgent(dto.problema);
 
@@ -175,9 +184,9 @@ export class ServiceRequestsService {
   async findAvailableForTechnician(
     technicianUserId: string,
   ): Promise<ServiceRequestResponseDto[]> {
-    const technician = await this.userRepo.findOne({
+    const publicUserRepo = await this.getPublicUserRepo();
+    const technician = await publicUserRepo.findOne({
       where: { id: technicianUserId },
-      select: ['id', 'skills'],
     });
 
     if (!technician) {
@@ -185,6 +194,8 @@ export class ServiceRequestsService {
         `Technician user with ID ${technicianUserId} not found`,
       );
     }
+
+    await this.ensureTenantUserProjection(technician);
 
     const normalizedSkills = this.normalizeSkills(technician.skills);
 
@@ -217,9 +228,9 @@ export class ServiceRequestsService {
     serviceRequestId: string,
     dto: AcceptServiceRequestDto,
   ): Promise<ServiceRequestResponseDto> {
-    const technician = await this.userRepo.findOne({
+    const publicUserRepo = await this.getPublicUserRepo();
+    const technician = await publicUserRepo.findOne({
       where: { id: dto.technicianUserId },
-      select: ['id'],
     });
 
     if (!technician) {
@@ -227,6 +238,8 @@ export class ServiceRequestsService {
         `Technician user with ID ${dto.technicianUserId} not found`,
       );
     }
+
+    await this.ensureTenantUserProjection(technician);
 
     const request = await this.requestRepo.findOne({
       where: { id: serviceRequestId },
@@ -281,9 +294,9 @@ export class ServiceRequestsService {
     serviceRequestId: string,
     dto: RejectServiceRequestDto,
   ): Promise<{ message: string }> {
-    const technician = await this.userRepo.findOne({
+    const publicUserRepo = await this.getPublicUserRepo();
+    const technician = await publicUserRepo.findOne({
       where: { id: dto.technicianUserId },
-      select: ['id'],
     });
 
     if (!technician) {
@@ -291,6 +304,8 @@ export class ServiceRequestsService {
         `Technician user with ID ${dto.technicianUserId} not found`,
       );
     }
+
+    await this.ensureTenantUserProjection(technician);
 
     const request = await this.requestRepo.findOne({
       where: { id: serviceRequestId },
@@ -435,6 +450,38 @@ export class ServiceRequestsService {
     return [...new Set(normalized)];
   }
 
+  private async ensureTenantUserProjection(user: DbUserEntity): Promise<void> {
+    const existing = await this.tenantUserRepo.findOne({
+      where: { id: user.id },
+      select: ['id'],
+    });
+
+    if (existing) {
+      return;
+    }
+
+    const projection = this.tenantUserRepo.create({
+      id: user.id,
+      email: user.email,
+      phoneNumber: user.phoneNumber,
+      fullName: user.fullName,
+      documentId: user.documentId,
+      profilePhotoUrl: user.profilePhotoUrl,
+      skills: user.skills ?? [],
+      currentLatitude: user.currentLatitude,
+      currentLongitude: user.currentLongitude,
+      lastLocationUpdate: user.lastLocationUpdate,
+      status: user.status,
+      emailVerified: user.emailVerified,
+      phoneVerified: user.phoneVerified,
+      primaryRole: user.primaryRole,
+      lastLoginAt: user.lastLoginAt,
+      deletedAt: user.deletedAt,
+    });
+
+    await this.tenantUserRepo.save(projection);
+  }
+
   private async classifyProblemWithAgent(problema: string): Promise<{
     skills: string[];
     urgency: UrgencyLevel;
@@ -479,7 +526,6 @@ export class ServiceRequestsService {
           },
         }),
       });
-      console.log('response', response);
     } catch (error) {
       this.logger.error('Azure agent request failed', error);
       throw new InternalServerErrorException(
