@@ -97,11 +97,28 @@
       "^.+\\.(t|j)s$": "ts-jest"
     },
     "collectCoverageFrom": [
-      "**/*.(t|j)s"
+      "**/*.(t|j)s",
+      "!**/*.spec.ts",
+      "!**/*.module.ts",
+      "!**/*.dto.ts",
+      "!**/*.entity.ts",
+      "!**/*.interface.ts",
+      "!**/*.enum.ts",
+      "!**/index.ts",
+      "!main.ts",
+      "!app.module.ts",
+      "!config/**/*.ts",
+      "!database/entities/**/*.ts",
+      "!database/seeds/**/*.ts"
     ],
     "coverageDirectory": "../coverage",
+    "coveragePathIgnorePatterns": [
+      "/node_modules/",
+      "/dist/"
+    ],
     "testEnvironment": "node",
     "moduleNameMapper": {
+      "^@/(.*)$": "<rootDir>/$1",
       "^@common/(.*)$": "<rootDir>/common/$1",
       "^@users/(.*)$": "<rootDir>/modules/users/$1",
       "^@config/(.*)$": "<rootDir>/config/$1"
