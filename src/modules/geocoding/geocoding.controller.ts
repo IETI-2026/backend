@@ -1,23 +1,23 @@
-import { Body, Controller, Post } from "@nestjs/common";
-import { ApiBody } from "@nestjs/swagger";
-import { ReverseGeocodeDto } from "./dto/reverse-geocode.dto";
-import { GeocodingService } from "./geocoding.service";
+import { Body, Controller, Post } from '@nestjs/common';
+import { ApiBody } from '@nestjs/swagger';
+import { ReverseGeocodeDto } from './dto/reverse-geocode.dto';
+import { GeocodingService } from './geocoding.service';
 
 const reverseGeocodeBodyExample = {
   lat: 4.711,
   lng: -74.0721,
 };
 
-@Controller("geocoding")
+@Controller('geocoding')
 export class GeocodingController {
   constructor(private readonly geocodingService: GeocodingService) {}
 
-  @Post("reverse")
+  @Post('reverse')
   @ApiBody({
     type: ReverseGeocodeDto,
     examples: {
       default: {
-        summary: "Coordenadas de ejemplo",
+        summary: 'Coordenadas de ejemplo',
         value: reverseGeocodeBodyExample,
       },
     },
@@ -26,12 +26,12 @@ export class GeocodingController {
     return this.geocodingService.reverseGeocode(payload);
   }
 
-  @Post("tenant")
+  @Post('tenant')
   @ApiBody({
     type: ReverseGeocodeDto,
     examples: {
       default: {
-        summary: "Coordenadas de ejemplo",
+        summary: 'Coordenadas de ejemplo',
         value: reverseGeocodeBodyExample,
       },
     },
