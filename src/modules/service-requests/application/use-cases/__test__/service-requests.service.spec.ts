@@ -100,7 +100,9 @@ describe('ServiceRequestsService', () => {
     ]);
 
     const mockDataSource = {
-      getRepository: jest.fn((entity: unknown) => repoMap.get(entity) ?? buildMockRepo()),
+      getRepository: jest.fn(
+        (entity: unknown) => repoMap.get(entity) ?? buildMockRepo(),
+      ),
     };
 
     const mockPublicDataSource = {
@@ -114,7 +116,8 @@ describe('ServiceRequestsService', () => {
     mockConfigService = {
       get: jest.fn((key: string) => {
         const cfg: Record<string, string> = {
-          'azureAgent.endpoint': 'https://mock-azure.openai.azure.com/openai/deployments/mock/chat/completions',
+          'azureAgent.endpoint':
+            'https://mock-azure.openai.azure.com/openai/deployments/mock/chat/completions',
           'azureAgent.apiKey': 'mock-api-key',
           'azureAgent.apiVersion': '2024-02-01',
         };
@@ -127,7 +130,10 @@ describe('ServiceRequestsService', () => {
         ServiceRequestsService,
         { provide: TENANT_DATA_SOURCE, useValue: mockDataSource },
         { provide: ConfigService, useValue: mockConfigService },
-        { provide: TenantDataSourceService, useValue: mockTenantDataSourceService },
+        {
+          provide: TenantDataSourceService,
+          useValue: mockTenantDataSourceService,
+        },
       ],
     }).compile();
 
@@ -156,7 +162,9 @@ describe('ServiceRequestsService', () => {
       requestRepo.create.mockReturnValue(mockServiceRequest);
       requestRepo.save.mockResolvedValue(mockServiceRequest);
       requestRepo.findOneOrFail.mockResolvedValue(mockServiceRequest);
-      jest.spyOn(global, 'fetch').mockImplementation(buildFetchMock('plomeria', 'alta') as any);
+      jest
+        .spyOn(global, 'fetch')
+        .mockImplementation(buildFetchMock('plomeria', 'alta') as any);
 
       const result = await service.create(createDto);
 
@@ -167,21 +175,27 @@ describe('ServiceRequestsService', () => {
     it('should throw NotFoundException when requesting user does not exist', async () => {
       userRepo.findOne.mockResolvedValue(null);
 
-      await expect(service.create(createDto)).rejects.toThrow(NotFoundException);
+      await expect(service.create(createDto)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should throw InternalServerErrorException when Azure config is missing', async () => {
       userRepo.findOne.mockResolvedValue(mockUser);
       mockConfigService.get.mockReturnValue(undefined);
 
-      await expect(service.create(createDto)).rejects.toThrow(InternalServerErrorException);
+      await expect(service.create(createDto)).rejects.toThrow(
+        InternalServerErrorException,
+      );
     });
 
     it('should throw InternalServerErrorException when the fetch network call fails', async () => {
       userRepo.findOne.mockResolvedValue(mockUser);
       jest.spyOn(global, 'fetch').mockRejectedValue(new Error('network error'));
 
-      await expect(service.create(createDto)).rejects.toThrow(InternalServerErrorException);
+      await expect(service.create(createDto)).rejects.toThrow(
+        InternalServerErrorException,
+      );
     });
 
     it('should throw InternalServerErrorException when Azure returns a non-ok status', async () => {
@@ -192,7 +206,9 @@ describe('ServiceRequestsService', () => {
         text: jest.fn().mockResolvedValue('Rate limit exceeded'),
       } as any);
 
-      await expect(service.create(createDto)).rejects.toThrow(InternalServerErrorException);
+      await expect(service.create(createDto)).rejects.toThrow(
+        InternalServerErrorException,
+      );
     });
 
     it('should throw InternalServerErrorException when agent returns unparsable JSON', async () => {
@@ -205,7 +221,9 @@ describe('ServiceRequestsService', () => {
         text: jest.fn(),
       } as any);
 
-      await expect(service.create(createDto)).rejects.toThrow(InternalServerErrorException);
+      await expect(service.create(createDto)).rejects.toThrow(
+        InternalServerErrorException,
+      );
     });
   });
 
@@ -280,7 +298,9 @@ describe('ServiceRequestsService', () => {
     it('should throw NotFoundException when the service request does not exist', async () => {
       requestRepo.findOne.mockResolvedValue(null);
 
-      await expect(service.findAcceptedTechnicians('nonexistent')).rejects.toThrow(NotFoundException);
+      await expect(
+        service.findAcceptedTechnicians('nonexistent'),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -315,7 +335,9 @@ describe('ServiceRequestsService', () => {
     it('should throw NotFoundException when the technician user does not exist', async () => {
       userRepo.findOne.mockResolvedValue(null);
 
-      await expect(service.findAvailableForTechnician('ghost')).rejects.toThrow(NotFoundException);
+      await expect(service.findAvailableForTechnician('ghost')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -327,7 +349,10 @@ describe('ServiceRequestsService', () => {
     it('should record the acceptance and return the updated service request', async () => {
       userRepo.findOne.mockResolvedValue(mockTechnician);
       requestRepo.findOne
-        .mockResolvedValueOnce({ id: REQUEST_ID, status: ServiceRequestStatus.REQUESTED })
+        .mockResolvedValueOnce({
+          id: REQUEST_ID,
+          status: ServiceRequestStatus.REQUESTED,
+        })
         .mockResolvedValue(mockServiceRequest);
       responseRepo.findOne.mockResolvedValue(null);
       responseRepo.create.mockReturnValue({
@@ -350,7 +375,10 @@ describe('ServiceRequestsService', () => {
     it('should upsert an existing response when the technician re-accepts', async () => {
       userRepo.findOne.mockResolvedValue(mockTechnician);
       requestRepo.findOne
-        .mockResolvedValueOnce({ id: REQUEST_ID, status: ServiceRequestStatus.REQUESTED })
+        .mockResolvedValueOnce({
+          id: REQUEST_ID,
+          status: ServiceRequestStatus.REQUESTED,
+        })
         .mockResolvedValue(mockServiceRequest);
       const existing: any = {
         status: TechnicianResponseStatus.REJECTED,
@@ -371,14 +399,18 @@ describe('ServiceRequestsService', () => {
     it('should throw NotFoundException when the technician user does not exist', async () => {
       userRepo.findOne.mockResolvedValue(null);
 
-      await expect(service.accept(REQUEST_ID, acceptDto)).rejects.toThrow(NotFoundException);
+      await expect(service.accept(REQUEST_ID, acceptDto)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should throw NotFoundException when the service request does not exist', async () => {
       userRepo.findOne.mockResolvedValue(mockTechnician);
       requestRepo.findOne.mockResolvedValue(null);
 
-      await expect(service.accept(REQUEST_ID, acceptDto)).rejects.toThrow(NotFoundException);
+      await expect(service.accept(REQUEST_ID, acceptDto)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should throw ConflictException when request is not in REQUESTED status', async () => {
@@ -388,7 +420,9 @@ describe('ServiceRequestsService', () => {
         status: ServiceRequestStatus.ASSIGNED,
       });
 
-      await expect(service.accept(REQUEST_ID, acceptDto)).rejects.toThrow(ConflictException);
+      await expect(service.accept(REQUEST_ID, acceptDto)).rejects.toThrow(
+        ConflictException,
+      );
     });
   });
 
@@ -399,7 +433,10 @@ describe('ServiceRequestsService', () => {
 
     it('should record the rejection and return a success message', async () => {
       userRepo.findOne.mockResolvedValue(mockTechnician);
-      requestRepo.findOne.mockResolvedValue({ id: REQUEST_ID, status: ServiceRequestStatus.REQUESTED });
+      requestRepo.findOne.mockResolvedValue({
+        id: REQUEST_ID,
+        status: ServiceRequestStatus.REQUESTED,
+      });
       responseRepo.findOne.mockResolvedValue(null);
       responseRepo.create.mockReturnValue({});
       responseRepo.save.mockResolvedValue({});
@@ -415,14 +452,18 @@ describe('ServiceRequestsService', () => {
     it('should throw NotFoundException when the technician user does not exist', async () => {
       userRepo.findOne.mockResolvedValue(null);
 
-      await expect(service.reject(REQUEST_ID, rejectDto)).rejects.toThrow(NotFoundException);
+      await expect(service.reject(REQUEST_ID, rejectDto)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should throw NotFoundException when the service request does not exist', async () => {
       userRepo.findOne.mockResolvedValue(mockTechnician);
       requestRepo.findOne.mockResolvedValue(null);
 
-      await expect(service.reject(REQUEST_ID, rejectDto)).rejects.toThrow(NotFoundException);
+      await expect(service.reject(REQUEST_ID, rejectDto)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should throw ConflictException when request is no longer in REQUESTED status', async () => {
@@ -432,7 +473,9 @@ describe('ServiceRequestsService', () => {
         status: ServiceRequestStatus.COMPLETED,
       });
 
-      await expect(service.reject(REQUEST_ID, rejectDto)).rejects.toThrow(ConflictException);
+      await expect(service.reject(REQUEST_ID, rejectDto)).rejects.toThrow(
+        ConflictException,
+      );
     });
   });
 
@@ -447,7 +490,9 @@ describe('ServiceRequestsService', () => {
         userId: USER_ID,
         status: ServiceRequestStatus.REQUESTED,
       });
-      responseRepo.findOne.mockResolvedValue({ status: TechnicianResponseStatus.ACCEPTED });
+      responseRepo.findOne.mockResolvedValue({
+        status: TechnicianResponseStatus.ACCEPTED,
+      });
       requestRepo.update.mockResolvedValue({});
       eventRepo.create.mockReturnValue({});
       eventRepo.save.mockResolvedValue({});
@@ -470,7 +515,9 @@ describe('ServiceRequestsService', () => {
     it('should throw NotFoundException when service request does not exist', async () => {
       requestRepo.findOne.mockResolvedValue(null);
 
-      await expect(service.chooseTechnician('nonexistent', chooseDto)).rejects.toThrow(NotFoundException);
+      await expect(
+        service.chooseTechnician('nonexistent', chooseDto),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('should throw ConflictException when the caller is not the request owner', async () => {
@@ -480,7 +527,9 @@ describe('ServiceRequestsService', () => {
         status: ServiceRequestStatus.REQUESTED,
       });
 
-      await expect(service.chooseTechnician(REQUEST_ID, chooseDto)).rejects.toThrow(ConflictException);
+      await expect(
+        service.chooseTechnician(REQUEST_ID, chooseDto),
+      ).rejects.toThrow(ConflictException);
     });
 
     it('should throw ConflictException when request is not in REQUESTED status', async () => {
@@ -490,7 +539,9 @@ describe('ServiceRequestsService', () => {
         status: ServiceRequestStatus.ASSIGNED,
       });
 
-      await expect(service.chooseTechnician(REQUEST_ID, chooseDto)).rejects.toThrow(ConflictException);
+      await expect(
+        service.chooseTechnician(REQUEST_ID, chooseDto),
+      ).rejects.toThrow(ConflictException);
     });
 
     it('should throw ConflictException when chosen technician has not accepted the request', async () => {
@@ -499,9 +550,13 @@ describe('ServiceRequestsService', () => {
         userId: USER_ID,
         status: ServiceRequestStatus.REQUESTED,
       });
-      responseRepo.findOne.mockResolvedValue({ status: TechnicianResponseStatus.REJECTED });
+      responseRepo.findOne.mockResolvedValue({
+        status: TechnicianResponseStatus.REJECTED,
+      });
 
-      await expect(service.chooseTechnician(REQUEST_ID, chooseDto)).rejects.toThrow(ConflictException);
+      await expect(
+        service.chooseTechnician(REQUEST_ID, chooseDto),
+      ).rejects.toThrow(ConflictException);
     });
 
     it('should throw ConflictException when there is no response at all from the technician', async () => {
@@ -512,7 +567,9 @@ describe('ServiceRequestsService', () => {
       });
       responseRepo.findOne.mockResolvedValue(null);
 
-      await expect(service.chooseTechnician(REQUEST_ID, chooseDto)).rejects.toThrow(ConflictException);
+      await expect(
+        service.chooseTechnician(REQUEST_ID, chooseDto),
+      ).rejects.toThrow(ConflictException);
     });
   });
 });

@@ -58,7 +58,9 @@ describe('JwtRefreshStrategy', () => {
     });
 
     it('throws when refreshSecret is missing', async () => {
-      await expect(buildStrategy('')).rejects.toThrow('JWT refresh secret is required');
+      await expect(buildStrategy('')).rejects.toThrow(
+        'JWT refresh secret is required',
+      );
     });
   });
 
@@ -79,7 +81,10 @@ describe('JwtRefreshStrategy', () => {
         exp: 9999,
       };
 
-      const result: JwtPayloadEntity = await strategy.validate(mockRequest, payload);
+      const result: JwtPayloadEntity = await strategy.validate(
+        mockRequest,
+        payload,
+      );
 
       expect(result).toEqual({
         sub: 'user-1',

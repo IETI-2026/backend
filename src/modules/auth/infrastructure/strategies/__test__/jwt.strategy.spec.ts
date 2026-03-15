@@ -54,7 +54,9 @@ describe('JwtStrategy', () => {
     };
 
     it('should return the validated payload on success', async () => {
-      mockAuthService.validateJwtPayload.mockResolvedValue(mockValidatedPayload);
+      mockAuthService.validateJwtPayload.mockResolvedValue(
+        mockValidatedPayload,
+      );
 
       const result = await strategy.validate(incomingPayload);
 

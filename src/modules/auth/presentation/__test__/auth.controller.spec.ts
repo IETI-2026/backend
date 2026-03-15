@@ -94,9 +94,13 @@ describe('AuthController', () => {
     });
 
     it('should propagate errors thrown by AuthService', async () => {
-      mockAuthService.signUp.mockRejectedValue(new Error('Email already taken'));
+      mockAuthService.signUp.mockRejectedValue(
+        new Error('Email already taken'),
+      );
 
-      await expect(controller.signUp(dto as any)).rejects.toThrow('Email already taken');
+      await expect(controller.signUp(dto as any)).rejects.toThrow(
+        'Email already taken',
+      );
     });
   });
 
@@ -115,9 +119,13 @@ describe('AuthController', () => {
     });
 
     it('should propagate UnauthorizedException for invalid credentials', async () => {
-      mockAuthService.login.mockRejectedValue(new UnauthorizedException('Invalid credentials'));
+      mockAuthService.login.mockRejectedValue(
+        new UnauthorizedException('Invalid credentials'),
+      );
 
-      await expect(controller.login(dto as any)).rejects.toThrow(UnauthorizedException);
+      await expect(controller.login(dto as any)).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
   });
 
@@ -127,9 +135,13 @@ describe('AuthController', () => {
     it('should return new tokens for a valid refresh token', async () => {
       mockAuthService.refreshToken.mockResolvedValue(mockAuthResponse);
 
-      const result = await controller.refreshToken({ refreshToken: 'valid.refresh.token' } as any);
+      const result = await controller.refreshToken({
+        refreshToken: 'valid.refresh.token',
+      } as any);
 
-      expect(mockAuthService.refreshToken).toHaveBeenCalledWith('valid.refresh.token');
+      expect(mockAuthService.refreshToken).toHaveBeenCalledWith(
+        'valid.refresh.token',
+      );
       expect(result).toBe(mockAuthResponse);
     });
 
@@ -142,9 +154,9 @@ describe('AuthController', () => {
     });
 
     it('should throw UnauthorizedException when refreshToken field is missing', async () => {
-      await expect(
-        controller.refreshToken({} as any),
-      ).rejects.toThrow(UnauthorizedException);
+      await expect(controller.refreshToken({} as any)).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('should propagate service errors for an invalid token', async () => {
@@ -166,14 +178,20 @@ describe('AuthController', () => {
         message: 'If the email exists, a reset link was sent',
       });
 
-      const result = await controller.forgotPassword({ email: 'any@example.com' } as any);
+      const result = await controller.forgotPassword({
+        email: 'any@example.com',
+      } as any);
 
-      expect(mockAuthService.forgotPassword).toHaveBeenCalledWith({ email: 'any@example.com' });
+      expect(mockAuthService.forgotPassword).toHaveBeenCalledWith({
+        email: 'any@example.com',
+      });
       expect(result.message).toContain('If the email exists');
     });
 
     it('should propagate service errors', async () => {
-      mockAuthService.forgotPassword.mockRejectedValue(new Error('Mail service down'));
+      mockAuthService.forgotPassword.mockRejectedValue(
+        new Error('Mail service down'),
+      );
 
       await expect(
         controller.forgotPassword({ email: 'a@b.com' } as any),
@@ -187,7 +205,9 @@ describe('AuthController', () => {
     const dto = { token: 'valid-token', newPassword: 'NewPass123!' };
 
     it('should return success message when token is valid', async () => {
-      mockAuthService.resetPassword.mockResolvedValue({ message: 'Password reset successfully' });
+      mockAuthService.resetPassword.mockResolvedValue({
+        message: 'Password reset successfully',
+      });
 
       const result = await controller.resetPassword(dto as any);
 
@@ -200,7 +220,9 @@ describe('AuthController', () => {
         new BadRequestException('Token expired'),
       );
 
-      await expect(controller.resetPassword(dto as any)).rejects.toThrow(BadRequestException);
+      await expect(controller.resetPassword(dto as any)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -216,12 +238,18 @@ describe('AuthController', () => {
 
       const result = await controller.changePassword(mockUser, dto as any);
 
-      expect(mockAuthService.changePassword).toHaveBeenCalledWith(mockUser.sub, dto);
+      expect(mockAuthService.changePassword).toHaveBeenCalledWith(
+        mockUser.sub,
+        dto,
+      );
       expect(result.message).toContain('changed successfully');
     });
 
     it('should throw UnauthorizedException when user has no sub', async () => {
-      const userWithoutSub: JwtPayloadEntity = { email: 'test@example.com', roles: [] };
+      const userWithoutSub: JwtPayloadEntity = {
+        email: 'test@example.com',
+        roles: [],
+      };
 
       await expect(
         controller.changePassword(userWithoutSub, dto as any),
@@ -250,9 +278,13 @@ describe('AuthController', () => {
         expiresInSeconds: 300,
       });
 
-      const result = await controller.sendOtp({ phone: '+573001234567' } as any);
+      const result = await controller.sendOtp({
+        phone: '+573001234567',
+      } as any);
 
-      expect(mockAuthService.sendOtp).toHaveBeenCalledWith({ phone: '+573001234567' });
+      expect(mockAuthService.sendOtp).toHaveBeenCalledWith({
+        phone: '+573001234567',
+      });
       expect(result.expiresInSeconds).toBe(300);
     });
 
@@ -284,7 +316,9 @@ describe('AuthController', () => {
         new UnauthorizedException('Invalid or expired OTP'),
       );
 
-      await expect(controller.verifyOtp(dto as any)).rejects.toThrow(UnauthorizedException);
+      await expect(controller.verifyOtp(dto as any)).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
   });
 
@@ -294,7 +328,8 @@ describe('AuthController', () => {
     it('should return a properly formatted Google OAuth URL', async () => {
       mockConfigService.get.mockImplementation((key: string) => {
         if (key === 'oauth.google.clientId') return 'test-client-id';
-        if (key === 'oauth.google.callbackUrl') return 'http://localhost:3001/auth/google/callback';
+        if (key === 'oauth.google.callbackUrl')
+          return 'http://localhost:3001/auth/google/callback';
         return null;
       });
 
@@ -321,10 +356,12 @@ describe('AuthController', () => {
   // ─── googleCallback ───────────────────────────────────────────────────────────
 
   describe('googleCallback', () => {
-    const makeRes = () => ({ redirect: jest.fn() } as any);
+    const makeRes = () => ({ redirect: jest.fn() }) as any;
 
     it('should redirect to frontend with tokens on successful OAuth callback', async () => {
-      mockAuthService.handleGoogleOAuthCallback.mockResolvedValue(mockAuthResponse);
+      mockAuthService.handleGoogleOAuthCallback.mockResolvedValue(
+        mockAuthResponse,
+      );
       mockConfigService.get.mockReturnValue('http://localhost:3000');
 
       const req: any = {
@@ -351,7 +388,9 @@ describe('AuthController', () => {
       const req: any = {};
       const res = makeRes();
 
-      await expect(controller.googleCallback(req, res)).rejects.toThrow(UnauthorizedException);
+      await expect(controller.googleCallback(req, res)).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('should throw UnauthorizedException when OAuth user has no email', async () => {
@@ -366,11 +405,15 @@ describe('AuthController', () => {
       };
       const res = makeRes();
 
-      await expect(controller.googleCallback(req, res)).rejects.toThrow(UnauthorizedException);
+      await expect(controller.googleCallback(req, res)).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('should redirect to error page when handleGoogleOAuthCallback throws', async () => {
-      mockAuthService.handleGoogleOAuthCallback.mockRejectedValue(new Error('OAuth failed'));
+      mockAuthService.handleGoogleOAuthCallback.mockRejectedValue(
+        new Error('OAuth failed'),
+      );
       mockConfigService.get.mockReturnValue('http://localhost:3000');
 
       const req: any = {
@@ -422,7 +465,11 @@ describe('AuthController', () => {
 
   describe('getCurrentUser', () => {
     it('should return the current user profile', async () => {
-      const userResponse = { id: 'user-uuid-001', email: 'test@example.com', roles: [RoleName.USER] };
+      const userResponse = {
+        id: 'user-uuid-001',
+        email: 'test@example.com',
+        roles: [RoleName.USER],
+      };
       mockAuthService.getCurrentUser.mockResolvedValue(userResponse);
 
       const result = await controller.getCurrentUser(mockUser);
@@ -434,15 +481,21 @@ describe('AuthController', () => {
     it('should throw UnauthorizedException when user has no sub', async () => {
       const userWithoutSub: JwtPayloadEntity = { email: 'test@example.com' };
 
-      await expect(controller.getCurrentUser(userWithoutSub)).rejects.toThrow(UnauthorizedException);
+      await expect(controller.getCurrentUser(userWithoutSub)).rejects.toThrow(
+        UnauthorizedException,
+      );
 
       expect(mockAuthService.getCurrentUser).not.toHaveBeenCalled();
     });
 
     it('should propagate service errors', async () => {
-      mockAuthService.getCurrentUser.mockRejectedValue(new UnauthorizedException('User not found'));
+      mockAuthService.getCurrentUser.mockRejectedValue(
+        new UnauthorizedException('User not found'),
+      );
 
-      await expect(controller.getCurrentUser(mockUser)).rejects.toThrow(UnauthorizedException);
+      await expect(controller.getCurrentUser(mockUser)).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
   });
 
@@ -450,7 +503,9 @@ describe('AuthController', () => {
 
   describe('logout', () => {
     it('should revoke sessions and return success message', async () => {
-      mockAuthService.logout.mockResolvedValue({ message: 'Logout successful' });
+      mockAuthService.logout.mockResolvedValue({
+        message: 'Logout successful',
+      });
 
       const result = await controller.logout(mockUser);
 
@@ -461,15 +516,21 @@ describe('AuthController', () => {
     it('should throw UnauthorizedException when user has no sub', async () => {
       const userWithoutSub: JwtPayloadEntity = { email: 'test@example.com' };
 
-      await expect(controller.logout(userWithoutSub)).rejects.toThrow(UnauthorizedException);
+      await expect(controller.logout(userWithoutSub)).rejects.toThrow(
+        UnauthorizedException,
+      );
 
       expect(mockAuthService.logout).not.toHaveBeenCalled();
     });
 
     it('should propagate service errors', async () => {
-      mockAuthService.logout.mockRejectedValue(new Error('Token store unavailable'));
+      mockAuthService.logout.mockRejectedValue(
+        new Error('Token store unavailable'),
+      );
 
-      await expect(controller.logout(mockUser)).rejects.toThrow('Token store unavailable');
+      await expect(controller.logout(mockUser)).rejects.toThrow(
+        'Token store unavailable',
+      );
     });
   });
 });

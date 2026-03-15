@@ -90,7 +90,9 @@ describe('ProviderProfileService', () => {
     ]);
 
     const mockDataSource = {
-      getRepository: jest.fn((entity: unknown) => repoMap.get(entity) ?? buildMockRepo()),
+      getRepository: jest.fn(
+        (entity: unknown) => repoMap.get(entity) ?? buildMockRepo(),
+      ),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -131,8 +133,13 @@ describe('ProviderProfileService', () => {
       const result = await service.create(USER_ID, createDto);
 
       expect(profileRepo.save).toHaveBeenCalled();
-      expect(userRepo.update).toHaveBeenCalledWith(USER_ID, { skills: createDto.skills });
-      expect(authRepository.assignRoleToUser).toHaveBeenCalledWith(USER_ID, RoleName.PROVIDER);
+      expect(userRepo.update).toHaveBeenCalledWith(USER_ID, {
+        skills: createDto.skills,
+      });
+      expect(authRepository.assignRoleToUser).toHaveBeenCalledWith(
+        USER_ID,
+        RoleName.PROVIDER,
+      );
       expect(result.userId).toBe(USER_ID);
     });
 
@@ -150,7 +157,9 @@ describe('ProviderProfileService', () => {
     it('should throw ConflictException when a profile already exists for the user', async () => {
       profileRepo.findOne.mockResolvedValue(mockProviderProfile);
 
-      await expect(service.create(USER_ID, createDto)).rejects.toThrow(ConflictException);
+      await expect(service.create(USER_ID, createDto)).rejects.toThrow(
+        ConflictException,
+      );
 
       expect(profileRepo.save).not.toHaveBeenCalled();
     });
@@ -173,11 +182,16 @@ describe('ProviderProfileService', () => {
     it('should throw NotFoundException when no profile exists for the user', async () => {
       profileRepo.findOne.mockResolvedValue(null);
 
-      await expect(service.findByUserId('nonexistent')).rejects.toThrow(NotFoundException);
+      await expect(service.findByUserId('nonexistent')).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should use an empty skills array when the related user entity has no skills', async () => {
-      profileRepo.findOne.mockResolvedValue({ ...mockProviderProfile, user: null });
+      profileRepo.findOne.mockResolvedValue({
+        ...mockProviderProfile,
+        user: null,
+      });
 
       const result = await service.findByUserId(USER_ID);
 
@@ -190,7 +204,11 @@ describe('ProviderProfileService', () => {
   describe('update', () => {
     it('should update profile fields and return the updated profile', async () => {
       const updateDto = { bio: 'Updated bio', isAvailable: true };
-      const updatedProfile = { ...mockProviderProfile, bio: 'Updated bio', isAvailable: true };
+      const updatedProfile = {
+        ...mockProviderProfile,
+        bio: 'Updated bio',
+        isAvailable: true,
+      };
 
       profileRepo.findOne.mockResolvedValue(mockProviderProfile);
       profileRepo.update.mockResolvedValue({});
@@ -213,11 +231,16 @@ describe('ProviderProfileService', () => {
       profileRepo.update.mockResolvedValue({});
       profileRepo.findOneOrFail.mockResolvedValue(mockProviderProfile);
       userRepo.update.mockResolvedValue({});
-      userRepo.findOneOrFail.mockResolvedValue({ ...mockUserEntity, skills: updateDto.skills });
+      userRepo.findOneOrFail.mockResolvedValue({
+        ...mockUserEntity,
+        skills: updateDto.skills,
+      });
 
       await service.update(USER_ID, updateDto);
 
-      expect(userRepo.update).toHaveBeenCalledWith(USER_ID, { skills: updateDto.skills });
+      expect(userRepo.update).toHaveBeenCalledWith(USER_ID, {
+        skills: updateDto.skills,
+      });
     });
 
     it('should update location fields and set lastLocationUpdate when coordinates change', async () => {
@@ -238,7 +261,9 @@ describe('ProviderProfileService', () => {
     it('should throw NotFoundException when the profile does not exist', async () => {
       profileRepo.findOne.mockResolvedValue(null);
 
-      await expect(service.update('nonexistent', { bio: 'new bio' })).rejects.toThrow(NotFoundException);
+      await expect(
+        service.update('nonexistent', { bio: 'new bio' }),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -253,13 +278,18 @@ describe('ProviderProfileService', () => {
         verificationStatus: ProviderVerificationStatus.VERIFIED,
       });
 
-      const result = await service.verifyProvider(USER_ID, VerificationAction.APPROVE);
+      const result = await service.verifyProvider(
+        USER_ID,
+        VerificationAction.APPROVE,
+      );
 
       expect(profileRepo.update).toHaveBeenCalledWith(
         { userId: USER_ID },
         { verificationStatus: ProviderVerificationStatus.VERIFIED },
       );
-      expect(result.verificationStatus).toBe(ProviderVerificationStatus.VERIFIED);
+      expect(result.verificationStatus).toBe(
+        ProviderVerificationStatus.VERIFIED,
+      );
     });
 
     it('should set verification status to REJECTED when action is REJECT', async () => {
@@ -270,13 +300,18 @@ describe('ProviderProfileService', () => {
         verificationStatus: ProviderVerificationStatus.REJECTED,
       });
 
-      const result = await service.verifyProvider(USER_ID, VerificationAction.REJECT);
+      const result = await service.verifyProvider(
+        USER_ID,
+        VerificationAction.REJECT,
+      );
 
       expect(profileRepo.update).toHaveBeenCalledWith(
         { userId: USER_ID },
         { verificationStatus: ProviderVerificationStatus.REJECTED },
       );
-      expect(result.verificationStatus).toBe(ProviderVerificationStatus.REJECTED);
+      expect(result.verificationStatus).toBe(
+        ProviderVerificationStatus.REJECTED,
+      );
     });
 
     it('should set verification status to SUSPENDED when action is SUSPEND', async () => {
@@ -287,13 +322,18 @@ describe('ProviderProfileService', () => {
         verificationStatus: ProviderVerificationStatus.SUSPENDED,
       });
 
-      const result = await service.verifyProvider(USER_ID, VerificationAction.SUSPEND);
+      const result = await service.verifyProvider(
+        USER_ID,
+        VerificationAction.SUSPEND,
+      );
 
       expect(profileRepo.update).toHaveBeenCalledWith(
         { userId: USER_ID },
         { verificationStatus: ProviderVerificationStatus.SUSPENDED },
       );
-      expect(result.verificationStatus).toBe(ProviderVerificationStatus.SUSPENDED);
+      expect(result.verificationStatus).toBe(
+        ProviderVerificationStatus.SUSPENDED,
+      );
     });
 
     it('should throw NotFoundException when no profile exists for the provider', async () => {

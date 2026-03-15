@@ -79,9 +79,14 @@ describe('GeocodingService', () => {
   describe('reverseGeocode', () => {
     it('should return formatted address and tenantCandidate on success', async () => {
       mockConfigService.get.mockReturnValue('test-api-key');
-      mockHttpService.get.mockReturnValue(makeAxiosResponse(successGeoResponse));
+      mockHttpService.get.mockReturnValue(
+        makeAxiosResponse(successGeoResponse),
+      );
 
-      const result = await service.reverseGeocode({ lat: 4.711, lng: -74.0721 });
+      const result = await service.reverseGeocode({
+        lat: 4.711,
+        lng: -74.0721,
+      });
 
       expect(mockHttpService.get).toHaveBeenCalledWith(
         'https://maps.googleapis.com/maps/api/geocode/json',
@@ -114,9 +119,14 @@ describe('GeocodingService', () => {
           },
         ],
       };
-      mockHttpService.get.mockReturnValue(makeAxiosResponse(responseWithAccent));
+      mockHttpService.get.mockReturnValue(
+        makeAxiosResponse(responseWithAccent),
+      );
 
-      const result = await service.reverseGeocode({ lat: 4.711, lng: -74.0721 });
+      const result = await service.reverseGeocode({
+        lat: 4.711,
+        lng: -74.0721,
+      });
 
       expect(result.tenantCandidate).toBe('bogota-d-c');
     });
@@ -148,9 +158,9 @@ describe('GeocodingService', () => {
     it('should throw InternalServerErrorException when API key is not configured', async () => {
       mockConfigService.get.mockReturnValue(undefined);
 
-      await expect(service.reverseGeocode({ lat: 4.711, lng: -74.0721 })).rejects.toThrow(
-        InternalServerErrorException,
-      );
+      await expect(
+        service.reverseGeocode({ lat: 4.711, lng: -74.0721 }),
+      ).rejects.toThrow(InternalServerErrorException);
 
       expect(mockHttpService.get).not.toHaveBeenCalled();
     });
@@ -220,7 +230,10 @@ describe('GeocodingService', () => {
       };
       mockHttpService.get.mockReturnValue(makeAxiosResponse(noLocality));
 
-      const result = await service.reverseGeocode({ lat: 4.711, lng: -74.0721 });
+      const result = await service.reverseGeocode({
+        lat: 4.711,
+        lng: -74.0721,
+      });
 
       expect(result.tenantCandidate).toBe('cundinamarca');
     });
@@ -244,7 +257,10 @@ describe('GeocodingService', () => {
       };
       mockHttpService.get.mockReturnValue(makeAxiosResponse(countryOnly));
 
-      const result = await service.reverseGeocode({ lat: 4.711, lng: -74.0721 });
+      const result = await service.reverseGeocode({
+        lat: 4.711,
+        lng: -74.0721,
+      });
 
       expect(result.tenantCandidate).toBe('colombia');
     });
@@ -255,7 +271,9 @@ describe('GeocodingService', () => {
   describe('resolveTenant', () => {
     it('should return the slugified locality as tenant', async () => {
       mockConfigService.get.mockReturnValue('test-api-key');
-      mockHttpService.get.mockReturnValue(makeAxiosResponse(successGeoResponse));
+      mockHttpService.get.mockReturnValue(
+        makeAxiosResponse(successGeoResponse),
+      );
 
       const result = await service.resolveTenant({ lat: 4.711, lng: -74.0721 });
 
@@ -285,9 +303,9 @@ describe('GeocodingService', () => {
     it('should propagate InternalServerErrorException when API key is missing', async () => {
       mockConfigService.get.mockReturnValue(undefined);
 
-      await expect(service.resolveTenant({ lat: 4.711, lng: -74.0721 })).rejects.toThrow(
-        InternalServerErrorException,
-      );
+      await expect(
+        service.resolveTenant({ lat: 4.711, lng: -74.0721 }),
+      ).rejects.toThrow(InternalServerErrorException);
     });
 
     it('should propagate BadRequestException when geocoding fails', async () => {

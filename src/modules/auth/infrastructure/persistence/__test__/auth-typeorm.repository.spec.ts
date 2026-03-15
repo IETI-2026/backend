@@ -207,10 +207,16 @@ describe('AuthTypeOrmRepository', () => {
       userRepo.save.mockResolvedValue(user);
 
       // assignRoleToUser path
-      const roleEntity: Partial<RoleEntity> = { id: 'role-id', name: RoleName.USER };
+      const roleEntity: Partial<RoleEntity> = {
+        id: 'role-id',
+        name: RoleName.USER,
+      };
       roleRepo.findOne.mockResolvedValue(roleEntity);
       userRoleRepo.findOne.mockResolvedValue(null);
-      const userRoleEntity: Partial<UserRoleEntity> = { userId: user.id, roleId: 'role-id' };
+      const userRoleEntity: Partial<UserRoleEntity> = {
+        userId: user.id,
+        roleId: 'role-id',
+      };
       userRoleRepo.create.mockReturnValue(userRoleEntity);
       userRoleRepo.save.mockResolvedValue(userRoleEntity);
 
@@ -222,18 +228,29 @@ describe('AuthTypeOrmRepository', () => {
 
       expect(result).toBe(user);
       expect(userRepo.create).toHaveBeenCalledWith(
-        expect.objectContaining({ email: 'new@example.com', status: UserStatus.ACTIVE }),
+        expect.objectContaining({
+          email: 'new@example.com',
+          status: UserStatus.ACTIVE,
+        }),
       );
       expect(userRepo.save).toHaveBeenCalledWith(user);
       expect(userRoleRepo.save).toHaveBeenCalledWith(userRoleEntity);
     });
 
     it('uses defaults for optional fields', async () => {
-      const user = makeUserEntity({ id: 'u2', passwordHash: null, phoneNumber: null, emailVerified: false });
+      const user = makeUserEntity({
+        id: 'u2',
+        passwordHash: null,
+        phoneNumber: null,
+        emailVerified: false,
+      });
       userRepo.create.mockReturnValue(user);
       userRepo.save.mockResolvedValue(user);
 
-      const roleEntity: Partial<RoleEntity> = { id: 'role-id', name: RoleName.USER };
+      const roleEntity: Partial<RoleEntity> = {
+        id: 'role-id',
+        name: RoleName.USER,
+      };
       roleRepo.findOne.mockResolvedValue(roleEntity);
       userRoleRepo.findOne.mockResolvedValue(null);
       userRoleRepo.create.mockReturnValue({});
@@ -242,7 +259,11 @@ describe('AuthTypeOrmRepository', () => {
       await repository.createUser({ email: 'a@b.com', fullName: 'Minimal' });
 
       expect(userRepo.create).toHaveBeenCalledWith(
-        expect.objectContaining({ passwordHash: null, phoneNumber: null, emailVerified: false }),
+        expect.objectContaining({
+          passwordHash: null,
+          phoneNumber: null,
+          emailVerified: false,
+        }),
       );
     });
   });
@@ -253,10 +274,16 @@ describe('AuthTypeOrmRepository', () => {
       userRepo.update.mockResolvedValue({ affected: 1 });
       userRepo.findOneOrFail.mockResolvedValue(updatedUser);
 
-      const result = await repository.updateUser('user-1', { emailVerified: true });
+      const result = await repository.updateUser('user-1', {
+        emailVerified: true,
+      });
 
-      expect(userRepo.update).toHaveBeenCalledWith('user-1', { emailVerified: true });
-      expect(userRepo.findOneOrFail).toHaveBeenCalledWith({ where: { id: 'user-1' } });
+      expect(userRepo.update).toHaveBeenCalledWith('user-1', {
+        emailVerified: true,
+      });
+      expect(userRepo.findOneOrFail).toHaveBeenCalledWith({
+        where: { id: 'user-1' },
+      });
       expect(result).toBe(updatedUser);
     });
 
@@ -264,7 +291,9 @@ describe('AuthTypeOrmRepository', () => {
       userRepo.update.mockResolvedValue({ affected: 0 });
       userRepo.findOneOrFail.mockRejectedValue(new Error('Entity not found'));
 
-      await expect(repository.updateUser('bad-id', {})).rejects.toThrow('Entity not found');
+      await expect(repository.updateUser('bad-id', {})).rejects.toThrow(
+        'Entity not found',
+      );
     });
   });
 
@@ -280,7 +309,9 @@ describe('AuthTypeOrmRepository', () => {
       const result = await repository.findUserByPhone('+57123');
 
       expect(result).toBe(user);
-      expect(userRepo.findOne).toHaveBeenCalledWith({ where: { phoneNumber: '+57123' } });
+      expect(userRepo.findOne).toHaveBeenCalledWith({
+        where: { phoneNumber: '+57123' },
+      });
     });
 
     it('returns null when phone not found', async () => {
@@ -356,7 +387,11 @@ describe('AuthTypeOrmRepository', () => {
       });
 
       expect(oauthRepo.create).toHaveBeenCalledWith(
-        expect.objectContaining({ accessToken: null, refreshToken: null, expiresAt: null }),
+        expect.objectContaining({
+          accessToken: null,
+          refreshToken: null,
+          expiresAt: null,
+        }),
       );
     });
   });
@@ -437,7 +472,9 @@ describe('AuthTypeOrmRepository', () => {
 
       await repository.revokeRefreshToken('rt-1');
 
-      expect(refreshRepo.update).toHaveBeenCalledWith('rt-1', { isRevoked: true });
+      expect(refreshRepo.update).toHaveBeenCalledWith('rt-1', {
+        isRevoked: true,
+      });
     });
   });
 
@@ -463,7 +500,10 @@ describe('AuthTypeOrmRepository', () => {
       const role: Partial<RoleEntity> = { id: 'role-id', name: RoleName.ADMIN };
       roleRepo.findOne.mockResolvedValue(role);
       userRoleRepo.findOne.mockResolvedValue(null);
-      const userRole: Partial<UserRoleEntity> = { userId: 'user-1', roleId: 'role-id' };
+      const userRole: Partial<UserRoleEntity> = {
+        userId: 'user-1',
+        roleId: 'role-id',
+      };
       userRoleRepo.create.mockReturnValue(userRole);
       userRoleRepo.save.mockResolvedValue(userRole);
 
@@ -475,7 +515,10 @@ describe('AuthTypeOrmRepository', () => {
     it('skips save when user already has the role', async () => {
       const role: Partial<RoleEntity> = { id: 'role-id', name: RoleName.USER };
       roleRepo.findOne.mockResolvedValue(role);
-      const existing: Partial<UserRoleEntity> = { userId: 'user-1', roleId: 'role-id' };
+      const existing: Partial<UserRoleEntity> = {
+        userId: 'user-1',
+        roleId: 'role-id',
+      };
       userRoleRepo.findOne.mockResolvedValue(existing);
 
       await repository.assignRoleToUser('user-1', RoleName.USER);
@@ -486,9 +529,9 @@ describe('AuthTypeOrmRepository', () => {
     it('throws when role does not exist', async () => {
       roleRepo.findOne.mockResolvedValue(null);
 
-      await expect(repository.assignRoleToUser('user-1', 'NONEXISTENT')).rejects.toThrow(
-        'Role NONEXISTENT not found',
-      );
+      await expect(
+        repository.assignRoleToUser('user-1', 'NONEXISTENT'),
+      ).rejects.toThrow('Role NONEXISTENT not found');
     });
   });
 
@@ -555,7 +598,11 @@ describe('AuthTypeOrmRepository', () => {
 
       const result = await repository.findValidPasswordResetToken('reset-tok');
 
-      expect(result).toEqual({ id: 'prt-1', userId: 'user-1', expiresAt: future });
+      expect(result).toEqual({
+        id: 'prt-1',
+        userId: 'user-1',
+        expiresAt: future,
+      });
     });
 
     it('returns null when record not found', async () => {
@@ -585,7 +632,8 @@ describe('AuthTypeOrmRepository', () => {
         usedAt: null,
       };
       passwordResetRepo.findOne.mockResolvedValue(record);
-      const result = await repository.findValidPasswordResetToken('expired-tok');
+      const result =
+        await repository.findValidPasswordResetToken('expired-tok');
       expect(result).toBeNull();
     });
   });
@@ -700,7 +748,11 @@ describe('AuthTypeOrmRepository', () => {
 
       await repository.incrementOtpAttempts('otp-1');
 
-      expect(otpRepo.increment).toHaveBeenCalledWith({ id: 'otp-1' }, 'attempts', 1);
+      expect(otpRepo.increment).toHaveBeenCalledWith(
+        { id: 'otp-1' },
+        'attempts',
+        1,
+      );
     });
   });
 
@@ -741,7 +793,9 @@ describe('AuthTypeOrmRepository', () => {
       userRepo.findOne.mockResolvedValue(null);
       await repository.findUserById('any');
 
-      expect(tenantDataSourceService.getDataSource).toHaveBeenCalledWith('public');
+      expect(tenantDataSourceService.getDataSource).toHaveBeenCalledWith(
+        'public',
+      );
     });
   });
 });

@@ -45,13 +45,15 @@ describe('TenantDataSourceService', () => {
     service = new TenantDataSourceService(configService);
   });
 
-  afterEach(() => { jest.clearAllMocks(); });
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
 
   describe('constructor', () => {
     it('throws when DATABASE_URL is not configured', () => {
       const badConfig = { get: jest.fn().mockReturnValue(undefined) } as any;
       expect(() => new TenantDataSourceService(badConfig)).toThrow(
-        'DATABASE_URL no está configurada'
+        'DATABASE_URL no está configurada',
       );
     });
 
@@ -78,11 +80,15 @@ describe('TenantDataSourceService', () => {
 
   describe('getDataSource()', () => {
     it('throws BadRequestException for empty tenant ID', async () => {
-      await expect(service.getDataSource('')).rejects.toThrow(BadRequestException);
+      await expect(service.getDataSource('')).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('throws BadRequestException for tenant ID with invalid chars', async () => {
-      await expect(service.getDataSource('Invalid Tenant!')).rejects.toThrow(BadRequestException);
+      await expect(service.getDataSource('Invalid Tenant!')).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('creates and initializes a DataSource for valid tenant', async () => {
@@ -109,7 +115,9 @@ describe('TenantDataSourceService', () => {
     it('uses tenant ID as schema name for non-public tenant', async () => {
       await service.getDataSource('mytenant');
       const calls = MockedDataSource.mock.calls.map((c) => c[0]);
-      expect(calls.some((cfg) => (cfg as any).schema === 'mytenant')).toBe(true);
+      expect(calls.some((cfg) => (cfg as any).schema === 'mytenant')).toBe(
+        true,
+      );
     });
   });
 

@@ -1,9 +1,16 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { ServiceRequestsController } from '../service-requests.controller';
 import { ServiceRequestsService } from '../../../application';
 import { JwtAuthGuard } from '../../../../auth/infrastructure/guards/jwt-auth.guard';
-import { ServiceRequestStatus, UrgencyLevel } from '../../../../../database/enums';
+import {
+  ServiceRequestStatus,
+  UrgencyLevel,
+} from '../../../../../database/enums';
 
 // ─── shared fixtures ──────────────────────────────────────────────────────────
 
@@ -43,14 +50,19 @@ describe('ServiceRequestsController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [ServiceRequestsController],
       providers: [
-        { provide: ServiceRequestsService, useValue: mockServiceRequestsService },
+        {
+          provide: ServiceRequestsService,
+          useValue: mockServiceRequestsService,
+        },
       ],
     })
       .overrideGuard(JwtAuthGuard)
       .useValue(allowAllGuard)
       .compile();
 
-    controller = module.get<ServiceRequestsController>(ServiceRequestsController);
+    controller = module.get<ServiceRequestsController>(
+      ServiceRequestsController,
+    );
     jest.clearAllMocks();
   });
 
@@ -97,7 +109,9 @@ describe('ServiceRequestsController', () => {
     });
 
     it('should propagate service errors', async () => {
-      mockServiceRequestsService.findAll.mockRejectedValue(new Error('DB error'));
+      mockServiceRequestsService.findAll.mockRejectedValue(
+        new Error('DB error'),
+      );
 
       await expect(controller.findAll({} as any)).rejects.toThrow('DB error');
     });
@@ -113,9 +127,9 @@ describe('ServiceRequestsController', () => {
 
       const result = await controller.findAcceptedTechnicians('req-uuid-001');
 
-      expect(mockServiceRequestsService.findAcceptedTechnicians).toHaveBeenCalledWith(
-        'req-uuid-001',
-      );
+      expect(
+        mockServiceRequestsService.findAcceptedTechnicians,
+      ).toHaveBeenCalledWith('req-uuid-001');
       expect(result).toHaveLength(1);
       expect(result[0].id).toBe('tech-uuid-001');
     });
@@ -162,7 +176,9 @@ describe('ServiceRequestsController', () => {
         new NotFoundException('User not found'),
       );
 
-      await expect(controller.create(createDto as any)).rejects.toThrow(NotFoundException);
+      await expect(controller.create(createDto as any)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should propagate BadRequestException for invalid input', async () => {
@@ -170,7 +186,9 @@ describe('ServiceRequestsController', () => {
         new BadRequestException('Validation failed'),
       );
 
-      await expect(controller.create({} as any)).rejects.toThrow(BadRequestException);
+      await expect(controller.create({} as any)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -182,18 +200,22 @@ describe('ServiceRequestsController', () => {
         mockServiceRequest,
       ]);
 
-      const result = await controller.findAvailableForTechnician('tech-uuid-001');
+      const result =
+        await controller.findAvailableForTechnician('tech-uuid-001');
 
-      expect(mockServiceRequestsService.findAvailableForTechnician).toHaveBeenCalledWith(
-        'tech-uuid-001',
-      );
+      expect(
+        mockServiceRequestsService.findAvailableForTechnician,
+      ).toHaveBeenCalledWith('tech-uuid-001');
       expect(result).toHaveLength(1);
     });
 
     it('should return an empty array when no matching requests exist', async () => {
-      mockServiceRequestsService.findAvailableForTechnician.mockResolvedValue([]);
+      mockServiceRequestsService.findAvailableForTechnician.mockResolvedValue(
+        [],
+      );
 
-      const result = await controller.findAvailableForTechnician('tech-uuid-001');
+      const result =
+        await controller.findAvailableForTechnician('tech-uuid-001');
 
       expect(result).toHaveLength(0);
     });
@@ -215,12 +237,18 @@ describe('ServiceRequestsController', () => {
     const acceptDto = { technicianUserId: 'tech-uuid-001' };
 
     it('should register a technician acceptance and return the updated request', async () => {
-      const accepted = { ...mockServiceRequest, status: ServiceRequestStatus.REQUESTED };
+      const accepted = {
+        ...mockServiceRequest,
+        status: ServiceRequestStatus.REQUESTED,
+      };
       mockServiceRequestsService.accept.mockResolvedValue(accepted);
 
       const result = await controller.accept('req-uuid-001', acceptDto as any);
 
-      expect(mockServiceRequestsService.accept).toHaveBeenCalledWith('req-uuid-001', acceptDto);
+      expect(mockServiceRequestsService.accept).toHaveBeenCalledWith(
+        'req-uuid-001',
+        acceptDto,
+      );
       expect(result).toBe(accepted);
     });
 
@@ -248,16 +276,23 @@ describe('ServiceRequestsController', () => {
   // ─── reject ───────────────────────────────────────────────────────────────────
 
   describe('reject', () => {
-    const rejectDto = { technicianUserId: 'tech-uuid-001', reason: 'Too far away' };
+    const rejectDto = {
+      technicianUserId: 'tech-uuid-001',
+      reason: 'Too far away',
+    };
 
     it('should register a technician rejection and return a message', async () => {
       mockServiceRequestsService.reject.mockResolvedValue({
-        message: 'Service request req-uuid-001 rejected by technician tech-uuid-001',
+        message:
+          'Service request req-uuid-001 rejected by technician tech-uuid-001',
       });
 
       const result = await controller.reject('req-uuid-001', rejectDto as any);
 
-      expect(mockServiceRequestsService.reject).toHaveBeenCalledWith('req-uuid-001', rejectDto);
+      expect(mockServiceRequestsService.reject).toHaveBeenCalledWith(
+        'req-uuid-001',
+        rejectDto,
+      );
       expect(result.message).toContain('rejected');
     });
 
@@ -285,13 +320,22 @@ describe('ServiceRequestsController', () => {
   // ─── chooseTechnician ─────────────────────────────────────────────────────────
 
   describe('chooseTechnician', () => {
-    const chooseDto = { userId: 'user-uuid-001', technicianUserId: 'tech-uuid-001' };
+    const chooseDto = {
+      userId: 'user-uuid-001',
+      technicianUserId: 'tech-uuid-001',
+    };
 
     it('should assign the chosen technician and return the updated request', async () => {
-      const assigned = { ...mockServiceRequest, status: ServiceRequestStatus.ASSIGNED };
+      const assigned = {
+        ...mockServiceRequest,
+        status: ServiceRequestStatus.ASSIGNED,
+      };
       mockServiceRequestsService.chooseTechnician.mockResolvedValue(assigned);
 
-      const result = await controller.chooseTechnician('req-uuid-001', chooseDto as any);
+      const result = await controller.chooseTechnician(
+        'req-uuid-001',
+        chooseDto as any,
+      );
 
       expect(mockServiceRequestsService.chooseTechnician).toHaveBeenCalledWith(
         'req-uuid-001',

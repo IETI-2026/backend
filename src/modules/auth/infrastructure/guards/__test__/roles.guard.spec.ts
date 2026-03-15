@@ -16,7 +16,10 @@ function buildContext(
   const classRef = jest.fn();
 
   const request = {
-    user: userRoles !== undefined ? { sub: 'u-1', email: 'a@b.com', roles: userRoles } : undefined,
+    user:
+      userRoles !== undefined
+        ? { sub: 'u-1', email: 'a@b.com', roles: userRoles }
+        : undefined,
   };
 
   return {
@@ -92,7 +95,10 @@ describe('RolesGuard', () => {
     });
 
     it('returns true when user has one of several required roles', () => {
-      reflector.getAllAndOverride.mockReturnValue([RoleName.ADMIN, RoleName.MODERATOR]);
+      reflector.getAllAndOverride.mockReturnValue([
+        RoleName.ADMIN,
+        RoleName.MODERATOR,
+      ]);
       const ctx = buildContext(
         [RoleName.ADMIN, RoleName.MODERATOR],
         [RoleName.MODERATOR, RoleName.USER],
@@ -118,7 +124,10 @@ describe('RolesGuard', () => {
 
       guard.canActivate(ctx);
 
-      expect(reflector.getAllAndOverride).toHaveBeenCalledWith(ROLES_KEY, [handler, classRef]);
+      expect(reflector.getAllAndOverride).toHaveBeenCalledWith(ROLES_KEY, [
+        handler,
+        classRef,
+      ]);
     });
   });
 
@@ -144,8 +153,14 @@ describe('RolesGuard', () => {
     });
 
     it('lists all required roles in the error message when multiple are specified', () => {
-      reflector.getAllAndOverride.mockReturnValue([RoleName.ADMIN, RoleName.MODERATOR]);
-      const ctx = buildContext([RoleName.ADMIN, RoleName.MODERATOR], [RoleName.USER]);
+      reflector.getAllAndOverride.mockReturnValue([
+        RoleName.ADMIN,
+        RoleName.MODERATOR,
+      ]);
+      const ctx = buildContext(
+        [RoleName.ADMIN, RoleName.MODERATOR],
+        [RoleName.USER],
+      );
 
       expect(() => guard.canActivate(ctx)).toThrow(
         `User does not have required roles: ${RoleName.ADMIN}, ${RoleName.MODERATOR}`,
@@ -180,7 +195,9 @@ describe('RolesGuard', () => {
         getHandler: () => jest.fn(),
         getClass: () => jest.fn(),
         switchToHttp: () => ({
-          getRequest: () => ({ user: { sub: 'u-1', email: 'a@b.com', roles: undefined } }),
+          getRequest: () => ({
+            user: { sub: 'u-1', email: 'a@b.com', roles: undefined },
+          }),
         }),
       } as unknown as ExecutionContext;
 
