@@ -25,6 +25,7 @@ export { TrackingPointEntity } from './tracking-point.entity';
 export { UserEntity } from './user.entity';
 export { UserRoleEntity } from './user-role.entity';
 export { UserSubscriptionEntity } from './user-subscription.entity';
+export { UserPaymentMethodEntity } from './user-payment-method.entity';
 
 import { AddressEntity } from './address.entity';
 import { AuditLogEntity } from './audit-log.entity';
@@ -53,6 +54,7 @@ import { TrackingPointEntity } from './tracking-point.entity';
 import { UserEntity } from './user.entity';
 import { UserRoleEntity } from './user-role.entity';
 import { UserSubscriptionEntity } from './user-subscription.entity';
+import { UserPaymentMethodEntity } from './user-payment-method.entity';
 
 /** All TypeORM entities — pass to DataSource options */
 export const ALL_ENTITIES = [
@@ -83,4 +85,5 @@ export const ALL_ENTITIES = [
   UserEntity,
   UserRoleEntity,
   UserSubscriptionEntity,
+  UserPaymentMethodEntity,
 ];

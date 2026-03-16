@@ -48,6 +48,7 @@ export enum PaymentStatus {
 }
 
 export enum PaymentMethodType {
+  EPAYCO = 'EPAYCO',
   NEQUI = 'NEQUI',
   DAVIPLATA = 'DAVIPLATA',
   BREB = 'BREB',
