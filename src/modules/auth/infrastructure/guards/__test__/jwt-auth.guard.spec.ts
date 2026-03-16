@@ -6,10 +6,9 @@ import { IS_PUBLIC_KEY } from '../../decorators/public.decorator';
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
-function buildContext(overrides: {
-  handler?: object;
-  classRef?: object;
-} = {}): ExecutionContext {
+function buildContext(
+  overrides: { handler?: object; classRef?: object } = {},
+): ExecutionContext {
   return {
     getHandler: jest.fn().mockReturnValue(overrides.handler ?? {}),
     getClass: jest.fn().mockReturnValue(overrides.classRef ?? {}),
@@ -65,7 +64,10 @@ describe('JwtAuthGuard', () => {
     it('should call super.canActivate for non-public routes', () => {
       (reflector.getAllAndOverride as jest.Mock).mockReturnValue(false);
       const superCanActivate = jest
-        .spyOn(Object.getPrototypeOf(Object.getPrototypeOf(guard)), 'canActivate')
+        .spyOn(
+          Object.getPrototypeOf(Object.getPrototypeOf(guard)),
+          'canActivate',
+        )
         .mockReturnValue(true);
       const context = buildContext();
 
@@ -80,7 +82,10 @@ describe('JwtAuthGuard', () => {
     it('should call super.canActivate when public metadata is undefined', () => {
       (reflector.getAllAndOverride as jest.Mock).mockReturnValue(undefined);
       const superCanActivate = jest
-        .spyOn(Object.getPrototypeOf(Object.getPrototypeOf(guard)), 'canActivate')
+        .spyOn(
+          Object.getPrototypeOf(Object.getPrototypeOf(guard)),
+          'canActivate',
+        )
         .mockReturnValue(true);
       const context = buildContext();
 

@@ -28,7 +28,8 @@ describe('GoogleOAuthStrategy', () => {
               const map: Record<string, string> = {
                 'oauth.google.clientId': 'mock-client-id',
                 'oauth.google.clientSecret': 'mock-client-secret',
-                'oauth.google.callbackUrl': 'http://localhost/auth/google/callback',
+                'oauth.google.callbackUrl':
+                  'http://localhost/auth/google/callback',
               };
               if (key in map) return map[key];
               throw new Error(`Missing config key: ${key}`);
@@ -60,7 +61,13 @@ describe('GoogleOAuthStrategy', () => {
     it('calls done with a correctly shaped user object', async () => {
       const done = jest.fn();
 
-      await strategy.validate(mockRequest, accessToken, refreshToken, fullProfile, done);
+      await strategy.validate(
+        mockRequest,
+        accessToken,
+        refreshToken,
+        fullProfile,
+        done,
+      );
 
       expect(done).toHaveBeenCalledWith(null, {
         provider: 'google',
@@ -77,7 +84,13 @@ describe('GoogleOAuthStrategy', () => {
       const done = jest.fn();
       const profileNoEmail = { ...fullProfile, emails: undefined };
 
-      await strategy.validate(mockRequest, accessToken, refreshToken, profileNoEmail as any, done);
+      await strategy.validate(
+        mockRequest,
+        accessToken,
+        refreshToken,
+        profileNoEmail as any,
+        done,
+      );
 
       expect(done).toHaveBeenCalledWith(
         null,
@@ -89,7 +102,13 @@ describe('GoogleOAuthStrategy', () => {
       const done = jest.fn();
       const profileNoPhoto = { ...fullProfile, photos: undefined };
 
-      await strategy.validate(mockRequest, accessToken, refreshToken, profileNoPhoto as any, done);
+      await strategy.validate(
+        mockRequest,
+        accessToken,
+        refreshToken,
+        profileNoPhoto as any,
+        done,
+      );
 
       expect(done).toHaveBeenCalledWith(
         null,
@@ -101,7 +120,13 @@ describe('GoogleOAuthStrategy', () => {
       const done = jest.fn();
       const profileNoName = { ...fullProfile, name: undefined };
 
-      await strategy.validate(mockRequest, accessToken, refreshToken, profileNoName as any, done);
+      await strategy.validate(
+        mockRequest,
+        accessToken,
+        refreshToken,
+        profileNoName as any,
+        done,
+      );
 
       expect(done).toHaveBeenCalledWith(
         null,
@@ -116,7 +141,13 @@ describe('GoogleOAuthStrategy', () => {
         name: { givenName: 'Alice', familyName: undefined },
       };
 
-      await strategy.validate(mockRequest, accessToken, refreshToken, profilePartialName as any, done);
+      await strategy.validate(
+        mockRequest,
+        accessToken,
+        refreshToken,
+        profilePartialName as any,
+        done,
+      );
 
       const calledUser = done.mock.calls[0][1];
       expect(calledUser.fullName).toBe('Alice ');
@@ -125,7 +156,13 @@ describe('GoogleOAuthStrategy', () => {
     it('passes the accessToken through', async () => {
       const done = jest.fn();
 
-      await strategy.validate(mockRequest, 'my-special-token', refreshToken, fullProfile, done);
+      await strategy.validate(
+        mockRequest,
+        'my-special-token',
+        refreshToken,
+        fullProfile,
+        done,
+      );
 
       expect(done).toHaveBeenCalledWith(
         null,
@@ -136,7 +173,13 @@ describe('GoogleOAuthStrategy', () => {
     it('passes the refreshToken through', async () => {
       const done = jest.fn();
 
-      await strategy.validate(mockRequest, accessToken, 'my-special-refresh', fullProfile, done);
+      await strategy.validate(
+        mockRequest,
+        accessToken,
+        'my-special-refresh',
+        fullProfile,
+        done,
+      );
 
       expect(done).toHaveBeenCalledWith(
         null,

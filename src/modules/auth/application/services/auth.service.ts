@@ -10,6 +10,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import { OAuth2Client } from 'google-auth-library';
 import { RoleName } from '@/database/enums';
 import {
   AUTH_RESPONSE_EXPIRES_IN_SECONDS,
@@ -56,13 +57,18 @@ export interface UserResponse {
 export class AuthService {
   private readonly bcryptRounds = 10;
   private readonly logger = new Logger(AuthService.name);
+  private readonly googleOAuthClient = new OAuth2Client();
+  private readonly googleIssuers = new Set<string>([
+    'accounts.google.com',
+    'https://accounts.google.com',
+  ]);
 
   constructor(
     @Inject(AUTH_REPOSITORY)
     private readonly authRepository: IAuthRepository,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
-  ) {}
+  ) { }
 
   async signUp(signUpDto: SignUpDto): Promise<AuthResponseDto> {
     const { email, password, fullName, phoneNumber } = signUpDto;
@@ -135,12 +141,63 @@ export class AuthService {
     }
   }
 
+  async loginWithGoogleIdToken(idToken: string): Promise<AuthResponseDto> {
+    const normalizedIdToken = idToken?.trim();
+    if (!normalizedIdToken) {
+      throw new BadRequestException('Google ID token is required');
+    }
+
+    const audiences = this.getGoogleAllowedAudiences();
+    if (audiences.length === 0) {
+      this.logger.error('Google login rejected: no configured audiences');
+      throw new UnauthorizedException('Google OAuth is not configured');
+    }
+
+    try {
+      const ticket = await this.googleOAuthClient.verifyIdToken({
+        idToken: normalizedIdToken,
+        audience: audiences,
+      });
+      const payload = ticket.getPayload();
+
+      if (!payload?.sub || !payload.email) {
+        throw new UnauthorizedException('Invalid Google token payload');
+      }
+
+      if (!payload.iss || !this.googleIssuers.has(payload.iss)) {
+        throw new UnauthorizedException('Invalid Google token issuer');
+      }
+
+      if (!payload.email_verified) {
+        throw new UnauthorizedException('Google account email is not verified');
+      }
+
+      const fullName = payload.name?.trim() || payload.email;
+
+      return this.handleGoogleOAuthCallback({
+        providerId: payload.sub,
+        email: payload.email,
+        fullName,
+        profilePhotoUrl: payload.picture,
+      });
+    } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+
+      this.logger.warn(
+        `Google token verification failed: ${error instanceof Error ? error.message : 'unknown error'}`,
+      );
+      throw new UnauthorizedException('Invalid Google token');
+    }
+  }
+
   async handleGoogleOAuthCallback(profile: {
     providerId: string;
     email: string;
     fullName: string;
     profilePhotoUrl?: string;
-    accessToken: string;
+    accessToken?: string;
     refreshToken?: string;
   }): Promise<AuthResponseDto> {
     const { providerId, email, fullName, accessToken, refreshToken } = profile;
@@ -158,16 +215,9 @@ export class AuthService {
         );
       }
 
-      if (accessToken) {
-        await this.authRepository.createOAuthAccount({
-          userId: user.id,
-          provider: 'GOOGLE',
-          providerUserId: providerId,
-          accessToken,
-          refreshToken,
-          expiresAt: new Date(Date.now() + 3600 * 1000),
-        });
-      }
+      await this.authRepository.updateUser(user.id, {
+        lastLoginAt: new Date(),
+      });
 
       return this.generateAuthResponse(user.id, user.email || '');
     }
@@ -182,6 +232,10 @@ export class AuthService {
       });
     }
 
+    await this.authRepository.updateUser(user.id, {
+      lastLoginAt: new Date(),
+    });
+
     await this.authRepository.createOAuthAccount({
       userId: user.id,
       provider: 'GOOGLE',
@@ -192,6 +246,27 @@ export class AuthService {
     });
 
     return this.generateAuthResponse(user.id, user.email || '');
+  }
+
+  private getGoogleAllowedAudiences(): string[] {
+    const configClientId =
+      this.configService.get<string>('oauth.google.clientId') ?? '';
+    const webClientId = process.env.GOOGLE_WEB_CLIENT_ID ?? '';
+    const androidClientId = process.env.GOOGLE_ANDROID_CLIENT_ID ?? '';
+    const iosClientId = process.env.GOOGLE_IOS_CLIENT_ID ?? '';
+    const extraAudiences = process.env.GOOGLE_MOBILE_CLIENT_IDS ?? '';
+
+    const audiences = [
+      configClientId,
+      webClientId,
+      androidClientId,
+      iosClientId,
+      ...extraAudiences.split(','),
+    ]
+      .map((value) => value.trim())
+      .filter((value) => value.length > 0);
+
+    return Array.from(new Set(audiences));
   }
 
   async revokeRefreshToken(tokenId: string): Promise<void> {

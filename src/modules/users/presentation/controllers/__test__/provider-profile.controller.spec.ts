@@ -1,5 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ConflictException, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  ConflictException,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ProviderProfileController } from '../provider-profile.controller';
 import { ProviderProfileService } from '../../../application/use-cases/provider-profile.service';
 import { JwtAuthGuard } from '../../../../auth/infrastructure/guards/jwt-auth.guard';
@@ -58,7 +62,10 @@ describe('ProviderProfileController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [ProviderProfileController],
       providers: [
-        { provide: ProviderProfileService, useValue: mockProviderProfileService },
+        {
+          provide: ProviderProfileService,
+          useValue: mockProviderProfileService,
+        },
       ],
     })
       .overrideGuard(JwtAuthGuard)
@@ -67,7 +74,9 @@ describe('ProviderProfileController', () => {
       .useValue(allowAllGuard)
       .compile();
 
-    controller = module.get<ProviderProfileController>(ProviderProfileController);
+    controller = module.get<ProviderProfileController>(
+      ProviderProfileController,
+    );
     jest.clearAllMocks();
   });
 
@@ -86,9 +95,14 @@ describe('ProviderProfileController', () => {
     };
 
     it('should create and return a new provider profile', async () => {
-      mockProviderProfileService.create.mockResolvedValue(mockProviderProfileResponse);
+      mockProviderProfileService.create.mockResolvedValue(
+        mockProviderProfileResponse,
+      );
 
-      const result = await controller.createMyProfile(authenticatedUser, createDto as any);
+      const result = await controller.createMyProfile(
+        authenticatedUser,
+        createDto as any,
+      );
 
       expect(mockProviderProfileService.create).toHaveBeenCalledWith(
         authenticatedUser.sub,
@@ -122,7 +136,9 @@ describe('ProviderProfileController', () => {
 
   describe('getMyProfile', () => {
     it('should return the provider profile for the current user', async () => {
-      mockProviderProfileService.findByUserId.mockResolvedValue(mockProviderProfileResponse);
+      mockProviderProfileService.findByUserId.mockResolvedValue(
+        mockProviderProfileResponse,
+      );
 
       const result = await controller.getMyProfile(authenticatedUser);
 
@@ -159,10 +175,16 @@ describe('ProviderProfileController', () => {
     const updateDto = { bio: 'Descripción actualizada', isAvailable: true };
 
     it('should update and return the current user provider profile', async () => {
-      const updated = { ...mockProviderProfileResponse, bio: 'Descripción actualizada' };
+      const updated = {
+        ...mockProviderProfileResponse,
+        bio: 'Descripción actualizada',
+      };
       mockProviderProfileService.update.mockResolvedValue(updated);
 
-      const result = await controller.updateMyProfile(authenticatedUser, updateDto as any);
+      const result = await controller.updateMyProfile(
+        authenticatedUser,
+        updateDto as any,
+      );
 
       expect(mockProviderProfileService.update).toHaveBeenCalledWith(
         authenticatedUser.sub,
@@ -196,7 +218,9 @@ describe('ProviderProfileController', () => {
 
   describe('getProviderProfile', () => {
     it('should return the provider profile for a given user ID', async () => {
-      mockProviderProfileService.findByUserId.mockResolvedValue(mockProviderProfileResponse);
+      mockProviderProfileService.findByUserId.mockResolvedValue(
+        mockProviderProfileResponse,
+      );
 
       const result = await controller.getProviderProfile('user-uuid-001');
 
@@ -225,10 +249,15 @@ describe('ProviderProfileController', () => {
         ...mockProviderProfileResponse,
         verificationStatus: 'VERIFIED',
       };
-      mockProviderProfileService.verifyProvider.mockResolvedValue(approvedProfile);
+      mockProviderProfileService.verifyProvider.mockResolvedValue(
+        approvedProfile,
+      );
       const dto = { action: VerificationAction.APPROVE };
 
-      const result = await controller.verifyProvider('user-uuid-001', dto as any);
+      const result = await controller.verifyProvider(
+        'user-uuid-001',
+        dto as any,
+      );
 
       expect(mockProviderProfileService.verifyProvider).toHaveBeenCalledWith(
         'user-uuid-001',
@@ -242,10 +271,15 @@ describe('ProviderProfileController', () => {
         ...mockProviderProfileResponse,
         verificationStatus: 'REJECTED',
       };
-      mockProviderProfileService.verifyProvider.mockResolvedValue(rejectedProfile);
+      mockProviderProfileService.verifyProvider.mockResolvedValue(
+        rejectedProfile,
+      );
       const dto = { action: VerificationAction.REJECT };
 
-      const result = await controller.verifyProvider('user-uuid-001', dto as any);
+      const result = await controller.verifyProvider(
+        'user-uuid-001',
+        dto as any,
+      );
 
       expect(mockProviderProfileService.verifyProvider).toHaveBeenCalledWith(
         'user-uuid-001',
@@ -259,10 +293,15 @@ describe('ProviderProfileController', () => {
         ...mockProviderProfileResponse,
         verificationStatus: 'SUSPENDED',
       };
-      mockProviderProfileService.verifyProvider.mockResolvedValue(suspendedProfile);
+      mockProviderProfileService.verifyProvider.mockResolvedValue(
+        suspendedProfile,
+      );
       const dto = { action: VerificationAction.SUSPEND };
 
-      const result = await controller.verifyProvider('user-uuid-001', dto as any);
+      const result = await controller.verifyProvider(
+        'user-uuid-001',
+        dto as any,
+      );
 
       expect(mockProviderProfileService.verifyProvider).toHaveBeenCalledWith(
         'user-uuid-001',

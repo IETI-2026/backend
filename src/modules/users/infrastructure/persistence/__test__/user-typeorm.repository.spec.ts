@@ -34,25 +34,45 @@ const dbUserFixture = {
 jest.mock('../../adapters/user.mapper', () => ({
   toCreateData: jest.fn((data: unknown) => data),
   toUpdateData: jest.fn((data: unknown) => data),
-  toDomain: jest.fn((entity: { id: string; email: string | null; phoneNumber: string | null; fullName: string; documentId: string | null; profilePhotoUrl: string | null; skills: string[]; currentLatitude: number | null; currentLongitude: number | null; lastLocationUpdate: Date | null; status: string; emailVerified: boolean; phoneVerified: boolean; createdAt: Date; updatedAt: Date; lastLoginAt: Date | null; deletedAt: Date | null }) => ({
-    id: entity.id,
-    email: entity.email,
-    phoneNumber: entity.phoneNumber,
-    fullName: entity.fullName,
-    documentId: entity.documentId,
-    profilePhotoUrl: entity.profilePhotoUrl,
-    skills: entity.skills,
-    currentLatitude: entity.currentLatitude,
-    currentLongitude: entity.currentLongitude,
-    lastLocationUpdate: entity.lastLocationUpdate,
-    status: entity.status as UserStatus,
-    emailVerified: entity.emailVerified,
-    phoneVerified: entity.phoneVerified,
-    createdAt: entity.createdAt,
-    updatedAt: entity.updatedAt,
-    lastLoginAt: entity.lastLoginAt,
-    deletedAt: entity.deletedAt,
-  })),
+  toDomain: jest.fn(
+    (entity: {
+      id: string;
+      email: string | null;
+      phoneNumber: string | null;
+      fullName: string;
+      documentId: string | null;
+      profilePhotoUrl: string | null;
+      skills: string[];
+      currentLatitude: number | null;
+      currentLongitude: number | null;
+      lastLocationUpdate: Date | null;
+      status: string;
+      emailVerified: boolean;
+      phoneVerified: boolean;
+      createdAt: Date;
+      updatedAt: Date;
+      lastLoginAt: Date | null;
+      deletedAt: Date | null;
+    }) => ({
+      id: entity.id,
+      email: entity.email,
+      phoneNumber: entity.phoneNumber,
+      fullName: entity.fullName,
+      documentId: entity.documentId,
+      profilePhotoUrl: entity.profilePhotoUrl,
+      skills: entity.skills,
+      currentLatitude: entity.currentLatitude,
+      currentLongitude: entity.currentLongitude,
+      lastLocationUpdate: entity.lastLocationUpdate,
+      status: entity.status as UserStatus,
+      emailVerified: entity.emailVerified,
+      phoneVerified: entity.phoneVerified,
+      createdAt: entity.createdAt,
+      updatedAt: entity.updatedAt,
+      lastLoginAt: entity.lastLoginAt,
+      deletedAt: entity.deletedAt,
+    }),
+  ),
 }));
 
 describe('UserTypeOrmRepository', () => {
@@ -279,7 +299,9 @@ describe('UserTypeOrmRepository', () => {
         fullName: 'Updated Name',
       });
 
-      const result = await repository.update('user-uuid-001', { fullName: 'Updated Name' });
+      const result = await repository.update('user-uuid-001', {
+        fullName: 'Updated Name',
+      });
 
       expect(mockTypeOrmRepo.update).toHaveBeenCalledWith(
         'user-uuid-001',

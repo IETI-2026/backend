@@ -1,5 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException, InternalServerErrorException } from '@nestjs/common';
+import {
+  BadRequestException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { GeocodingController } from '../geocoding.controller';
 import { GeocodingService } from '../geocoding.service';
 import { ReverseGeocodeDto } from '../dto/reverse-geocode.dto';
@@ -11,7 +14,11 @@ const mockReverseGeocodeResult = {
   placeId: 'ChIJ_place_id_123',
   components: [
     { long_name: 'Bogotá', short_name: 'Bogotá', types: ['locality'] },
-    { long_name: 'Cundinamarca', short_name: 'Cundinamarca', types: ['administrative_area_level_1'] },
+    {
+      long_name: 'Cundinamarca',
+      short_name: 'Cundinamarca',
+      types: ['administrative_area_level_1'],
+    },
     { long_name: 'Colombia', short_name: 'CO', types: ['country'] },
   ],
   tenantCandidate: 'bogota',
@@ -47,7 +54,9 @@ describe('GeocodingController', () => {
     const payload: ReverseGeocodeDto = { lat: 4.711, lng: -74.0721 };
 
     it('should return geocoding result for valid coordinates', async () => {
-      mockGeocodingService.reverseGeocode.mockResolvedValue(mockReverseGeocodeResult);
+      mockGeocodingService.reverseGeocode.mockResolvedValue(
+        mockReverseGeocodeResult,
+      );
 
       const result = await controller.reverse(payload);
 
@@ -59,7 +68,9 @@ describe('GeocodingController', () => {
 
     it('should propagate InternalServerErrorException when API key is missing', async () => {
       mockGeocodingService.reverseGeocode.mockRejectedValue(
-        new InternalServerErrorException('Google Maps API key is not configured'),
+        new InternalServerErrorException(
+          'Google Maps API key is not configured',
+        ),
       );
 
       await expect(controller.reverse(payload)).rejects.toThrow(
@@ -69,7 +80,9 @@ describe('GeocodingController', () => {
 
     it('should propagate BadRequestException when coordinates cannot be resolved', async () => {
       mockGeocodingService.reverseGeocode.mockRejectedValue(
-        new BadRequestException('Google Maps could not resolve the address: ZERO_RESULTS'),
+        new BadRequestException(
+          'Google Maps could not resolve the address: ZERO_RESULTS',
+        ),
       );
 
       await expect(controller.reverse({ lat: 0, lng: 0 })).rejects.toThrow(
@@ -82,7 +95,9 @@ describe('GeocodingController', () => {
         new Error('Network error'),
       );
 
-      await expect(controller.reverse(payload)).rejects.toThrow('Network error');
+      await expect(controller.reverse(payload)).rejects.toThrow(
+        'Network error',
+      );
     });
   });
 
@@ -92,7 +107,9 @@ describe('GeocodingController', () => {
     const payload: ReverseGeocodeDto = { lat: 4.711, lng: -74.0721 };
 
     it('should return the tenant for valid coordinates', async () => {
-      mockGeocodingService.resolveTenant.mockResolvedValue({ tenant: 'bogota' });
+      mockGeocodingService.resolveTenant.mockResolvedValue({
+        tenant: 'bogota',
+      });
 
       const result = await controller.getTenant(payload);
 
@@ -101,7 +118,9 @@ describe('GeocodingController', () => {
     });
 
     it('should return public as fallback tenant when no locality is found', async () => {
-      mockGeocodingService.resolveTenant.mockResolvedValue({ tenant: 'public' });
+      mockGeocodingService.resolveTenant.mockResolvedValue({
+        tenant: 'public',
+      });
 
       const result = await controller.getTenant({ lat: 89.9999, lng: 0 });
 
@@ -110,7 +129,9 @@ describe('GeocodingController', () => {
 
     it('should propagate InternalServerErrorException when API key is missing', async () => {
       mockGeocodingService.resolveTenant.mockRejectedValue(
-        new InternalServerErrorException('Google Maps API key is not configured'),
+        new InternalServerErrorException(
+          'Google Maps API key is not configured',
+        ),
       );
 
       await expect(controller.getTenant(payload)).rejects.toThrow(
@@ -120,7 +141,9 @@ describe('GeocodingController', () => {
 
     it('should propagate BadRequestException when Google Maps returns no results', async () => {
       mockGeocodingService.resolveTenant.mockRejectedValue(
-        new BadRequestException('Google Maps could not resolve the address: ZERO_RESULTS'),
+        new BadRequestException(
+          'Google Maps could not resolve the address: ZERO_RESULTS',
+        ),
       );
 
       await expect(controller.getTenant({ lat: 0, lng: 0 })).rejects.toThrow(

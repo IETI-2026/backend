@@ -1,5 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ConflictException, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  ConflictException,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { UsersController } from '../users.controller';
 import { UsersService } from '@users/application';
 import { JwtAuthGuard } from '../../../../auth/infrastructure/guards/jwt-auth.guard';
@@ -48,9 +52,7 @@ describe('UsersController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [UsersController],
-      providers: [
-        { provide: UsersService, useValue: mockUsersService },
-      ],
+      providers: [{ provide: UsersService, useValue: mockUsersService }],
     })
       .overrideGuard(JwtAuthGuard)
       .useValue(allowAllGuard)
@@ -85,11 +87,13 @@ describe('UsersController', () => {
     });
 
     it('should propagate ConflictException when email is already in use', async () => {
-      mockUsersService.create.mockRejectedValue(new ConflictException('Email already in use'));
-
-      await expect(controller.create(createDto as any, adminUser)).rejects.toThrow(
-        ConflictException,
+      mockUsersService.create.mockRejectedValue(
+        new ConflictException('Email already in use'),
       );
+
+      await expect(
+        controller.create(createDto as any, adminUser),
+      ).rejects.toThrow(ConflictException);
     });
   });
 
@@ -127,9 +131,13 @@ describe('UsersController', () => {
     });
 
     it('should propagate service errors', async () => {
-      mockUsersService.findAll.mockRejectedValue(new Error('DB connection lost'));
+      mockUsersService.findAll.mockRejectedValue(
+        new Error('DB connection lost'),
+      );
 
-      await expect(controller.findAll({} as any, adminUser)).rejects.toThrow('DB connection lost');
+      await expect(controller.findAll({} as any, adminUser)).rejects.toThrow(
+        'DB connection lost',
+      );
     });
   });
 
@@ -148,15 +156,21 @@ describe('UsersController', () => {
     it('should throw UnauthorizedException when user has no sub', async () => {
       const noSub: JwtPayloadEntity = { email: 'test@example.com' };
 
-      await expect(controller.getMe(noSub)).rejects.toThrow(UnauthorizedException);
+      await expect(controller.getMe(noSub)).rejects.toThrow(
+        UnauthorizedException,
+      );
 
       expect(mockUsersService.findOne).not.toHaveBeenCalled();
     });
 
     it('should propagate NotFoundException when user no longer exists', async () => {
-      mockUsersService.findOne.mockRejectedValue(new NotFoundException('User not found'));
+      mockUsersService.findOne.mockRejectedValue(
+        new NotFoundException('User not found'),
+      );
 
-      await expect(controller.getMe(regularUser)).rejects.toThrow(NotFoundException);
+      await expect(controller.getMe(regularUser)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -171,16 +185,19 @@ describe('UsersController', () => {
 
       const result = await controller.updateMe(regularUser, updateDto as any);
 
-      expect(mockUsersService.updateProfile).toHaveBeenCalledWith(regularUser.sub, updateDto);
+      expect(mockUsersService.updateProfile).toHaveBeenCalledWith(
+        regularUser.sub,
+        updateDto,
+      );
       expect(result.fullName).toBe('Updated Name');
     });
 
     it('should throw UnauthorizedException when user has no sub', async () => {
       const noSub: JwtPayloadEntity = { email: 'test@example.com' };
 
-      await expect(controller.updateMe(noSub, updateDto as any)).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(
+        controller.updateMe(noSub, updateDto as any),
+      ).rejects.toThrow(UnauthorizedException);
 
       expect(mockUsersService.updateProfile).not.toHaveBeenCalled();
     });
@@ -191,7 +208,9 @@ describe('UsersController', () => {
       );
 
       await expect(
-        controller.updateMe(regularUser, { phoneNumber: '+573001111111' } as any),
+        controller.updateMe(regularUser, {
+          phoneNumber: '+573001111111',
+        } as any),
       ).rejects.toThrow(ConflictException);
     });
   });
@@ -202,14 +221,21 @@ describe('UsersController', () => {
     it('should return the user matching the given email', async () => {
       mockUsersService.findByEmail.mockResolvedValue(mockUserResponse);
 
-      const result = await controller.findByEmail('admin@example.com', adminUser);
+      const result = await controller.findByEmail(
+        'admin@example.com',
+        adminUser,
+      );
 
-      expect(mockUsersService.findByEmail).toHaveBeenCalledWith('admin@example.com');
+      expect(mockUsersService.findByEmail).toHaveBeenCalledWith(
+        'admin@example.com',
+      );
       expect(result).toBe(mockUserResponse);
     });
 
     it('should propagate NotFoundException when email does not exist', async () => {
-      mockUsersService.findByEmail.mockRejectedValue(new NotFoundException('User not found'));
+      mockUsersService.findByEmail.mockRejectedValue(
+        new NotFoundException('User not found'),
+      );
 
       await expect(
         controller.findByEmail('nobody@example.com', adminUser),
@@ -230,7 +256,9 @@ describe('UsersController', () => {
     });
 
     it('should propagate NotFoundException for unknown ID', async () => {
-      mockUsersService.findOne.mockRejectedValue(new NotFoundException('User not found'));
+      mockUsersService.findOne.mockRejectedValue(
+        new NotFoundException('User not found'),
+      );
 
       await expect(
         controller.findOne('non-existent-id', adminUser),
@@ -247,14 +275,23 @@ describe('UsersController', () => {
       const updated = { ...mockUserResponse, fullName: 'Updated Name' };
       mockUsersService.update.mockResolvedValue(updated);
 
-      const result = await controller.update('user-uuid-001', updateDto as any, adminUser);
+      const result = await controller.update(
+        'user-uuid-001',
+        updateDto as any,
+        adminUser,
+      );
 
-      expect(mockUsersService.update).toHaveBeenCalledWith('user-uuid-001', updateDto);
+      expect(mockUsersService.update).toHaveBeenCalledWith(
+        'user-uuid-001',
+        updateDto,
+      );
       expect(result.fullName).toBe('Updated Name');
     });
 
     it('should propagate NotFoundException for unknown ID', async () => {
-      mockUsersService.update.mockRejectedValue(new NotFoundException('User not found'));
+      mockUsersService.update.mockRejectedValue(
+        new NotFoundException('User not found'),
+      );
 
       await expect(
         controller.update('bad-id', updateDto as any, adminUser),
@@ -275,9 +312,13 @@ describe('UsersController', () => {
     });
 
     it('should propagate NotFoundException for unknown ID', async () => {
-      mockUsersService.remove.mockRejectedValue(new NotFoundException('User not found'));
+      mockUsersService.remove.mockRejectedValue(
+        new NotFoundException('User not found'),
+      );
 
-      await expect(controller.remove('bad-id', adminUser)).rejects.toThrow(NotFoundException);
+      await expect(controller.remove('bad-id', adminUser)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -294,9 +335,13 @@ describe('UsersController', () => {
     });
 
     it('should propagate NotFoundException for unknown ID', async () => {
-      mockUsersService.hardDelete.mockRejectedValue(new NotFoundException('User not found'));
+      mockUsersService.hardDelete.mockRejectedValue(
+        new NotFoundException('User not found'),
+      );
 
-      await expect(controller.hardDelete('bad-id', adminUser)).rejects.toThrow(NotFoundException);
+      await expect(controller.hardDelete('bad-id', adminUser)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });
