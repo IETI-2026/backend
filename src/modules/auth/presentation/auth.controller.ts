@@ -22,6 +22,7 @@ import {
   AuthResponseDto,
   ChangePasswordDto,
   ForgotPasswordDto,
+  GoogleMobileLoginDto,
   LoginDto,
   RefreshTokenDto,
   ResetPasswordDto,
@@ -56,7 +57,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly configService: ConfigService,
-  ) {}
+  ) { }
 
   @Post('signup')
   @Public()
@@ -76,6 +77,21 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
   async login(@Body() loginDto: LoginDto): Promise<AuthResponseDto> {
     return this.authService.login(loginDto);
+  }
+
+  @Post('google/mobile')
+  @Public()
+  @HttpCode(200)
+  @ApiOperation({
+    summary:
+      'Authenticate mobile user with Google ID token and return API session tokens',
+  })
+  @ApiResponse({ status: 200, description: 'Google mobile login successful' })
+  @ApiResponse({ status: 401, description: 'Invalid Google token' })
+  async googleMobileLogin(
+    @Body() googleMobileLoginDto: GoogleMobileLoginDto,
+  ): Promise<AuthResponseDto> {
+    return this.authService.loginWithGoogleIdToken(googleMobileLoginDto.idToken);
   }
 
   @Post('refresh')
