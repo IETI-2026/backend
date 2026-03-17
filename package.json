@@ -1,10 +1,36 @@
 {
   "name": "cameyo-backend",
   "version": "1.1.0",
-  "description": "",
-  "author": "",
+  "description": "Backend API para CameYo - Plataforma conecta técnicos verificados con clientes en municipios de Colombia. Implementa multi-tenancy, autenticación JWT, pagos integrados y verificación de identidad.",
+  "author": {
+    "name": "IETI 2026 Team",
+    "url": "https://github.com/IETI-2026|"
+  },
+  "license": "MIT",
   "private": true,
-  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/IETI-2026/backend.git"
+  },
+  "homepage": "https://github.com/IETI-2026/backend#readme",
+  "bugs": {
+    "url": "https://github.com/IETI-2026/backend/issues"
+  },
+  "keywords": [
+    "nestjs",
+    "typescript",
+    "multi-tenancy",
+    "jwt-auth",
+    "postgresql",
+    "typeorm",
+    "rest-api",
+    "cloud-services",
+    "cameyo"
+  ],
+  "engines": {
+    "node": ">=18.19.0",
+    "npm": ">=9.0.0"
+  },
   "scripts": {
     "build": "nest build",
     "format": "biome format --write",
@@ -21,6 +47,13 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "test:staged": "jest --bail --findRelatedTests",
     "type-check": "tsc --noEmit",
+    "validate": "npm run type-check && npm run lint && npm run test",
+    "security:audit": "npm audit --audit-level=moderate",
+    "security:fix": "npm audit fix",
+    "docs:generate": "nest build && ts-node -p tsconfig.build.json src/docs/generate-swagger.ts",
+    "db:seed": "ts-node -r tsconfig-paths/register src/database/seeds/index.ts",
+    "db:drop": "ts-node -r tsconfig-paths/register src/database/drop.ts",
+    "db:create": "ts-node -r tsconfig-paths/register src/database/create.ts",
     "docker:build": "docker-compose build",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
