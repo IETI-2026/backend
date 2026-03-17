@@ -1,7 +1,7 @@
-import { toDomain, toCreateData, toUpdateData } from '../user.mapper';
+import { UserStatus } from '@users/domain';
 import { UserEntity as DbUserEntity } from '@/database/entities';
 import { UserStatus as DbUserStatus, RoleName } from '@/database/enums';
-import { UserStatus } from '@users/domain';
+import { toCreateData, toDomain, toUpdateData } from '../user.mapper';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -34,7 +34,7 @@ function makeDbUser(partial: Partial<DbUserEntity> = {}): DbUserEntity {
     refreshTokens: [],
     passwordResetTokens: [],
     otpCodes: [],
-    providerProfile: null as any,
+    providerProfile: null as unknown,
     addresses: [],
     serviceRequests: [],
     assignedRequests: [],
@@ -118,9 +118,9 @@ describe('toDomain', () => {
     const dbUser = makeDbUser();
     const domain = toDomain(dbUser);
 
-    expect((domain as any).roles).toBeUndefined();
-    expect((domain as any).refreshTokens).toBeUndefined();
-    expect((domain as any).passwordHash).toBeUndefined();
+    expect((domain as unknown).roles).toBeUndefined();
+    expect((domain as unknown).refreshTokens).toBeUndefined();
+    expect((domain as unknown).passwordHash).toBeUndefined();
   });
 });
 

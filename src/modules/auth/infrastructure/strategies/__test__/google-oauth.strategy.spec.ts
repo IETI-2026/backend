@@ -7,10 +7,7 @@ import { GoogleOAuthStrategy } from '../google-oauth.strategy';
 // attempt real OAuth registration during unit tests.
 // ---------------------------------------------------------------------------
 jest.mock('passport-google-oauth20', () => {
-  class MockStrategy {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    constructor(_options: unknown) {}
-  }
+  class MockStrategy {}
   return { Strategy: MockStrategy };
 });
 
@@ -47,7 +44,7 @@ describe('GoogleOAuthStrategy', () => {
   // -------------------------------------------------------------------------
 
   describe('validate', () => {
-    const mockRequest = {} as any;
+    const mockRequest = {} as unknown;
     const accessToken = 'access-token-abc';
     const refreshToken = 'refresh-token-xyz';
 
@@ -88,7 +85,7 @@ describe('GoogleOAuthStrategy', () => {
         mockRequest,
         accessToken,
         refreshToken,
-        profileNoEmail as any,
+        profileNoEmail as unknown,
         done,
       );
 
@@ -106,7 +103,7 @@ describe('GoogleOAuthStrategy', () => {
         mockRequest,
         accessToken,
         refreshToken,
-        profileNoPhoto as any,
+        profileNoPhoto as unknown,
         done,
       );
 
@@ -124,7 +121,7 @@ describe('GoogleOAuthStrategy', () => {
         mockRequest,
         accessToken,
         refreshToken,
-        profileNoName as any,
+        profileNoName as unknown,
         done,
       );
 
@@ -145,7 +142,7 @@ describe('GoogleOAuthStrategy', () => {
         mockRequest,
         accessToken,
         refreshToken,
-        profilePartialName as any,
+        profilePartialName as unknown,
         done,
       );
 

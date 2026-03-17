@@ -1,11 +1,16 @@
-import { HttpException, HttpStatus, Logger } from '@nestjs/common';
+import {
+  ArgumentsHost,
+  HttpException,
+  HttpStatus,
+  Logger,
+} from '@nestjs/common';
 import { AllExceptionsFilter } from '../all-exceptions.filter';
 
 describe('AllExceptionsFilter', () => {
   let filter: AllExceptionsFilter;
   let mockResponse: { status: jest.Mock; json: jest.Mock };
   let mockRequest: { method: string; url: string };
-  let mockHost: { switchToHttp: jest.Mock; getType: jest.Mock };
+  let mockHost: Partial<ArgumentsHost>;
 
   beforeEach(() => {
     filter = new AllExceptionsFilter();
@@ -33,7 +38,7 @@ describe('AllExceptionsFilter', () => {
         'Bad request message',
         HttpStatus.BAD_REQUEST,
       );
-      filter.catch(ex, mockHost as any);
+      filter.catch(ex, mockHost as ArgumentsHost);
       expect(mockResponse.status).toHaveBeenCalledWith(400);
       expect(mockResponse.json).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -50,7 +55,7 @@ describe('AllExceptionsFilter', () => {
         { message: 'Not found', error: 'Not Found' },
         HttpStatus.NOT_FOUND,
       );
-      filter.catch(ex, mockHost as any);
+      filter.catch(ex, mockHost as ArgumentsHost);
       expect(mockResponse.status).toHaveBeenCalledWith(404);
       expect(mockResponse.json).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -69,7 +74,7 @@ describe('AllExceptionsFilter', () => {
         },
         HttpStatus.BAD_REQUEST,
       );
-      filter.catch(ex, mockHost as any);
+      filter.catch(ex, mockHost as ArgumentsHost);
       const arg = mockResponse.json.mock.calls[0][0];
       expect(Array.isArray(arg.message)).toBe(true);
       expect(arg.message).toContain('must not be empty');
@@ -81,7 +86,7 @@ describe('AllExceptionsFilter', () => {
         .mockImplementation(() => undefined);
       filter.catch(
         new HttpException('Forbidden', HttpStatus.FORBIDDEN),
-        mockHost as any,
+        mockHost as ArgumentsHost,
       );
       expect(warnSpy).toHaveBeenCalled();
     });
@@ -91,7 +96,7 @@ describe('AllExceptionsFilter', () => {
         { message: 'Unprocessable' },
         HttpStatus.UNPROCESSABLE_ENTITY,
       );
-      filter.catch(ex, mockHost as any);
+      filter.catch(ex, mockHost as ArgumentsHost);
       expect(mockResponse.json).toHaveBeenCalledWith(
         expect.objectContaining({ error: 'Internal Server Error' }),
       );
@@ -102,7 +107,7 @@ describe('AllExceptionsFilter', () => {
         { error: 'Bad Request' },
         HttpStatus.BAD_REQUEST,
       );
-      filter.catch(ex, mockHost as any);
+      filter.catch(ex, mockHost as ArgumentsHost);
       const arg = mockResponse.json.mock.calls[0][0];
       expect(arg.message).toBe('Internal server error');
     });
@@ -112,7 +117,7 @@ describe('AllExceptionsFilter', () => {
     it('returns 500 for InternalServerError', () => {
       filter.catch(
         new HttpException('Server blew up', HttpStatus.INTERNAL_SERVER_ERROR),
-        mockHost as any,
+        mockHost as ArgumentsHost,
       );
       expect(mockResponse.status).toHaveBeenCalledWith(500);
     });
@@ -126,7 +131,7 @@ describe('AllExceptionsFilter', () => {
           'Service unavailable',
           HttpStatus.SERVICE_UNAVAILABLE,
         ),
-        mockHost as any,
+        mockHost as ArgumentsHost,
       );
       expect(errorSpy).toHaveBeenCalled();
     });
@@ -139,7 +144,7 @@ describe('AllExceptionsFilter', () => {
         'Gateway timeout',
         HttpStatus.GATEWAY_TIMEOUT,
       );
-      filter.catch(ex, mockHost as any);
+      filter.catch(ex, mockHost as ArgumentsHost);
       expect(errorSpy).toHaveBeenCalledWith(
         expect.any(String),
         expect.anything(),
@@ -149,12 +154,15 @@ describe('AllExceptionsFilter', () => {
 
   describe('generic Error', () => {
     it('returns 500 for a plain Error', () => {
-      filter.catch(new Error('Unexpected failure'), mockHost as any);
+      filter.catch(new Error('Unexpected failure'), mockHost as ArgumentsHost);
       expect(mockResponse.status).toHaveBeenCalledWith(500);
     });
 
     it('uses error.message and error.name', () => {
-      filter.catch(new TypeError('Cannot read property'), mockHost as any);
+      filter.catch(
+        new TypeError('Cannot read property'),
+        mockHost as ArgumentsHost,
+      );
       expect(mockResponse.json).toHaveBeenCalledWith(
         expect.objectContaining({
           message: 'Cannot read property',
@@ -167,7 +175,7 @@ describe('AllExceptionsFilter', () => {
       const errorSpy = jest
         .spyOn(Logger.prototype, 'error')
         .mockImplementation(() => undefined);
-      filter.catch(new Error('Boom'), mockHost as any);
+      filter.catch(new Error('Boom'), mockHost as ArgumentsHost);
       expect(errorSpy).toHaveBeenCalled();
     });
 
@@ -176,14 +184,14 @@ describe('AllExceptionsFilter', () => {
         .spyOn(Logger.prototype, 'error')
         .mockImplementation(() => undefined);
       const ex = new Error('stack test');
-      filter.catch(ex, mockHost as any);
+      filter.catch(ex, mockHost as ArgumentsHost);
       expect(errorSpy).toHaveBeenCalledWith(expect.any(String), ex.stack);
     });
   });
 
   describe('plain thrown objects (non-Error)', () => {
     it('returns 500 for plain object', () => {
-      filter.catch({ code: 'ERR_CUSTOM' }, mockHost as any);
+      filter.catch({ code: 'ERR_CUSTOM' }, mockHost as ArgumentsHost);
       expect(mockResponse.status).toHaveBeenCalledWith(500);
       expect(mockResponse.json).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -195,7 +203,7 @@ describe('AllExceptionsFilter', () => {
     });
 
     it('returns 500 when a string is thrown', () => {
-      filter.catch('some string error', mockHost as any);
+      filter.catch('some string error', mockHost as ArgumentsHost);
       expect(mockResponse.status).toHaveBeenCalledWith(500);
     });
 
@@ -203,7 +211,7 @@ describe('AllExceptionsFilter', () => {
       const warnSpy = jest
         .spyOn(Logger.prototype, 'warn')
         .mockImplementation(() => undefined);
-      filter.catch({ foo: 'bar' }, mockHost as any);
+      filter.catch({ foo: 'bar' }, mockHost as ArgumentsHost);
       expect(warnSpy).not.toHaveBeenCalled();
     });
 
@@ -211,7 +219,7 @@ describe('AllExceptionsFilter', () => {
       const errorSpy = jest
         .spyOn(Logger.prototype, 'error')
         .mockImplementation(() => undefined);
-      filter.catch(null, mockHost as any);
+      filter.catch(null, mockHost as ArgumentsHost);
       expect(errorSpy).toHaveBeenCalled();
     });
 
@@ -219,14 +227,14 @@ describe('AllExceptionsFilter', () => {
       const errorSpy = jest
         .spyOn(Logger.prototype, 'error')
         .mockImplementation(() => undefined);
-      filter.catch('plain string', mockHost as any);
+      filter.catch('plain string', mockHost as ArgumentsHost);
       expect(errorSpy).toHaveBeenCalledWith(expect.any(String), undefined);
     });
   });
 
   describe('response shape invariants', () => {
     it('includes timestamp, path and method', () => {
-      filter.catch(new Error('any'), mockHost as any);
+      filter.catch(new Error('any'), mockHost as ArgumentsHost);
       const arg = mockResponse.json.mock.calls[0][0];
       expect(arg).toHaveProperty('timestamp');
       expect(arg).toHaveProperty('path', '/test-path');
@@ -234,7 +242,7 @@ describe('AllExceptionsFilter', () => {
     });
 
     it('produces a valid ISO timestamp', () => {
-      filter.catch(new Error('ts'), mockHost as any);
+      filter.catch(new Error('ts'), mockHost as ArgumentsHost);
       const { timestamp } = mockResponse.json.mock.calls[0][0];
       expect(new Date(timestamp).toISOString()).toBe(timestamp);
     });
@@ -244,7 +252,7 @@ describe('AllExceptionsFilter', () => {
       mockRequest.url = '/api/v1/resource';
       filter.catch(
         new HttpException('conflict', HttpStatus.CONFLICT),
-        mockHost as any,
+        mockHost as ArgumentsHost,
       );
       const arg = mockResponse.json.mock.calls[0][0];
       expect(arg.method).toBe('POST');

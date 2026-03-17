@@ -22,11 +22,11 @@ import {
 } from '@nestjs/swagger';
 import { PaymentEntity, UserPaymentMethodEntity } from '@/database/entities';
 import { RoleName } from '@/database/enums';
+import { JwtPayloadEntity } from '../../auth/domain/entities';
 import { CurrentUser } from '../../auth/infrastructure/decorators';
 import { Roles } from '../../auth/infrastructure/decorators/roles.decorator';
 import { JwtAuthGuard } from '../../auth/infrastructure/guards/jwt-auth.guard';
 import { RolesGuard } from '../../auth/infrastructure/guards/roles.guard';
-import { JwtPayloadEntity } from '../../auth/domain/entities';
 import {
   CreatePaymentDto,
   CreatePaymentMethodDto,

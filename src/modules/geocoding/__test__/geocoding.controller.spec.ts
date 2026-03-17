@@ -1,11 +1,11 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import {
   BadRequestException,
   InternalServerErrorException,
 } from '@nestjs/common';
+import { Test, TestingModule } from '@nestjs/testing';
+import { ReverseGeocodeDto } from '../dto/reverse-geocode.dto';
 import { GeocodingController } from '../geocoding.controller';
 import { GeocodingService } from '../geocoding.service';
-import { ReverseGeocodeDto } from '../dto/reverse-geocode.dto';
 
 // ─── shared fixtures ──────────────────────────────────────────────────────────
 

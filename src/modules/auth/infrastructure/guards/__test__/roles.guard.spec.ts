@@ -1,15 +1,15 @@
 import { ExecutionContext, ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Test, TestingModule } from '@nestjs/testing';
-import { RolesGuard } from '../roles.guard';
 import { RoleName } from '@/database/enums';
 import { ROLES_KEY } from '../../decorators/roles.decorator';
+import { RolesGuard } from '../roles.guard';
 
 // ---------------------------------------------------------------------------
 // Helper: build a minimal ExecutionContext mock
 // ---------------------------------------------------------------------------
 function buildContext(
-  requiredRoles: RoleName[] | undefined,
+  _requiredRoles: RoleName[] | undefined,
   userRoles: RoleName[] | undefined,
 ): ExecutionContext {
   const handler = jest.fn();

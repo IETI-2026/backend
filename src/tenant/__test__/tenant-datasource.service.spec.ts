@@ -29,7 +29,7 @@ describe('TenantDataSourceService', () => {
         create: jest.fn().mockReturnValue({}),
         save: jest.fn().mockResolvedValue({}),
       }),
-    } as any;
+    } as unknown;
 
     MockedDataSource.mockImplementation(() => mockDs);
 
@@ -40,7 +40,7 @@ describe('TenantDataSourceService', () => {
         }
         return undefined;
       }),
-    } as any;
+    } as unknown;
 
     service = new TenantDataSourceService(configService);
   });
@@ -51,7 +51,9 @@ describe('TenantDataSourceService', () => {
 
   describe('constructor', () => {
     it('throws when DATABASE_URL is not configured', () => {
-      const badConfig = { get: jest.fn().mockReturnValue(undefined) } as any;
+      const badConfig = {
+        get: jest.fn().mockReturnValue(undefined),
+      } as unknown;
       expect(() => new TenantDataSourceService(badConfig)).toThrow(
         'DATABASE_URL no está configurada',
       );
@@ -63,7 +65,7 @@ describe('TenantDataSourceService', () => {
           if (key === 'database.url') return 'postgresql://localhost/cfg';
           return undefined;
         }),
-      } as any;
+      } as unknown;
       expect(() => new TenantDataSourceService(cfg)).not.toThrow();
     });
 
@@ -73,7 +75,7 @@ describe('TenantDataSourceService', () => {
           if (key === 'DATABASE_URL') return 'postgresql://localhost/env';
           return undefined;
         }),
-      } as any;
+      } as unknown;
       expect(() => new TenantDataSourceService(cfg)).not.toThrow();
     });
   });
@@ -109,13 +111,15 @@ describe('TenantDataSourceService', () => {
     it('uses schema=public for public tenant', async () => {
       await service.getDataSource('public');
       const calls = MockedDataSource.mock.calls.map((c) => c[0]);
-      expect(calls.some((cfg) => (cfg as any).schema === 'public')).toBe(true);
+      expect(calls.some((cfg) => (cfg as unknown).schema === 'public')).toBe(
+        true,
+      );
     });
 
     it('uses tenant ID as schema name for non-public tenant', async () => {
       await service.getDataSource('mytenant');
       const calls = MockedDataSource.mock.calls.map((c) => c[0]);
-      expect(calls.some((cfg) => (cfg as any).schema === 'mytenant')).toBe(
+      expect(calls.some((cfg) => (cfg as unknown).schema === 'mytenant')).toBe(
         true,
       );
     });

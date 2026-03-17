@@ -1,16 +1,16 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import {
   BadRequestException,
   ConflictException,
   NotFoundException,
 } from '@nestjs/common';
-import { ServiceRequestsController } from '../service-requests.controller';
-import { ServiceRequestsService } from '../../../application';
-import { JwtAuthGuard } from '../../../../auth/infrastructure/guards/jwt-auth.guard';
+import { Test, TestingModule } from '@nestjs/testing';
 import {
   ServiceRequestStatus,
   UrgencyLevel,
 } from '../../../../../database/enums';
+import { JwtAuthGuard } from '../../../../auth/infrastructure/guards/jwt-auth.guard';
+import { ServiceRequestsService } from '../../../application';
+import { ServiceRequestsController } from '../service-requests.controller';
 
 // ─── shared fixtures ──────────────────────────────────────────────────────────
 
@@ -82,7 +82,7 @@ describe('ServiceRequestsController', () => {
       };
       mockServiceRequestsService.findAll.mockResolvedValue(paginatedResult);
 
-      const result = await controller.findAll({} as any);
+      const result = await controller.findAll({} as unknown);
 
       expect(mockServiceRequestsService.findAll).toHaveBeenCalledWith({});
       expect(result.total).toBe(1);
@@ -95,7 +95,7 @@ describe('ServiceRequestsController', () => {
         userId: 'user-uuid-001',
         page: 0,
         limit: 10,
-      } as any;
+      } as unknown;
       mockServiceRequestsService.findAll.mockResolvedValue({
         requests: [],
         total: 0,
@@ -113,7 +113,9 @@ describe('ServiceRequestsController', () => {
         new Error('DB error'),
       );
 
-      await expect(controller.findAll({} as any)).rejects.toThrow('DB error');
+      await expect(controller.findAll({} as unknown)).rejects.toThrow(
+        'DB error',
+      );
     });
   });
 
@@ -165,7 +167,7 @@ describe('ServiceRequestsController', () => {
     it('should create and return a new service request', async () => {
       mockServiceRequestsService.create.mockResolvedValue(mockServiceRequest);
 
-      const result = await controller.create(createDto as any);
+      const result = await controller.create(createDto as unknown);
 
       expect(mockServiceRequestsService.create).toHaveBeenCalledWith(createDto);
       expect(result).toBe(mockServiceRequest);
@@ -176,7 +178,7 @@ describe('ServiceRequestsController', () => {
         new NotFoundException('User not found'),
       );
 
-      await expect(controller.create(createDto as any)).rejects.toThrow(
+      await expect(controller.create(createDto as unknown)).rejects.toThrow(
         NotFoundException,
       );
     });
@@ -186,7 +188,7 @@ describe('ServiceRequestsController', () => {
         new BadRequestException('Validation failed'),
       );
 
-      await expect(controller.create({} as any)).rejects.toThrow(
+      await expect(controller.create({} as unknown)).rejects.toThrow(
         BadRequestException,
       );
     });
@@ -243,7 +245,10 @@ describe('ServiceRequestsController', () => {
       };
       mockServiceRequestsService.accept.mockResolvedValue(accepted);
 
-      const result = await controller.accept('req-uuid-001', acceptDto as any);
+      const result = await controller.accept(
+        'req-uuid-001',
+        acceptDto as unknown,
+      );
 
       expect(mockServiceRequestsService.accept).toHaveBeenCalledWith(
         'req-uuid-001',
@@ -258,7 +263,7 @@ describe('ServiceRequestsController', () => {
       );
 
       await expect(
-        controller.accept('req-uuid-001', acceptDto as any),
+        controller.accept('req-uuid-001', acceptDto as unknown),
       ).rejects.toThrow(ConflictException);
     });
 
@@ -268,7 +273,7 @@ describe('ServiceRequestsController', () => {
       );
 
       await expect(
-        controller.accept('bad-id', acceptDto as any),
+        controller.accept('bad-id', acceptDto as unknown),
       ).rejects.toThrow(NotFoundException);
     });
   });
@@ -287,7 +292,10 @@ describe('ServiceRequestsController', () => {
           'Service request req-uuid-001 rejected by technician tech-uuid-001',
       });
 
-      const result = await controller.reject('req-uuid-001', rejectDto as any);
+      const result = await controller.reject(
+        'req-uuid-001',
+        rejectDto as unknown,
+      );
 
       expect(mockServiceRequestsService.reject).toHaveBeenCalledWith(
         'req-uuid-001',
@@ -302,7 +310,7 @@ describe('ServiceRequestsController', () => {
       );
 
       await expect(
-        controller.reject('req-uuid-001', rejectDto as any),
+        controller.reject('req-uuid-001', rejectDto as unknown),
       ).rejects.toThrow(ConflictException);
     });
 
@@ -312,7 +320,7 @@ describe('ServiceRequestsController', () => {
       );
 
       await expect(
-        controller.reject('bad-id', rejectDto as any),
+        controller.reject('bad-id', rejectDto as unknown),
       ).rejects.toThrow(NotFoundException);
     });
   });
@@ -334,7 +342,7 @@ describe('ServiceRequestsController', () => {
 
       const result = await controller.chooseTechnician(
         'req-uuid-001',
-        chooseDto as any,
+        chooseDto as unknown,
       );
 
       expect(mockServiceRequestsService.chooseTechnician).toHaveBeenCalledWith(
@@ -350,7 +358,7 @@ describe('ServiceRequestsController', () => {
       );
 
       await expect(
-        controller.chooseTechnician('req-uuid-001', chooseDto as any),
+        controller.chooseTechnician('req-uuid-001', chooseDto as unknown),
       ).rejects.toThrow(ConflictException);
     });
 
@@ -360,7 +368,7 @@ describe('ServiceRequestsController', () => {
       );
 
       await expect(
-        controller.chooseTechnician('req-uuid-001', chooseDto as any),
+        controller.chooseTechnician('req-uuid-001', chooseDto as unknown),
       ).rejects.toThrow(ConflictException);
     });
 
@@ -370,7 +378,7 @@ describe('ServiceRequestsController', () => {
       );
 
       await expect(
-        controller.chooseTechnician('bad-id', chooseDto as any),
+        controller.chooseTechnician('bad-id', chooseDto as unknown),
       ).rejects.toThrow(NotFoundException);
     });
   });

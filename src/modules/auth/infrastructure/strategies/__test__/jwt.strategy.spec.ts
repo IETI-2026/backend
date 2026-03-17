@@ -1,10 +1,10 @@
 import { UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
-import { JwtStrategy } from '../jwt.strategy';
+import { RoleName } from '../../../../../database/enums';
 import { AuthService } from '../../../application/services/auth.service';
 import { JwtPayloadEntity } from '../../../domain/entities';
-import { RoleName } from '../../../../../database/enums';
+import { JwtStrategy } from '../jwt.strategy';
 
 // ─── shared fixtures ──────────────────────────────────────────────────────────
 

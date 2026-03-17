@@ -3,16 +3,16 @@ import {
   ConflictException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
-import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
+import { Test, TestingModule } from '@nestjs/testing';
 import * as bcrypt from 'bcrypt';
-import { AuthService } from '../auth.service';
+import { RoleName } from '../../../../../database/enums';
 import {
   AUTH_REPOSITORY,
   type IAuthRepository,
 } from '../../../domain/repositories';
-import { RoleName } from '../../../../../database/enums';
+import { AuthService } from '../auth.service';
 
 // Keep bcrypt fast and deterministic in unit tests
 jest.mock('bcrypt');
@@ -108,9 +108,9 @@ describe('AuthService', () => {
     // Default stubs – individual tests override as needed
     mockAuthRepository.getUserRoles.mockResolvedValue([RoleName.USER]);
     mockAuthRepository.createRefreshToken.mockResolvedValue(
-      mockRefreshTokenRecord as any,
+      mockRefreshTokenRecord as unknown,
     );
-    mockAuthRepository.findUserById.mockResolvedValue(mockUser as any);
+    mockAuthRepository.findUserById.mockResolvedValue(mockUser as unknown);
     mockJwtService.sign.mockReturnValue('mock.access.token');
     mockConfigService.get.mockReturnValue('mock-secret');
   });
@@ -124,7 +124,7 @@ describe('AuthService', () => {
   describe('signUp', () => {
     it('should create a new user and return auth tokens on success', async () => {
       mockAuthRepository.findUserByEmail.mockResolvedValue(null);
-      mockAuthRepository.createUser.mockResolvedValue(mockUser as any);
+      mockAuthRepository.createUser.mockResolvedValue(mockUser as unknown);
       (mockedBcrypt.hash as jest.Mock).mockResolvedValue(
         '$2b$10$newhashedpassword',
       );
@@ -144,7 +144,7 @@ describe('AuthService', () => {
     });
 
     it('should throw ConflictException when email is already registered', async () => {
-      mockAuthRepository.findUserByEmail.mockResolvedValue(mockUser as any);
+      mockAuthRepository.findUserByEmail.mockResolvedValue(mockUser as unknown);
 
       await expect(
         service.signUp({
@@ -159,7 +159,7 @@ describe('AuthService', () => {
 
     it('should hash the plain-text password before persisting the user', async () => {
       mockAuthRepository.findUserByEmail.mockResolvedValue(null);
-      mockAuthRepository.createUser.mockResolvedValue(mockUser as any);
+      mockAuthRepository.createUser.mockResolvedValue(mockUser as unknown);
       (mockedBcrypt.hash as jest.Mock).mockResolvedValue('$2b$10$hashed');
 
       await service.signUp({
@@ -176,8 +176,8 @@ describe('AuthService', () => {
 
   describe('login', () => {
     it('should return auth tokens when credentials are valid', async () => {
-      mockAuthRepository.findUserByEmail.mockResolvedValue(mockUser as any);
-      mockAuthRepository.updateUser.mockResolvedValue(mockUser as any);
+      mockAuthRepository.findUserByEmail.mockResolvedValue(mockUser as unknown);
+      mockAuthRepository.updateUser.mockResolvedValue(mockUser as unknown);
       (mockedBcrypt.compare as jest.Mock).mockResolvedValue(true);
 
       const result = await service.login({
@@ -204,7 +204,7 @@ describe('AuthService', () => {
       mockAuthRepository.findUserByEmail.mockResolvedValue({
         ...mockUser,
         passwordHash: null,
-      } as any);
+      } as unknown);
 
       await expect(
         service.login({ email: 'test@example.com', password: 'pass' }),
@@ -212,7 +212,7 @@ describe('AuthService', () => {
     });
 
     it('should throw UnauthorizedException when password does not match', async () => {
-      mockAuthRepository.findUserByEmail.mockResolvedValue(mockUser as any);
+      mockAuthRepository.findUserByEmail.mockResolvedValue(mockUser as unknown);
       (mockedBcrypt.compare as jest.Mock).mockResolvedValue(false);
 
       await expect(
@@ -227,9 +227,9 @@ describe('AuthService', () => {
     it('should return new auth tokens for a valid refresh token', async () => {
       mockJwtService.verify.mockReturnValue({ sub: 'user-uuid-001' });
       mockAuthRepository.findRefreshToken.mockResolvedValue(
-        mockRefreshTokenRecord as any,
+        mockRefreshTokenRecord as unknown,
       );
-      mockAuthRepository.findUserById.mockResolvedValue(mockUser as any);
+      mockAuthRepository.findUserById.mockResolvedValue(mockUser as unknown);
 
       const result = await service.refreshToken('mock.refresh.token');
 
@@ -254,7 +254,7 @@ describe('AuthService', () => {
       mockAuthRepository.findRefreshToken.mockResolvedValue({
         ...mockRefreshTokenRecord,
         isRevoked: true,
-      } as any);
+      } as unknown);
 
       await expect(service.refreshToken('revoked.token')).rejects.toThrow(
         UnauthorizedException,
@@ -266,7 +266,7 @@ describe('AuthService', () => {
       mockAuthRepository.findRefreshToken.mockResolvedValue({
         ...mockRefreshTokenRecord,
         expiresAt: new Date(Date.now() - 1000),
-      } as any);
+      } as unknown);
 
       await expect(service.refreshToken('expired.token')).rejects.toThrow(
         UnauthorizedException,
@@ -308,7 +308,7 @@ describe('AuthService', () => {
       mockAuthRepository.invalidateOtpCodesForPhone.mockResolvedValue(
         undefined,
       );
-      mockAuthRepository.findUserByPhone.mockResolvedValue(mockUser as any);
+      mockAuthRepository.findUserByPhone.mockResolvedValue(mockUser as unknown);
       mockAuthRepository.createOtpCode.mockResolvedValue(undefined);
 
       const result = await service.sendOtp({ phone: '+573001234567' });
@@ -350,8 +350,8 @@ describe('AuthService', () => {
       mockAuthRepository.findValidOtpCode.mockResolvedValue(mockOtp);
       mockAuthRepository.incrementOtpAttempts.mockResolvedValue(undefined);
       mockAuthRepository.markOtpUsed.mockResolvedValue(undefined);
-      mockAuthRepository.findUserByPhone.mockResolvedValue(mockUser as any);
-      mockAuthRepository.updateUser.mockResolvedValue(mockUser as any);
+      mockAuthRepository.findUserByPhone.mockResolvedValue(mockUser as unknown);
+      mockAuthRepository.updateUser.mockResolvedValue(mockUser as unknown);
 
       const result = await service.verifyOtpAndLogin({
         phone: '+573001234567',
@@ -370,8 +370,8 @@ describe('AuthService', () => {
       mockAuthRepository.incrementOtpAttempts.mockResolvedValue(undefined);
       mockAuthRepository.markOtpUsed.mockResolvedValue(undefined);
       mockAuthRepository.findUserByPhone.mockResolvedValue(null);
-      mockAuthRepository.createUser.mockResolvedValue(mockUser as any);
-      mockAuthRepository.updateUser.mockResolvedValue(mockUser as any);
+      mockAuthRepository.createUser.mockResolvedValue(mockUser as unknown);
+      mockAuthRepository.updateUser.mockResolvedValue(mockUser as unknown);
 
       await service.verifyOtpAndLogin({
         phone: '+573001234567',
@@ -406,7 +406,7 @@ describe('AuthService', () => {
 
   describe('forgotPassword', () => {
     it('should create a reset token and return a generic message when the email is found', async () => {
-      mockAuthRepository.findUserByEmail.mockResolvedValue(mockUser as any);
+      mockAuthRepository.findUserByEmail.mockResolvedValue(mockUser as unknown);
       mockAuthRepository.createPasswordResetToken.mockResolvedValue({
         id: 'reset-001',
         token: 'random-hex-token',
@@ -436,7 +436,7 @@ describe('AuthService', () => {
       mockAuthRepository.findUserByEmail.mockResolvedValue({
         ...mockUser,
         passwordHash: null,
-      } as any);
+      } as unknown);
 
       const result = await service.forgotPassword({
         email: 'oauth@example.com',
@@ -456,7 +456,7 @@ describe('AuthService', () => {
         userId: 'user-uuid-001',
         expiresAt: new Date(Date.now() + 3_600_000),
       });
-      mockAuthRepository.updateUser.mockResolvedValue(mockUser as any);
+      mockAuthRepository.updateUser.mockResolvedValue(mockUser as unknown);
       mockAuthRepository.markPasswordResetTokenUsed.mockResolvedValue(
         undefined,
       );
@@ -493,10 +493,10 @@ describe('AuthService', () => {
 
   describe('changePassword', () => {
     it('should update the password when the current password is correct', async () => {
-      mockAuthRepository.findUserById.mockResolvedValue(mockUser as any);
+      mockAuthRepository.findUserById.mockResolvedValue(mockUser as unknown);
       (mockedBcrypt.compare as jest.Mock).mockResolvedValue(true);
       (mockedBcrypt.hash as jest.Mock).mockResolvedValue('$2b$10$newhash');
-      mockAuthRepository.updateUser.mockResolvedValue(mockUser as any);
+      mockAuthRepository.updateUser.mockResolvedValue(mockUser as unknown);
 
       const result = await service.changePassword('user-uuid-001', {
         currentPassword: 'OldPass123!',
@@ -525,7 +525,7 @@ describe('AuthService', () => {
       mockAuthRepository.findUserById.mockResolvedValue({
         ...mockUser,
         passwordHash: null,
-      } as any);
+      } as unknown);
 
       await expect(
         service.changePassword('user-uuid-001', {
@@ -536,7 +536,7 @@ describe('AuthService', () => {
     });
 
     it('should throw UnauthorizedException when current password does not match', async () => {
-      mockAuthRepository.findUserById.mockResolvedValue(mockUser as any);
+      mockAuthRepository.findUserById.mockResolvedValue(mockUser as unknown);
       (mockedBcrypt.compare as jest.Mock).mockResolvedValue(false);
 
       await expect(
@@ -566,11 +566,11 @@ describe('AuthService', () => {
         provider: 'GOOGLE',
       };
       mockAuthRepository.findOAuthAccount.mockResolvedValue(
-        oauthAccount as any,
+        oauthAccount as unknown,
       );
-      mockAuthRepository.findUserById.mockResolvedValue(mockUser as any);
+      mockAuthRepository.findUserById.mockResolvedValue(mockUser as unknown);
       mockAuthRepository.createOAuthAccount.mockResolvedValue(
-        oauthAccount as any,
+        oauthAccount as unknown,
       );
 
       const result = await service.handleGoogleOAuthCallback(googleProfile);
@@ -585,7 +585,7 @@ describe('AuthService', () => {
         provider: 'GOOGLE',
       };
       mockAuthRepository.findOAuthAccount.mockResolvedValue(
-        oauthAccount as any,
+        oauthAccount as unknown,
       );
       mockAuthRepository.findUserById.mockResolvedValue(null);
 
@@ -597,8 +597,8 @@ describe('AuthService', () => {
     it('should create a new user when there is no OAuth account and no matching email', async () => {
       mockAuthRepository.findOAuthAccount.mockResolvedValue(null);
       mockAuthRepository.findUserByEmail.mockResolvedValue(null);
-      mockAuthRepository.createUser.mockResolvedValue(mockUser as any);
-      mockAuthRepository.createOAuthAccount.mockResolvedValue({} as any);
+      mockAuthRepository.createUser.mockResolvedValue(mockUser as unknown);
+      mockAuthRepository.createOAuthAccount.mockResolvedValue({} as unknown);
 
       const result = await service.handleGoogleOAuthCallback(googleProfile);
 
@@ -608,8 +608,8 @@ describe('AuthService', () => {
 
     it('should reuse an existing user when email matches but OAuth account is new', async () => {
       mockAuthRepository.findOAuthAccount.mockResolvedValue(null);
-      mockAuthRepository.findUserByEmail.mockResolvedValue(mockUser as any);
-      mockAuthRepository.createOAuthAccount.mockResolvedValue({} as any);
+      mockAuthRepository.findUserByEmail.mockResolvedValue(mockUser as unknown);
+      mockAuthRepository.createOAuthAccount.mockResolvedValue({} as unknown);
 
       const result = await service.handleGoogleOAuthCallback(googleProfile);
 
@@ -625,7 +625,7 @@ describe('AuthService', () => {
       mockAuthRepository.findUserById.mockResolvedValue({
         ...mockUser,
         status: 'ACTIVE',
-      } as any);
+      } as unknown);
       mockAuthRepository.getUserRoles.mockResolvedValue([RoleName.USER]);
 
       const result = await service.validateJwtPayload({
@@ -648,7 +648,7 @@ describe('AuthService', () => {
       mockAuthRepository.findUserById.mockResolvedValue({
         ...mockUser,
         status: 'SUSPENDED',
-      } as any);
+      } as unknown);
 
       await expect(
         service.validateJwtPayload({
@@ -677,7 +677,7 @@ describe('AuthService', () => {
         roles: [{ role: { name: RoleName.USER } }],
       };
       mockAuthRepository.findUserWithRoles.mockResolvedValue(
-        userWithRoles as any,
+        userWithRoles as unknown,
       );
 
       const result = await service.getCurrentUser('user-uuid-001');
@@ -697,7 +697,7 @@ describe('AuthService', () => {
     it('should return an empty roles array when user has no assigned roles', async () => {
       const userWithRoles = { ...mockUser, roles: [] };
       mockAuthRepository.findUserWithRoles.mockResolvedValue(
-        userWithRoles as any,
+        userWithRoles as unknown,
       );
 
       const result = await service.getCurrentUser('user-uuid-001');

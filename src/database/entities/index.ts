@@ -23,9 +23,9 @@ export { ServiceSubcategoryEntity } from './service-subcategory.entity';
 export { SubscriptionPlanEntity } from './subscription-plan.entity';
 export { TrackingPointEntity } from './tracking-point.entity';
 export { UserEntity } from './user.entity';
+export { UserPaymentMethodEntity } from './user-payment-method.entity';
 export { UserRoleEntity } from './user-role.entity';
 export { UserSubscriptionEntity } from './user-subscription.entity';
-export { UserPaymentMethodEntity } from './user-payment-method.entity';
 
 import { AddressEntity } from './address.entity';
 import { AuditLogEntity } from './audit-log.entity';
@@ -52,9 +52,9 @@ import { ServiceSubcategoryEntity } from './service-subcategory.entity';
 import { SubscriptionPlanEntity } from './subscription-plan.entity';
 import { TrackingPointEntity } from './tracking-point.entity';
 import { UserEntity } from './user.entity';
+import { UserPaymentMethodEntity } from './user-payment-method.entity';
 import { UserRoleEntity } from './user-role.entity';
 import { UserSubscriptionEntity } from './user-subscription.entity';
-import { UserPaymentMethodEntity } from './user-payment-method.entity';
 
 /** All TypeORM entities — pass to DataSource options */
 export const ALL_ENTITIES = [

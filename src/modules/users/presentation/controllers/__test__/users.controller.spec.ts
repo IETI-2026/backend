@@ -1,15 +1,15 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import {
   ConflictException,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { UsersController } from '../users.controller';
+import { Test, TestingModule } from '@nestjs/testing';
 import { UsersService } from '@users/application';
+import { RoleName } from '../../../../../database/enums';
+import { JwtPayloadEntity } from '../../../../auth/domain/entities';
 import { JwtAuthGuard } from '../../../../auth/infrastructure/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../../auth/infrastructure/guards/roles.guard';
-import { JwtPayloadEntity } from '../../../../auth/domain/entities';
-import { RoleName } from '../../../../../database/enums';
+import { UsersController } from '../users.controller';
 
 // ─── shared fixtures ──────────────────────────────────────────────────────────
 
@@ -80,7 +80,7 @@ describe('UsersController', () => {
     it('should create and return a new user', async () => {
       mockUsersService.create.mockResolvedValue(mockUserResponse);
 
-      const result = await controller.create(createDto as any, adminUser);
+      const result = await controller.create(createDto as unknown, adminUser);
 
       expect(mockUsersService.create).toHaveBeenCalledWith(createDto);
       expect(result).toBe(mockUserResponse);
@@ -92,7 +92,7 @@ describe('UsersController', () => {
       );
 
       await expect(
-        controller.create(createDto as any, adminUser),
+        controller.create(createDto as unknown, adminUser),
       ).rejects.toThrow(ConflictException);
     });
   });
@@ -109,7 +109,7 @@ describe('UsersController', () => {
       };
       mockUsersService.findAll.mockResolvedValue(paginatedResult);
 
-      const result = await controller.findAll({} as any, adminUser);
+      const result = await controller.findAll({} as unknown, adminUser);
 
       expect(mockUsersService.findAll).toHaveBeenCalledWith({});
       expect(result.total).toBe(1);
@@ -123,7 +123,7 @@ describe('UsersController', () => {
         page: 1,
         limit: 5,
       });
-      const query = { page: 1, limit: 5, status: 'ACTIVE' } as any;
+      const query = { page: 1, limit: 5, status: 'ACTIVE' } as unknown;
 
       await controller.findAll(query, adminUser);
 
@@ -135,9 +135,9 @@ describe('UsersController', () => {
         new Error('DB connection lost'),
       );
 
-      await expect(controller.findAll({} as any, adminUser)).rejects.toThrow(
-        'DB connection lost',
-      );
+      await expect(
+        controller.findAll({} as unknown, adminUser),
+      ).rejects.toThrow('DB connection lost');
     });
   });
 
@@ -183,7 +183,10 @@ describe('UsersController', () => {
       const updated = { ...mockUserResponse, fullName: 'Updated Name' };
       mockUsersService.updateProfile.mockResolvedValue(updated);
 
-      const result = await controller.updateMe(regularUser, updateDto as any);
+      const result = await controller.updateMe(
+        regularUser,
+        updateDto as unknown,
+      );
 
       expect(mockUsersService.updateProfile).toHaveBeenCalledWith(
         regularUser.sub,
@@ -196,7 +199,7 @@ describe('UsersController', () => {
       const noSub: JwtPayloadEntity = { email: 'test@example.com' };
 
       await expect(
-        controller.updateMe(noSub, updateDto as any),
+        controller.updateMe(noSub, updateDto as unknown),
       ).rejects.toThrow(UnauthorizedException);
 
       expect(mockUsersService.updateProfile).not.toHaveBeenCalled();
@@ -210,7 +213,7 @@ describe('UsersController', () => {
       await expect(
         controller.updateMe(regularUser, {
           phoneNumber: '+573001111111',
-        } as any),
+        } as unknown),
       ).rejects.toThrow(ConflictException);
     });
   });
@@ -277,7 +280,7 @@ describe('UsersController', () => {
 
       const result = await controller.update(
         'user-uuid-001',
-        updateDto as any,
+        updateDto as unknown,
         adminUser,
       );
 
@@ -294,7 +297,7 @@ describe('UsersController', () => {
       );
 
       await expect(
-        controller.update('bad-id', updateDto as any, adminUser),
+        controller.update('bad-id', updateDto as unknown, adminUser),
       ).rejects.toThrow(NotFoundException);
     });
   });

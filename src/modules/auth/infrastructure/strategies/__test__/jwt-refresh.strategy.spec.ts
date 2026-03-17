@@ -1,9 +1,9 @@
 import { BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
-import { JwtRefreshStrategy } from '../jwt-refresh.strategy';
-import { JwtPayloadEntity } from '../../../domain/entities';
 import { RoleName } from '@/database/enums';
+import { JwtPayloadEntity } from '../../../domain/entities';
+import { JwtRefreshStrategy } from '../jwt-refresh.strategy';
 
 // ---------------------------------------------------------------------------
 // We need to bypass the PassportStrategy super() call because it tries to
@@ -12,10 +12,7 @@ import { RoleName } from '@/database/enums';
 // ---------------------------------------------------------------------------
 jest.mock('passport-jwt', () => {
   const actual = jest.requireActual('passport-jwt');
-  class MockStrategy {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    constructor(_options: unknown) {}
-  }
+  class MockStrategy {}
   return {
     ...actual,
     Strategy: MockStrategy,
@@ -69,7 +66,7 @@ describe('JwtRefreshStrategy', () => {
   // -------------------------------------------------------------------------
 
   describe('validate', () => {
-    const mockRequest = {} as any;
+    const mockRequest = {} as unknown;
 
     it('returns a JwtPayloadEntity when payload type is refresh', async () => {
       const payload = {
@@ -115,7 +112,7 @@ describe('JwtRefreshStrategy', () => {
         email: 'user@example.com',
         roles: [],
         type: undefined,
-      } as any;
+      } as unknown;
 
       await expect(strategy.validate(mockRequest, payload)).rejects.toThrow(
         BadRequestException,

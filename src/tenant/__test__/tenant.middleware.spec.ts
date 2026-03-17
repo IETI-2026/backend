@@ -10,13 +10,13 @@ describe('TenantMiddleware', () => {
 
   beforeEach(() => {
     tenantContext = {
-      run: jest.fn((tenantId, cb) => cb()),
+      run: jest.fn((_tenantId, cb) => cb()),
       getTenantId: jest.fn(),
-    } as any;
+    } as unknown;
 
     tenantDataSourceService = {
       getDataSource: jest.fn().mockResolvedValue({}),
-    } as any;
+    } as unknown;
 
     middleware = new TenantMiddleware(tenantContext, tenantDataSourceService);
   });
@@ -32,7 +32,7 @@ describe('TenantMiddleware', () => {
     it('resolves tenant from X-Tenant-ID header', (done) => {
       const req = makeReq('acme');
       const next = jest.fn(() => done());
-      middleware.use(req as any, {} as any, next);
+      middleware.use(req as unknown, {} as unknown, next);
       expect(tenantContext.run).toHaveBeenCalledWith(
         'acme',
         expect.any(Function),
@@ -42,7 +42,7 @@ describe('TenantMiddleware', () => {
     it('normalises tenant to lower-case', (done) => {
       const req = makeReq('ACME');
       const next = jest.fn(() => done());
-      middleware.use(req as any, {} as any, next);
+      middleware.use(req as unknown, {} as unknown, next);
       expect(tenantContext.run).toHaveBeenCalledWith(
         'acme',
         expect.any(Function),
@@ -52,7 +52,7 @@ describe('TenantMiddleware', () => {
     it('trims whitespace from the header value', (done) => {
       const req = makeReq('  acme  ');
       const next = jest.fn(() => done());
-      middleware.use(req as any, {} as any, next);
+      middleware.use(req as unknown, {} as unknown, next);
       expect(tenantContext.run).toHaveBeenCalledWith(
         'acme',
         expect.any(Function),
@@ -62,7 +62,7 @@ describe('TenantMiddleware', () => {
     it('falls back to public when header is absent', (done) => {
       const req = makeReq(undefined);
       const next = jest.fn(() => done());
-      middleware.use(req as any, {} as any, next);
+      middleware.use(req as unknown, {} as unknown, next);
       expect(tenantContext.run).toHaveBeenCalledWith(
         'public',
         expect.any(Function),
@@ -72,7 +72,7 @@ describe('TenantMiddleware', () => {
     it('falls back to public when header is empty string', (done) => {
       const req = makeReq('');
       const next = jest.fn(() => done());
-      middleware.use(req as any, {} as any, next);
+      middleware.use(req as unknown, {} as unknown, next);
       expect(tenantContext.run).toHaveBeenCalledWith(
         'public',
         expect.any(Function),
@@ -84,14 +84,14 @@ describe('TenantMiddleware', () => {
     it('calls next(error) with BadRequestException for invalid chars', () => {
       const req = makeReq('INVALID TENANT!');
       const next = jest.fn();
-      middleware.use(req as any, {} as any, next);
+      middleware.use(req as unknown, {} as unknown, next);
       expect(next).toHaveBeenCalledWith(expect.any(BadRequestException));
     });
 
     it('does NOT call tenantContext.run for invalid tenant', () => {
       const req = makeReq('bad tenant!');
       const next = jest.fn();
-      middleware.use(req as any, {} as any, next);
+      middleware.use(req as unknown, {} as unknown, next);
       expect(tenantContext.run).not.toHaveBeenCalled();
     });
   });
@@ -107,13 +107,13 @@ describe('TenantMiddleware', () => {
           done();
         }
       });
-      middleware.use(req as any, {} as any, next);
+      middleware.use(req as unknown, {} as unknown, next);
     });
 
     it('calls getDataSource with the resolved tenant ID', (done) => {
       const req = makeReq('mytenant');
       const next = jest.fn(() => done());
-      middleware.use(req as any, {} as any, next);
+      middleware.use(req as unknown, {} as unknown, next);
       setTimeout(() => {
         expect(tenantDataSourceService.getDataSource).toHaveBeenCalledWith(
           'mytenant',

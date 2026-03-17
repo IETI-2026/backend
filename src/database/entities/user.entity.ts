@@ -21,9 +21,9 @@ import { RatingEntity } from './rating.entity';
 import { RefreshTokenEntity } from './refresh-token.entity';
 import { ServiceRequestEntity } from './service-request.entity';
 import { ServiceRequestTechnicianResponseEntity } from './service-request-technician-response.entity';
+import { UserPaymentMethodEntity } from './user-payment-method.entity';
 import { UserRoleEntity } from './user-role.entity';
 import { UserSubscriptionEntity } from './user-subscription.entity';
-import { UserPaymentMethodEntity } from './user-payment-method.entity';
 
 @Entity('users')
 export class UserEntity {

@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { PaymentStatus } from '@/database/enums';
 import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
+import { PaymentStatus } from '@/database/enums';
 
 export class UpdatePaymentStatusDto {
   @ApiProperty({ enum: PaymentStatus, description: 'Nuevo estado del pago' })
