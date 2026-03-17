@@ -37,7 +37,7 @@ describe('LoggingInterceptor', () => {
 
   describe('intercept()', () => {
     it('calls next.handle() and returns an Observable', (done) => {
-      mockCallHandler.handle.mockReturnValue(of({}));
+      (mockCallHandler.handle as jest.Mock).mockReturnValue(of({}));
       const result$ = interceptor.intercept(
         mockContext as ExecutionContext,
         mockCallHandler as CallHandler,
@@ -50,7 +50,7 @@ describe('LoggingInterceptor', () => {
       const logSpy = jest
         .spyOn(Logger.prototype, 'log')
         .mockImplementation(() => undefined);
-      mockCallHandler.handle.mockReturnValue(of({ data: true }));
+      (mockCallHandler.handle as jest.Mock).mockReturnValue(of({ data: true }));
       interceptor
         .intercept(
           mockContext as ExecutionContext,
@@ -71,7 +71,9 @@ describe('LoggingInterceptor', () => {
         .spyOn(Logger.prototype, 'warn')
         .mockImplementation(() => undefined);
       const err = new HttpException('Not found', HttpStatus.NOT_FOUND);
-      mockCallHandler.handle.mockReturnValue(throwError(() => err));
+      (mockCallHandler.handle as jest.Mock).mockReturnValue(
+        throwError(() => err),
+      );
       interceptor
         .intercept(
           mockContext as ExecutionContext,
@@ -95,7 +97,9 @@ describe('LoggingInterceptor', () => {
         'Internal',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
-      mockCallHandler.handle.mockReturnValue(throwError(() => err));
+      (mockCallHandler.handle as jest.Mock).mockReturnValue(
+        throwError(() => err),
+      );
       interceptor
         .intercept(
           mockContext as ExecutionContext,
@@ -116,7 +120,9 @@ describe('LoggingInterceptor', () => {
         .spyOn(Logger.prototype, 'error')
         .mockImplementation(() => undefined);
       const err = new Error('Unknown error');
-      mockCallHandler.handle.mockReturnValue(throwError(() => err));
+      (mockCallHandler.handle as jest.Mock).mockReturnValue(
+        throwError(() => err),
+      );
       interceptor
         .intercept(
           mockContext as ExecutionContext,
@@ -134,7 +140,9 @@ describe('LoggingInterceptor', () => {
 
     it('re-throws the original error after logging', (done) => {
       const originalError = new Error('must propagate');
-      mockCallHandler.handle.mockReturnValue(throwError(() => originalError));
+      (mockCallHandler.handle as jest.Mock).mockReturnValue(
+        throwError(() => originalError),
+      );
       interceptor
         .intercept(
           mockContext as ExecutionContext,
@@ -156,7 +164,9 @@ describe('LoggingInterceptor', () => {
         .spyOn(Logger.prototype, 'error')
         .mockImplementation(() => undefined);
       const err = new HttpException('Bad Request', HttpStatus.BAD_REQUEST);
-      mockCallHandler.handle.mockReturnValue(throwError(() => err));
+      (mockCallHandler.handle as jest.Mock).mockReturnValue(
+        throwError(() => err),
+      );
       interceptor
         .intercept(
           mockContext as ExecutionContext,
