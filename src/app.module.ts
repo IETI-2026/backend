@@ -5,6 +5,7 @@ import { DatabaseModule } from '@/database/database.module';
 import { HealthController } from './common/health.controller';
 import { AuthModule } from './modules/auth';
 import { GeocodingModule } from './modules/geocoding';
+import { MailModule } from './modules/mail';
 import { PaymentsModule } from './modules/payments';
 import { ServiceRequestsModule } from './modules/service-requests';
 import { UsersModule } from './modules/users';
@@ -19,6 +20,7 @@ import { TenantMiddleware, TenantModule } from './tenant';
     }),
     DatabaseModule,
     TenantModule,
+    MailModule,
     GeocodingModule,
     AuthModule,
     UsersModule,
