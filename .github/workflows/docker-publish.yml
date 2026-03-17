@@ -62,7 +62,7 @@ jobs:
         id: appname
         run: |
           if [ "${GITHUB_REF_NAME}" = "main" ]; then
-            echo "app_name=cameyo-backend-pro" >> "$GITHUB_OUTPUT"
+            echo "app_name=cameyo-backend-prod" >> "$GITHUB_OUTPUT"
             echo "image_tag=prod" >> "$GITHUB_OUTPUT"
           else
             echo "app_name=cameyo-backend-dev" >> "$GITHUB_OUTPUT"
