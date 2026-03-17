@@ -1,5 +1,4 @@
 import { ExecutionContext } from '@nestjs/common';
-import { CurrentUser } from '../current-user.decorator';
 
 describe('CurrentUser Decorator', () => {
   let mockContext: ExecutionContext;
@@ -19,7 +18,7 @@ describe('CurrentUser Decorator', () => {
   const getDecoratorFactory = () => {
     // The factory function is the one passed to createParamDecorator
     // We need to invoke CurrentUser's internal factory
-    return (data: unknown, ctx: ExecutionContext) => {
+    return (_data: unknown, ctx: ExecutionContext) => {
       const request = ctx.switchToHttp().getRequest();
       return request.user;
     };

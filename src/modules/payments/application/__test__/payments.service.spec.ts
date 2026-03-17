@@ -485,7 +485,7 @@ describe('PaymentsService', () => {
         commissionRate: 0,
       };
 
-      const result = await service.createPayment(mockUserId, dto);
+      const _result = await service.createPayment(mockUserId, dto);
 
       expect(paymentRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -513,7 +513,7 @@ describe('PaymentsService', () => {
         commissionRate: 0.1,
       };
 
-      const result = await service.createPayment(mockUserId, dto);
+      const _result = await service.createPayment(mockUserId, dto);
 
       expect(paymentRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({

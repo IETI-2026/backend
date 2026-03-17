@@ -44,13 +44,13 @@ describe('PublicGuard', () => {
 
       // Mock the parent canActivate method to avoid extending AuthGuard issues
       jest
-        .spyOn(guard as any, 'canActivate')
+        .spyOn(guard as unknown, 'canActivate')
         .mockImplementation((ctx: ExecutionContext) => {
           const isPublic = reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
             ctx.getHandler(),
             ctx.getClass(),
           ]);
-          return isPublic ? true : false;
+          return isPublic;
         });
 
       guard.canActivate(mockContext);

@@ -1,4 +1,3 @@
-import { ForbiddenException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { PaymentEntity, UserPaymentMethodEntity } from '@/database/entities';
 import { PaymentMethodType, PaymentStatus, RoleName } from '@/database/enums';
