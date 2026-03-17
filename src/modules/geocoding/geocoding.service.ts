@@ -36,7 +36,6 @@ export class GeocodingService {
 
   async reverseGeocode(params: ReverseGeocodeDto) {
     const apiKey = this.configService.get<string>('googleMaps.apiKey');
-    console.log(`Using Google Maps API key: ${apiKey}`);
 
     if (!apiKey) {
       throw new InternalServerErrorException(
