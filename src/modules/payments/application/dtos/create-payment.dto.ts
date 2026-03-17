@@ -1,5 +1,4 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { PaymentMethodType } from '@/database/enums';
 import {
   IsEnum,
   IsNumber,
@@ -9,6 +8,7 @@ import {
   Max,
   Min,
 } from 'class-validator';
+import { PaymentMethodType } from '@/database/enums';
 
 export class CreatePaymentDto {
   @ApiProperty({

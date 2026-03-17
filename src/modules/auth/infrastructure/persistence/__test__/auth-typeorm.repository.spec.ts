@@ -1,7 +1,4 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { AuthTypeOrmRepository } from '../auth-typeorm.repository';
-import { TenantContext } from '@/tenant';
-import { TenantDataSourceService } from '@/tenant';
 import {
   OAuthAccountEntity,
   OtpCodeEntity,
@@ -12,6 +9,8 @@ import {
   UserRoleEntity,
 } from '@/database/entities';
 import { AuthProvider, RoleName, UserStatus } from '@/database/enums';
+import { TenantContext, TenantDataSourceService } from '@/tenant';
+import { AuthTypeOrmRepository } from '../auth-typeorm.repository';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -56,7 +55,7 @@ function makeUserEntity(partial: Partial<UserEntity> = {}): UserEntity {
     refreshTokens: [],
     passwordResetTokens: [],
     otpCodes: [],
-    providerProfile: null as any,
+    providerProfile: null as unknown,
     addresses: [],
     serviceRequests: [],
     assignedRequests: [],
@@ -788,7 +787,7 @@ describe('AuthTypeOrmRepository', () => {
 
   describe('tenantContext fallback', () => {
     it('falls back to public schema when getTenantId returns undefined', async () => {
-      tenantContext.getTenantId.mockReturnValue(undefined as any);
+      tenantContext.getTenantId.mockReturnValue(undefined as unknown);
 
       userRepo.findOne.mockResolvedValue(null);
       await repository.findUserById('any');

@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import {
   PaymentEntity,
   ServiceRequestEntity,
@@ -12,7 +13,6 @@ import {
   UserPaymentMethodEntity,
 } from '@/database/entities';
 import { PaymentMethodType, PaymentStatus, RoleName } from '@/database/enums';
-import { Repository } from 'typeorm';
 import {
   CreatePaymentDto,
   CreatePaymentMethodDto,

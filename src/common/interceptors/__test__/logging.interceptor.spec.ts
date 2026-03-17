@@ -1,11 +1,17 @@
-import { HttpException, HttpStatus, Logger } from '@nestjs/common';
+import {
+  CallHandler,
+  ExecutionContext,
+  HttpException,
+  HttpStatus,
+  Logger,
+} from '@nestjs/common';
 import { of, throwError } from 'rxjs';
 import { LoggingInterceptor } from '../logging.interceptor';
 
 describe('LoggingInterceptor', () => {
   let interceptor: LoggingInterceptor;
-  let mockContext: { switchToHttp: jest.Mock };
-  let mockCallHandler: { handle: jest.Mock };
+  let mockContext: Partial<ExecutionContext>;
+  let mockCallHandler: Partial<CallHandler>;
   let mockRequest: { method: string; url: string };
   let mockResponse: { statusCode: number };
 
@@ -31,10 +37,10 @@ describe('LoggingInterceptor', () => {
 
   describe('intercept()', () => {
     it('calls next.handle() and returns an Observable', (done) => {
-      mockCallHandler.handle.mockReturnValue(of({}));
+      (mockCallHandler.handle as jest.Mock).mockReturnValue(of({}));
       const result$ = interceptor.intercept(
-        mockContext as any,
-        mockCallHandler as any,
+        mockContext as ExecutionContext,
+        mockCallHandler as CallHandler,
       );
       expect(mockCallHandler.handle).toHaveBeenCalled();
       result$.subscribe({ complete: () => done() });
@@ -44,9 +50,12 @@ describe('LoggingInterceptor', () => {
       const logSpy = jest
         .spyOn(Logger.prototype, 'log')
         .mockImplementation(() => undefined);
-      mockCallHandler.handle.mockReturnValue(of({ data: true }));
+      (mockCallHandler.handle as jest.Mock).mockReturnValue(of({ data: true }));
       interceptor
-        .intercept(mockContext as any, mockCallHandler as any)
+        .intercept(
+          mockContext as ExecutionContext,
+          mockCallHandler as CallHandler,
+        )
         .subscribe({
           complete: () => {
             expect(logSpy).toHaveBeenCalledWith(
@@ -62,9 +71,14 @@ describe('LoggingInterceptor', () => {
         .spyOn(Logger.prototype, 'warn')
         .mockImplementation(() => undefined);
       const err = new HttpException('Not found', HttpStatus.NOT_FOUND);
-      mockCallHandler.handle.mockReturnValue(throwError(() => err));
+      (mockCallHandler.handle as jest.Mock).mockReturnValue(
+        throwError(() => err),
+      );
       interceptor
-        .intercept(mockContext as any, mockCallHandler as any)
+        .intercept(
+          mockContext as ExecutionContext,
+          mockCallHandler as CallHandler,
+        )
         .subscribe({
           error: () => {
             expect(warnSpy).toHaveBeenCalledWith(
@@ -83,9 +97,14 @@ describe('LoggingInterceptor', () => {
         'Internal',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
-      mockCallHandler.handle.mockReturnValue(throwError(() => err));
+      (mockCallHandler.handle as jest.Mock).mockReturnValue(
+        throwError(() => err),
+      );
       interceptor
-        .intercept(mockContext as any, mockCallHandler as any)
+        .intercept(
+          mockContext as ExecutionContext,
+          mockCallHandler as CallHandler,
+        )
         .subscribe({
           error: () => {
             expect(errorSpy).toHaveBeenCalledWith(
@@ -101,9 +120,14 @@ describe('LoggingInterceptor', () => {
         .spyOn(Logger.prototype, 'error')
         .mockImplementation(() => undefined);
       const err = new Error('Unknown error');
-      mockCallHandler.handle.mockReturnValue(throwError(() => err));
+      (mockCallHandler.handle as jest.Mock).mockReturnValue(
+        throwError(() => err),
+      );
       interceptor
-        .intercept(mockContext as any, mockCallHandler as any)
+        .intercept(
+          mockContext as ExecutionContext,
+          mockCallHandler as CallHandler,
+        )
         .subscribe({
           error: () => {
             expect(errorSpy).toHaveBeenCalledWith(
@@ -116,9 +140,14 @@ describe('LoggingInterceptor', () => {
 
     it('re-throws the original error after logging', (done) => {
       const originalError = new Error('must propagate');
-      mockCallHandler.handle.mockReturnValue(throwError(() => originalError));
+      (mockCallHandler.handle as jest.Mock).mockReturnValue(
+        throwError(() => originalError),
+      );
       interceptor
-        .intercept(mockContext as any, mockCallHandler as any)
+        .intercept(
+          mockContext as ExecutionContext,
+          mockCallHandler as CallHandler,
+        )
         .subscribe({
           error: (err: unknown) => {
             expect(err).toBe(originalError);
@@ -135,9 +164,14 @@ describe('LoggingInterceptor', () => {
         .spyOn(Logger.prototype, 'error')
         .mockImplementation(() => undefined);
       const err = new HttpException('Bad Request', HttpStatus.BAD_REQUEST);
-      mockCallHandler.handle.mockReturnValue(throwError(() => err));
+      (mockCallHandler.handle as jest.Mock).mockReturnValue(
+        throwError(() => err),
+      );
       interceptor
-        .intercept(mockContext as any, mockCallHandler as any)
+        .intercept(
+          mockContext as ExecutionContext,
+          mockCallHandler as CallHandler,
+        )
         .subscribe({
           error: () => {
             expect(warnSpy).toHaveBeenCalled();

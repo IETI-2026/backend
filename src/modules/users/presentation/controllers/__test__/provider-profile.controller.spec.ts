@@ -1,16 +1,16 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import {
   ConflictException,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { ProviderProfileController } from '../provider-profile.controller';
-import { ProviderProfileService } from '../../../application/use-cases/provider-profile.service';
+import { Test, TestingModule } from '@nestjs/testing';
+import { RoleName } from '../../../../../database/enums';
+import { JwtPayloadEntity } from '../../../../auth/domain/entities';
 import { JwtAuthGuard } from '../../../../auth/infrastructure/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../../auth/infrastructure/guards/roles.guard';
-import { JwtPayloadEntity } from '../../../../auth/domain/entities';
-import { RoleName } from '../../../../../database/enums';
 import { VerificationAction } from '../../../application/dtos/verify-provider.dto';
+import { ProviderProfileService } from '../../../application/use-cases/provider-profile.service';
+import { ProviderProfileController } from '../provider-profile.controller';
 
 // ─── shared fixtures ──────────────────────────────────────────────────────────
 
@@ -40,7 +40,7 @@ const authenticatedUser: JwtPayloadEntity = {
   roles: [RoleName.USER],
 };
 
-const adminUser: JwtPayloadEntity = {
+const _adminUser: JwtPayloadEntity = {
   sub: 'admin-uuid-001',
   email: 'admin@example.com',
   roles: [RoleName.ADMIN],
@@ -101,7 +101,7 @@ describe('ProviderProfileController', () => {
 
       const result = await controller.createMyProfile(
         authenticatedUser,
-        createDto as any,
+        createDto as unknown,
       );
 
       expect(mockProviderProfileService.create).toHaveBeenCalledWith(
@@ -115,7 +115,7 @@ describe('ProviderProfileController', () => {
       const noSub: JwtPayloadEntity = { email: 'test@example.com' };
 
       await expect(
-        controller.createMyProfile(noSub, createDto as any),
+        controller.createMyProfile(noSub, createDto as unknown),
       ).rejects.toThrow(UnauthorizedException);
 
       expect(mockProviderProfileService.create).not.toHaveBeenCalled();
@@ -127,7 +127,7 @@ describe('ProviderProfileController', () => {
       );
 
       await expect(
-        controller.createMyProfile(authenticatedUser, createDto as any),
+        controller.createMyProfile(authenticatedUser, createDto as unknown),
       ).rejects.toThrow(ConflictException);
     });
   });
@@ -183,7 +183,7 @@ describe('ProviderProfileController', () => {
 
       const result = await controller.updateMyProfile(
         authenticatedUser,
-        updateDto as any,
+        updateDto as unknown,
       );
 
       expect(mockProviderProfileService.update).toHaveBeenCalledWith(
@@ -197,7 +197,7 @@ describe('ProviderProfileController', () => {
       const noSub: JwtPayloadEntity = { email: 'test@example.com' };
 
       await expect(
-        controller.updateMyProfile(noSub, updateDto as any),
+        controller.updateMyProfile(noSub, updateDto as unknown),
       ).rejects.toThrow(UnauthorizedException);
 
       expect(mockProviderProfileService.update).not.toHaveBeenCalled();
@@ -209,7 +209,7 @@ describe('ProviderProfileController', () => {
       );
 
       await expect(
-        controller.updateMyProfile(authenticatedUser, updateDto as any),
+        controller.updateMyProfile(authenticatedUser, updateDto as unknown),
       ).rejects.toThrow(NotFoundException);
     });
   });
@@ -256,7 +256,7 @@ describe('ProviderProfileController', () => {
 
       const result = await controller.verifyProvider(
         'user-uuid-001',
-        dto as any,
+        dto as unknown,
       );
 
       expect(mockProviderProfileService.verifyProvider).toHaveBeenCalledWith(
@@ -278,7 +278,7 @@ describe('ProviderProfileController', () => {
 
       const result = await controller.verifyProvider(
         'user-uuid-001',
-        dto as any,
+        dto as unknown,
       );
 
       expect(mockProviderProfileService.verifyProvider).toHaveBeenCalledWith(
@@ -300,7 +300,7 @@ describe('ProviderProfileController', () => {
 
       const result = await controller.verifyProvider(
         'user-uuid-001',
-        dto as any,
+        dto as unknown,
       );
 
       expect(mockProviderProfileService.verifyProvider).toHaveBeenCalledWith(
@@ -317,7 +317,7 @@ describe('ProviderProfileController', () => {
       const dto = { action: VerificationAction.APPROVE };
 
       await expect(
-        controller.verifyProvider('non-existent-id', dto as any),
+        controller.verifyProvider('non-existent-id', dto as unknown),
       ).rejects.toThrow(NotFoundException);
     });
   });

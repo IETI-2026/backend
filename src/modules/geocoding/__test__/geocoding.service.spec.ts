@@ -1,17 +1,17 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { HttpService } from '@nestjs/axios';
 import {
   BadRequestException,
   InternalServerErrorException,
 } from '@nestjs/common';
-import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
+import { Test, TestingModule } from '@nestjs/testing';
 import { of } from 'rxjs';
 import { GeocodingService } from '../geocoding.service';
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
 function makeAxiosResponse(data: unknown) {
-  return of({ data } as any);
+  return of({ data } as unknown);
 }
 
 const mockHttpService = {

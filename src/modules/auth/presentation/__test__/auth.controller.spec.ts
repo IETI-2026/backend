@@ -1,12 +1,12 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { AuthController } from '../auth.controller';
+import { Test, TestingModule } from '@nestjs/testing';
+import { RoleName } from '../../../../database/enums';
 import { AuthService } from '../../application/services/auth.service';
+import { JwtPayloadEntity } from '../../domain/entities';
 import { JwtAuthGuard } from '../../infrastructure/guards/jwt-auth.guard';
 import { RolesGuard } from '../../infrastructure/guards/roles.guard';
-import { JwtPayloadEntity } from '../../domain/entities';
-import { RoleName } from '../../../../database/enums';
+import { AuthController } from '../auth.controller';
 
 // ─── shared fixtures ──────────────────────────────────────────────────────────
 
@@ -87,7 +87,7 @@ describe('AuthController', () => {
     it('should return auth response on successful registration', async () => {
       mockAuthService.signUp.mockResolvedValue(mockAuthResponse);
 
-      const result = await controller.signUp(dto as any);
+      const result = await controller.signUp(dto as unknown);
 
       expect(mockAuthService.signUp).toHaveBeenCalledWith(dto);
       expect(result).toBe(mockAuthResponse);
@@ -98,7 +98,7 @@ describe('AuthController', () => {
         new Error('Email already taken'),
       );
 
-      await expect(controller.signUp(dto as any)).rejects.toThrow(
+      await expect(controller.signUp(dto as unknown)).rejects.toThrow(
         'Email already taken',
       );
     });
@@ -112,7 +112,7 @@ describe('AuthController', () => {
     it('should return auth response for valid credentials', async () => {
       mockAuthService.login.mockResolvedValue(mockAuthResponse);
 
-      const result = await controller.login(dto as any);
+      const result = await controller.login(dto as unknown);
 
       expect(mockAuthService.login).toHaveBeenCalledWith(dto);
       expect(result).toBe(mockAuthResponse);
@@ -123,7 +123,7 @@ describe('AuthController', () => {
         new UnauthorizedException('Invalid credentials'),
       );
 
-      await expect(controller.login(dto as any)).rejects.toThrow(
+      await expect(controller.login(dto as unknown)).rejects.toThrow(
         UnauthorizedException,
       );
     });
@@ -137,7 +137,7 @@ describe('AuthController', () => {
 
       const result = await controller.refreshToken({
         refreshToken: 'valid.refresh.token',
-      } as any);
+      } as unknown);
 
       expect(mockAuthService.refreshToken).toHaveBeenCalledWith(
         'valid.refresh.token',
@@ -147,14 +147,14 @@ describe('AuthController', () => {
 
     it('should throw UnauthorizedException when refreshToken field is empty', async () => {
       await expect(
-        controller.refreshToken({ refreshToken: '' } as any),
+        controller.refreshToken({ refreshToken: '' } as unknown),
       ).rejects.toThrow(UnauthorizedException);
 
       expect(mockAuthService.refreshToken).not.toHaveBeenCalled();
     });
 
     it('should throw UnauthorizedException when refreshToken field is missing', async () => {
-      await expect(controller.refreshToken({} as any)).rejects.toThrow(
+      await expect(controller.refreshToken({} as unknown)).rejects.toThrow(
         UnauthorizedException,
       );
     });
@@ -165,7 +165,7 @@ describe('AuthController', () => {
       );
 
       await expect(
-        controller.refreshToken({ refreshToken: 'bad.token' } as any),
+        controller.refreshToken({ refreshToken: 'bad.token' } as unknown),
       ).rejects.toThrow(UnauthorizedException);
     });
   });
@@ -180,7 +180,7 @@ describe('AuthController', () => {
 
       const result = await controller.forgotPassword({
         email: 'any@example.com',
-      } as any);
+      } as unknown);
 
       expect(mockAuthService.forgotPassword).toHaveBeenCalledWith({
         email: 'any@example.com',
@@ -194,7 +194,7 @@ describe('AuthController', () => {
       );
 
       await expect(
-        controller.forgotPassword({ email: 'a@b.com' } as any),
+        controller.forgotPassword({ email: 'a@b.com' } as unknown),
       ).rejects.toThrow('Mail service down');
     });
   });
@@ -209,7 +209,7 @@ describe('AuthController', () => {
         message: 'Password reset successfully',
       });
 
-      const result = await controller.resetPassword(dto as any);
+      const result = await controller.resetPassword(dto as unknown);
 
       expect(mockAuthService.resetPassword).toHaveBeenCalledWith(dto);
       expect(result.message).toContain('reset successfully');
@@ -220,7 +220,7 @@ describe('AuthController', () => {
         new BadRequestException('Token expired'),
       );
 
-      await expect(controller.resetPassword(dto as any)).rejects.toThrow(
+      await expect(controller.resetPassword(dto as unknown)).rejects.toThrow(
         BadRequestException,
       );
     });
@@ -236,7 +236,7 @@ describe('AuthController', () => {
         message: 'Password changed successfully',
       });
 
-      const result = await controller.changePassword(mockUser, dto as any);
+      const result = await controller.changePassword(mockUser, dto as unknown);
 
       expect(mockAuthService.changePassword).toHaveBeenCalledWith(
         mockUser.sub,
@@ -252,7 +252,7 @@ describe('AuthController', () => {
       };
 
       await expect(
-        controller.changePassword(userWithoutSub, dto as any),
+        controller.changePassword(userWithoutSub, dto as unknown),
       ).rejects.toThrow(UnauthorizedException);
 
       expect(mockAuthService.changePassword).not.toHaveBeenCalled();
@@ -264,7 +264,7 @@ describe('AuthController', () => {
       );
 
       await expect(
-        controller.changePassword(mockUser, dto as any),
+        controller.changePassword(mockUser, dto as unknown),
       ).rejects.toThrow(UnauthorizedException);
     });
   });
@@ -280,7 +280,7 @@ describe('AuthController', () => {
 
       const result = await controller.sendOtp({
         phone: '+573001234567',
-      } as any);
+      } as unknown);
 
       expect(mockAuthService.sendOtp).toHaveBeenCalledWith({
         phone: '+573001234567',
@@ -292,7 +292,7 @@ describe('AuthController', () => {
       mockAuthService.sendOtp.mockRejectedValue(new Error('SMS gateway error'));
 
       await expect(
-        controller.sendOtp({ phone: '+1234567890' } as any),
+        controller.sendOtp({ phone: '+1234567890' } as unknown),
       ).rejects.toThrow('SMS gateway error');
     });
   });
@@ -305,7 +305,7 @@ describe('AuthController', () => {
     it('should return auth tokens when OTP is valid', async () => {
       mockAuthService.verifyOtpAndLogin.mockResolvedValue(mockAuthResponse);
 
-      const result = await controller.verifyOtp(dto as any);
+      const result = await controller.verifyOtp(dto as unknown);
 
       expect(mockAuthService.verifyOtpAndLogin).toHaveBeenCalledWith(dto);
       expect(result).toBe(mockAuthResponse);
@@ -316,7 +316,7 @@ describe('AuthController', () => {
         new UnauthorizedException('Invalid or expired OTP'),
       );
 
-      await expect(controller.verifyOtp(dto as any)).rejects.toThrow(
+      await expect(controller.verifyOtp(dto as unknown)).rejects.toThrow(
         UnauthorizedException,
       );
     });
@@ -356,7 +356,7 @@ describe('AuthController', () => {
   // ─── googleCallback ───────────────────────────────────────────────────────────
 
   describe('googleCallback', () => {
-    const makeRes = () => ({ redirect: jest.fn() }) as any;
+    const makeRes = () => ({ redirect: jest.fn() }) as unknown;
 
     it('should redirect to frontend with tokens on successful OAuth callback', async () => {
       mockAuthService.handleGoogleOAuthCallback.mockResolvedValue(
@@ -364,7 +364,7 @@ describe('AuthController', () => {
       );
       mockConfigService.get.mockReturnValue('http://localhost:3000');
 
-      const req: any = {
+      const req: unknown = {
         user: {
           provider: 'google',
           providerId: 'google-123',
@@ -385,7 +385,7 @@ describe('AuthController', () => {
     });
 
     it('should throw UnauthorizedException when req.user is absent', async () => {
-      const req: any = {};
+      const req: unknown = {};
       const res = makeRes();
 
       await expect(controller.googleCallback(req, res)).rejects.toThrow(
@@ -394,7 +394,7 @@ describe('AuthController', () => {
     });
 
     it('should throw UnauthorizedException when OAuth user has no email', async () => {
-      const req: any = {
+      const req: unknown = {
         user: {
           provider: 'google',
           providerId: 'google-123',
@@ -416,7 +416,7 @@ describe('AuthController', () => {
       );
       mockConfigService.get.mockReturnValue('http://localhost:3000');
 
-      const req: any = {
+      const req: unknown = {
         user: {
           provider: 'google',
           providerId: 'google-123',
@@ -441,7 +441,7 @@ describe('AuthController', () => {
       });
       mockConfigService.get.mockReturnValue('http://localhost:3000');
 
-      const req: any = {
+      const req: unknown = {
         user: {
           provider: 'google',
           providerId: 'google-123',

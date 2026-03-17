@@ -3,22 +3,22 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
+import { Test, TestingModule } from '@nestjs/testing';
 import {
   ServiceRequestEntity,
-  ServiceRequestTechnicianResponseEntity,
   ServiceRequestEventEntity,
+  ServiceRequestTechnicianResponseEntity,
   UserEntity,
 } from '@/database/entities';
-import { TENANT_DATA_SOURCE } from '@/tenant/tenant-datasource.provider';
-import { TenantDataSourceService } from '@/tenant';
-import { ServiceRequestsService } from '../service-requests.service';
 import {
   ServiceRequestStatus,
   TechnicianResponseStatus,
   UrgencyLevel,
 } from '@/database/enums';
+import { TenantDataSourceService } from '@/tenant';
+import { TENANT_DATA_SOURCE } from '@/tenant/tenant-datasource.provider';
+import { ServiceRequestsService } from '../service-requests.service';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -164,7 +164,7 @@ describe('ServiceRequestsService', () => {
       requestRepo.findOneOrFail.mockResolvedValue(mockServiceRequest);
       jest
         .spyOn(global, 'fetch')
-        .mockImplementation(buildFetchMock('plomeria', 'alta') as any);
+        .mockImplementation(buildFetchMock('plomeria', 'alta') as unknown);
 
       const result = await service.create(createDto);
 
@@ -204,7 +204,7 @@ describe('ServiceRequestsService', () => {
         ok: false,
         status: 429,
         text: jest.fn().mockResolvedValue('Rate limit exceeded'),
-      } as any);
+      } as unknown);
 
       await expect(service.create(createDto)).rejects.toThrow(
         InternalServerErrorException,
@@ -219,7 +219,7 @@ describe('ServiceRequestsService', () => {
           choices: [{ message: { content: 'not-json-at-all' } }],
         }),
         text: jest.fn(),
-      } as any);
+      } as unknown);
 
       await expect(service.create(createDto)).rejects.toThrow(
         InternalServerErrorException,
@@ -380,7 +380,7 @@ describe('ServiceRequestsService', () => {
           status: ServiceRequestStatus.REQUESTED,
         })
         .mockResolvedValue(mockServiceRequest);
-      const existing: any = {
+      const existing: unknown = {
         status: TechnicianResponseStatus.REJECTED,
         reason: 'busy',
         respondedAt: new Date(),

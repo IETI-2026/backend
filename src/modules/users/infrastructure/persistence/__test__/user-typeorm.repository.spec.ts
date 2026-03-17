@@ -1,8 +1,8 @@
 import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { UserTypeOrmRepository } from '../user-typeorm.repository';
-import { TENANT_DATA_SOURCE } from '@/tenant';
 import { UserStatus } from '@users/domain';
+import { TENANT_DATA_SOURCE } from '@/tenant';
+import { UserTypeOrmRepository } from '../user-typeorm.repository';
 
 // ─── shared fixtures ──────────────────────────────────────────────────────────
 
@@ -155,7 +155,7 @@ describe('UserTypeOrmRepository', () => {
         where: { id: 'user-uuid-001' },
       });
       expect(result).not.toBeNull();
-      expect(result!.id).toBe('user-uuid-001');
+      expect(result?.id).toBe('user-uuid-001');
     });
 
     it('should return null when user does not exist', async () => {
@@ -178,7 +178,7 @@ describe('UserTypeOrmRepository', () => {
       expect(mockTypeOrmRepo.findOne).toHaveBeenCalledWith({
         where: { email: 'test@example.com' },
       });
-      expect(result!.email).toBe('test@example.com');
+      expect(result?.email).toBe('test@example.com');
     });
 
     it('should return null when email is not found', async () => {

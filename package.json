@@ -13,11 +13,14 @@
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
     "lint": "biome check",
+    "lint:fix": "biome check --write",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
+    "test:staged": "jest --bail --findRelatedTests",
+    "type-check": "tsc --noEmit",
     "docker:build": "docker-compose build",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
@@ -28,7 +31,8 @@
     "docker:dev:build": "docker-compose -f docker-compose.dev.yml build",
     "docker:dev:down": "docker-compose -f docker-compose.dev.yml down",
     "docker:dev:logs": "docker-compose -f docker-compose.dev.yml logs -f backend-dev",
-    "docker:dev:clean": "docker-compose -f docker-compose.dev.yml down -v"
+    "docker:dev:clean": "docker-compose -f docker-compose.dev.yml down -v",
+    "prepare": "husky"
   },
   "dependencies": {
     "@nestjs/axios": "^4.0.1",
@@ -61,6 +65,9 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.3.15",
+    "@commitlint/cli": "^20.5.0",
+    "@commitlint/config-conventional": "^20.5.0",
+    "@jest/globals": "^30.0.0-alpha.6",
     "@nestjs/cli": "^11.0.0",
     "@nestjs/schematics": "^11.0.0",
     "@nestjs/testing": "^11.0.1",
@@ -74,7 +81,9 @@
     "@types/pg": "^8.16.0",
     "@types/supertest": "^6.0.2",
     "globals": "^17.3.0",
+    "husky": "^9.1.7",
     "jest": "^30.0.0",
+    "lint-staged": "^16.2.7",
     "prettier": "^3.4.2",
     "source-map-support": "^0.5.21",
     "supertest": "^7.0.0",
@@ -98,25 +107,9 @@
       "^.+\\.(t|j)s$": "ts-jest"
     },
     "collectCoverageFrom": [
-      "**/*.(t|j)s",
-      "!**/*.spec.ts",
-      "!**/*.module.ts",
-      "!**/*.dto.ts",
-      "!**/*.entity.ts",
-      "!**/*.interface.ts",
-      "!**/*.enum.ts",
-      "!**/index.ts",
-      "!main.ts",
-      "!app.module.ts",
-      "!config/**/*.ts",
-      "!database/entities/**/*.ts",
-      "!database/seeds/**/*.ts"
+      "**/*.(t|j)s"
     ],
     "coverageDirectory": "../coverage",
-    "coveragePathIgnorePatterns": [
-      "/node_modules/",
-      "/dist/"
-    ],
     "testEnvironment": "node",
     "moduleNameMapper": {
       "^@/(.*)$": "<rootDir>/$1",
@@ -124,5 +117,15 @@
       "^@users/(.*)$": "<rootDir>/modules/users/$1",
       "^@config/(.*)$": "<rootDir>/config/$1"
     }
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "biome check --write --no-errors-on-unmatched",
+      "biome format --write --no-errors-on-unmatched",
+      "npm run test:staged --"
+    ],
+    "*.{json,md}": [
+      "biome format --write --no-errors-on-unmatched"
+    ]
   }
 }

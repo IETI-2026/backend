@@ -3,10 +3,10 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ProviderProfileEntity, UserEntity } from '@/database/entities';
 import { ProviderVerificationStatus, RoleName } from '@/database/enums';
 import { TENANT_DATA_SOURCE } from '@/tenant/tenant-datasource.provider';
-import { AUTH_REPOSITORY } from '../../../../auth/domain/repositories';
 import type { IAuthRepository } from '../../../../auth/domain/repositories';
-import { ProviderProfileService } from '../provider-profile.service';
+import { AUTH_REPOSITORY } from '../../../../auth/domain/repositories';
 import { VerificationAction } from '../../dtos/verify-provider.dto';
+import { ProviderProfileService } from '../provider-profile.service';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
