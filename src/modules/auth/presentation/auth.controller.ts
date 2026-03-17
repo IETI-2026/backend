@@ -57,7 +57,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly configService: ConfigService,
-  ) { }
+  ) {}
 
   @Post('signup')
   @Public()
@@ -91,7 +91,9 @@ export class AuthController {
   async googleMobileLogin(
     @Body() googleMobileLoginDto: GoogleMobileLoginDto,
   ): Promise<AuthResponseDto> {
-    return this.authService.loginWithGoogleIdToken(googleMobileLoginDto.idToken);
+    return this.authService.loginWithGoogleIdToken(
+      googleMobileLoginDto.idToken,
+    );
   }
 
   @Post('refresh')

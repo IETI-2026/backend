@@ -40,11 +40,13 @@ import {
 @ApiBearerAuth()
 @ApiUnauthorizedResponse({ description: 'Token inválido o expirado' })
 export class PaymentsController {
-  constructor(private readonly paymentsService: PaymentsService) { }
+  constructor(private readonly paymentsService: PaymentsService) {}
 
   private getUserId(user: JwtPayloadEntity): string {
     if (!user.sub) {
-      throw new ForbiddenException('No se pudo resolver el usuario autenticado');
+      throw new ForbiddenException(
+        'No se pudo resolver el usuario autenticado',
+      );
     }
     return user.sub;
   }
@@ -59,8 +61,12 @@ export class PaymentsController {
     type: String,
     isArray: true,
   })
-  async getAvailableMethods(@CurrentUser() user: JwtPayloadEntity): Promise<string[]> {
-    return this.paymentsService.getAvailableMethodsForUser(this.getUserId(user));
+  async getAvailableMethods(
+    @CurrentUser() user: JwtPayloadEntity,
+  ): Promise<string[]> {
+    return this.paymentsService.getAvailableMethodsForUser(
+      this.getUserId(user),
+    );
   }
 
   @Get('methods/mine')
@@ -93,7 +99,10 @@ export class PaymentsController {
     @CurrentUser() user: JwtPayloadEntity,
     @Param('paymentMethodId') paymentMethodId: string,
   ): Promise<UserPaymentMethodEntity> {
-    return this.paymentsService.setDefaultPaymentMethod(this.getUserId(user), paymentMethodId);
+    return this.paymentsService.setDefaultPaymentMethod(
+      this.getUserId(user),
+      paymentMethodId,
+    );
   }
 
   @Delete('methods/:paymentMethodId')
@@ -105,21 +114,28 @@ export class PaymentsController {
     @CurrentUser() user: JwtPayloadEntity,
     @Param('paymentMethodId') paymentMethodId: string,
   ): Promise<void> {
-    await this.paymentsService.disablePaymentMethod(this.getUserId(user), paymentMethodId);
+    await this.paymentsService.disablePaymentMethod(
+      this.getUserId(user),
+      paymentMethodId,
+    );
   }
 
   @Get('mine')
   @Roles(RoleName.USER, RoleName.PROVIDER, RoleName.ADMIN, RoleName.MODERATOR)
   @ApiOperation({ summary: 'Listar pagos del usuario autenticado' })
   @ApiOkResponse({ type: PaymentEntity, isArray: true })
-  async getMyPayments(@CurrentUser() user: JwtPayloadEntity): Promise<PaymentEntity[]> {
+  async getMyPayments(
+    @CurrentUser() user: JwtPayloadEntity,
+  ): Promise<PaymentEntity[]> {
     return this.paymentsService.getMyPayments(this.getUserId(user));
   }
 
   @Post()
   @Roles(RoleName.USER, RoleName.PROVIDER, RoleName.ADMIN, RoleName.MODERATOR)
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Crear registro de pago para una solicitud de servicio' })
+  @ApiOperation({
+    summary: 'Crear registro de pago para una solicitud de servicio',
+  })
   @ApiCreatedResponse({ type: PaymentEntity })
   async createPayment(
     @CurrentUser() user: JwtPayloadEntity,
@@ -137,6 +153,10 @@ export class PaymentsController {
     @Param('paymentId') paymentId: string,
     @Body() dto: UpdatePaymentStatusDto,
   ): Promise<PaymentEntity> {
-    return this.paymentsService.updatePaymentStatus(this.getUserId(user), paymentId, dto);
+    return this.paymentsService.updatePaymentStatus(
+      this.getUserId(user),
+      paymentId,
+      dto,
+    );
   }
 }

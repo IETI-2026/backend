@@ -11,7 +11,10 @@ import {
 } from 'class-validator';
 
 export class CreatePaymentDto {
-  @ApiProperty({ description: 'ID de la solicitud de servicio', format: 'uuid' })
+  @ApiProperty({
+    description: 'ID de la solicitud de servicio',
+    format: 'uuid',
+  })
   @IsUUID()
   serviceRequestId!: string;
 
@@ -38,7 +41,10 @@ export class CreatePaymentDto {
   @IsUUID()
   paymentMethodId?: string;
 
-  @ApiPropertyOptional({ enum: PaymentMethodType, description: 'Tipo de método de pago (si no se envía paymentMethodId)' })
+  @ApiPropertyOptional({
+    enum: PaymentMethodType,
+    description: 'Tipo de método de pago (si no se envía paymentMethodId)',
+  })
   @IsOptional()
   @IsEnum(PaymentMethodType)
   paymentMethod?: PaymentMethodType;
@@ -51,12 +57,18 @@ export class CreatePaymentDto {
   @IsString()
   externalTransactionId?: string;
 
-  @ApiPropertyOptional({ description: 'Referencia del gateway', example: 'ref_abc_098' })
+  @ApiPropertyOptional({
+    description: 'Referencia del gateway',
+    example: 'ref_abc_098',
+  })
   @IsOptional()
   @IsString()
   gatewayReference?: string;
 
-  @ApiPropertyOptional({ description: 'Payload técnico del gateway', type: Object })
+  @ApiPropertyOptional({
+    description: 'Payload técnico del gateway',
+    type: Object,
+  })
   @IsOptional()
   gatewayResponse?: Record<string, unknown>;
 }

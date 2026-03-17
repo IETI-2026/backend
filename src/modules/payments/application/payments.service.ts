@@ -30,9 +30,11 @@ export class PaymentsService {
     private readonly serviceRequestRepository: Repository<ServiceRequestEntity>,
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
-  ) { }
+  ) {}
 
-  async getAvailableMethodsForUser(userId: string): Promise<PaymentMethodType[]> {
+  async getAvailableMethodsForUser(
+    userId: string,
+  ): Promise<PaymentMethodType[]> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
 
     if (!user) {
@@ -47,16 +49,15 @@ export class PaymentsService {
     ];
 
     if (user.primaryRole === RoleName.PROVIDER) {
-      return [
-        ...baseMethods,
-        PaymentMethodType.BANK_TRANSFER,
-      ];
+      return [...baseMethods, PaymentMethodType.BANK_TRANSFER];
     }
 
     return baseMethods;
   }
 
-  async getMyPaymentMethods(userId: string): Promise<UserPaymentMethodEntity[]> {
+  async getMyPaymentMethods(
+    userId: string,
+  ): Promise<UserPaymentMethodEntity[]> {
     return this.paymentMethodRepository.find({
       where: { userId, isActive: true },
       order: { isDefault: 'DESC', createdAt: 'DESC' },
@@ -95,7 +96,9 @@ export class PaymentsService {
     }
 
     const defaultRole =
-      user.primaryRole === RoleName.PROVIDER ? RoleName.PROVIDER : RoleName.USER;
+      user.primaryRole === RoleName.PROVIDER
+        ? RoleName.PROVIDER
+        : RoleName.USER;
 
     const paymentMethod = this.paymentMethodRepository.create({
       userId,
@@ -133,7 +136,10 @@ export class PaymentsService {
     return this.paymentMethodRepository.save(paymentMethod);
   }
 
-  async disablePaymentMethod(userId: string, paymentMethodId: string): Promise<void> {
+  async disablePaymentMethod(
+    userId: string,
+    paymentMethodId: string,
+  ): Promise<void> {
     const paymentMethod = await this.paymentMethodRepository.findOne({
       where: { id: paymentMethodId, userId, isActive: true },
     });
@@ -154,7 +160,10 @@ export class PaymentsService {
     });
   }
 
-  async createPayment(userId: string, dto: CreatePaymentDto): Promise<PaymentEntity> {
+  async createPayment(
+    userId: string,
+    dto: CreatePaymentDto,
+  ): Promise<PaymentEntity> {
     const serviceRequest = await this.serviceRequestRepository.findOne({
       where: { id: dto.serviceRequestId },
       select: ['id', 'userId'],
@@ -165,7 +174,9 @@ export class PaymentsService {
     }
 
     if (serviceRequest.userId !== userId) {
-      throw new ForbiddenException('No puedes registrar pagos para esta solicitud');
+      throw new ForbiddenException(
+        'No puedes registrar pagos para esta solicitud',
+      );
     }
 
     const existingPayment = await this.paymentRepository.findOne({
@@ -192,7 +203,9 @@ export class PaymentsService {
     }
 
     if (!selectedMethod) {
-      throw new BadRequestException('Debes enviar paymentMethod o paymentMethodId');
+      throw new BadRequestException(
+        'Debes enviar paymentMethod o paymentMethodId',
+      );
     }
 
     const availableMethods = await this.getAvailableMethodsForUser(userId);
