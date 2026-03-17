@@ -11,7 +11,10 @@ import {
 } from 'class-validator';
 
 export class CreatePaymentMethodDto {
-  @ApiProperty({ enum: PaymentMethodType, description: 'Tipo de método de pago' })
+  @ApiProperty({
+    enum: PaymentMethodType,
+    description: 'Tipo de método de pago',
+  })
   @IsEnum(PaymentMethodType)
   methodType!: PaymentMethodType;
 
@@ -23,20 +26,27 @@ export class CreatePaymentMethodDto {
   @IsEnum(RoleName)
   forRole?: RoleName;
 
-  @ApiPropertyOptional({ description: 'Alias legible del método', example: 'Mi Nequi principal' })
+  @ApiPropertyOptional({
+    description: 'Alias legible del método',
+    example: 'Mi Nequi principal',
+  })
   @IsOptional()
   @IsString()
   @MaxLength(80)
   alias?: string;
 
-  @ApiPropertyOptional({ description: 'Titular del método', example: 'Juan Perez' })
+  @ApiPropertyOptional({
+    description: 'Titular del método',
+    example: 'Juan Perez',
+  })
   @IsOptional()
   @IsString()
   @MaxLength(120)
   accountHolder?: string;
 
   @ApiPropertyOptional({
-    description: 'Identificador (teléfono, tarjeta enmascarada, referencia, etc.)',
+    description:
+      'Identificador (teléfono, tarjeta enmascarada, referencia, etc.)',
     example: '3001234567',
   })
   @IsOptional()
@@ -45,12 +55,17 @@ export class CreatePaymentMethodDto {
   @MaxLength(120)
   accountIdentifier?: string;
 
-  @ApiPropertyOptional({ description: 'Metadatos adicionales del método', type: Object })
+  @ApiPropertyOptional({
+    description: 'Metadatos adicionales del método',
+    type: Object,
+  })
   @IsOptional()
   @IsObject()
   details?: Record<string, unknown>;
 
-  @ApiPropertyOptional({ description: 'Define este método como predeterminado' })
+  @ApiPropertyOptional({
+    description: 'Define este método como predeterminado',
+  })
   @IsOptional()
   @IsBoolean()
   isDefault?: boolean;

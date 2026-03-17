@@ -16,7 +16,10 @@ export class UpdatePaymentStatusDto {
   @MaxLength(500)
   reason?: string;
 
-  @ApiPropertyOptional({ description: 'URL de recibo/comprobante', example: 'https://...' })
+  @ApiPropertyOptional({
+    description: 'URL de recibo/comprobante',
+    example: 'https://...',
+  })
   @IsOptional()
   @IsString()
   receiptUrl?: string;

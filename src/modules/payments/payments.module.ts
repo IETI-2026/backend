@@ -26,4 +26,4 @@ import { PaymentsController } from './presentation';
   providers: [PaymentsService],
   exports: [PaymentsService],
 })
-export class PaymentsModule { }
+export class PaymentsModule {}

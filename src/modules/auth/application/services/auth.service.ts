@@ -68,7 +68,7 @@ export class AuthService {
     private readonly authRepository: IAuthRepository,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
-  ) { }
+  ) {}
 
   async signUp(signUpDto: SignUpDto): Promise<AuthResponseDto> {
     const { email, password, fullName, phoneNumber } = signUpDto;
