@@ -10,6 +10,7 @@ import {
   Patch,
   Post,
   Query,
+  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -27,14 +28,15 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import { RoleName } from '@prisma/client';
 import {
   CreateUserDto,
   GetUsersQueryDto,
+  UpdateProfileDto,
   UpdateUserDto,
   UserResponseDto,
   UsersService,
 } from '@users/application';
+import { RoleName } from '@/database/enums';
 import { JwtPayloadEntity } from '../../../auth/domain/entities';
 import { CurrentUser, Roles } from '../../../auth/infrastructure/decorators';
 import { JwtAuthGuard, RolesGuard } from '../../../auth/infrastructure/guards';
@@ -142,41 +144,64 @@ export class UsersController {
     return await this.usersService.findAll(query);
   }
 
-  @Get(':id')
+  @Get('me')
   @HttpCode(HttpStatus.OK)
-  @Roles(RoleName.ADMIN, RoleName.MODERATOR) // 🔐 Solo admins o el propio usuario
   @ApiOperation({
-    summary: 'Obtener usuario por ID',
+    summary: 'Obtener mi perfil',
     description:
-      'Obtiene los datos de un usuario específico mediante su ID (Solo Admin/Moderador)',
-  })
-  @ApiParam({
-    name: 'id',
-    type: 'string',
-    description: 'ID único del usuario (UUID)',
-    example: '550e8400-e29b-41d4-a716-446655440000',
+      'Obtiene los datos del usuario autenticado (alias de GET /api/auth/me con formato de recurso users)',
   })
   @ApiOkResponse({
-    description: 'Usuario encontrado',
+    description: 'Perfil del usuario actual',
     type: 'UserResponseDto',
-  })
-  @ApiNotFoundResponse({
-    description: 'Usuario no encontrado',
-  })
-  @ApiForbiddenResponse({
-    description: 'Acceso denegado - Se requiere rol Admin o Moderador',
   })
   @ApiUnauthorizedResponse({
     description: 'Token de acceso inválido o expirado',
   })
-  async findOne(
-    @Param('id') id: string,
+  async getMe(
     @CurrentUser() currentUser: JwtPayloadEntity,
   ): Promise<UserResponseDto> {
+    if (!currentUser.sub)
+      throw new UnauthorizedException('User ID not available');
     this.logger.log(
-      `GET /users/${id} - Fetching user by ID by ${currentUser.email}`,
+      `GET /users/me - Fetching own profile by ${currentUser.email}`,
     );
-    return await this.usersService.findOne(id);
+    return await this.usersService.findOne(currentUser.sub);
+  }
+
+  @Patch('me')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Actualizar mi perfil',
+    description:
+      'Actualiza los datos del usuario autenticado (solo fullName, phoneNumber, profilePhotoUrl)',
+  })
+  @ApiOkResponse({
+    description: 'Perfil actualizado exitosamente',
+    type: 'UserResponseDto',
+  })
+  @ApiBadRequestResponse({
+    description: 'Datos de entrada inválidos',
+  })
+  @ApiConflictResponse({
+    description: 'El teléfono ya está en uso por otro usuario',
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Token de acceso inválido o expirado',
+  })
+  async updateMe(
+    @CurrentUser() currentUser: JwtPayloadEntity,
+    @Body() updateProfileDto: UpdateProfileDto,
+  ): Promise<UserResponseDto> {
+    this.logger.log(
+      `PATCH /users/me - Updating own profile by ${currentUser.email}`,
+    );
+    if (!currentUser.sub)
+      throw new UnauthorizedException('User ID not available');
+    return await this.usersService.updateProfile(
+      currentUser.sub,
+      updateProfileDto,
+    );
   }
 
   @Get('email/:email')
@@ -214,6 +239,43 @@ export class UsersController {
       `GET /users/email/${email} - Fetching user by email by ${currentUser.email}`,
     );
     return await this.usersService.findByEmail(email);
+  }
+
+  @Get(':id')
+  @HttpCode(HttpStatus.OK)
+  @Roles(RoleName.ADMIN, RoleName.MODERATOR) // 🔐 Solo admins o el propio usuario
+  @ApiOperation({
+    summary: 'Obtener usuario por ID',
+    description:
+      'Obtiene los datos de un usuario específico mediante su ID (Solo Admin/Moderador)',
+  })
+  @ApiParam({
+    name: 'id',
+    type: 'string',
+    description: 'ID único del usuario (UUID)',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
+  @ApiOkResponse({
+    description: 'Usuario encontrado',
+    type: 'UserResponseDto',
+  })
+  @ApiNotFoundResponse({
+    description: 'Usuario no encontrado',
+  })
+  @ApiForbiddenResponse({
+    description: 'Acceso denegado - Se requiere rol Admin o Moderador',
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Token de acceso inválido o expirado',
+  })
+  async findOne(
+    @Param('id') id: string,
+    @CurrentUser() currentUser: JwtPayloadEntity,
+  ): Promise<UserResponseDto> {
+    this.logger.log(
+      `GET /users/${id} - Fetching user by ID by ${currentUser.email}`,
+    );
+    return await this.usersService.findOne(id);
   }
 
   @Patch(':id')

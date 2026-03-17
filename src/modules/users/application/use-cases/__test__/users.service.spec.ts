@@ -1,4 +1,4 @@
-import { describe } from 'node:test';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import type { IUserRepository } from '@users/domain';
@@ -17,10 +17,6 @@ describe('UsersService', () => {
     fullName: 'Test User',
     documentId: '1234567890',
     profilePhotoUrl: 'https://example.com/photo.jpg',
-    skills: [],
-    currentLatitude: null,
-    currentLongitude: null,
-    lastLocationUpdate: null,
     status: UserStatus.ACTIVE,
     emailVerified: false,
     phoneVerified: false,

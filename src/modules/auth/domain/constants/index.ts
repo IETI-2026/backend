@@ -2,3 +2,7 @@ export const JWT_ACCESS_TOKEN_EXPIRES_IN = '15m';
 export const JWT_REFRESH_TOKEN_EXPIRES_IN = '7d';
 export const REFRESH_TOKEN_EXPIRY_DAYS = 7;
 export const AUTH_RESPONSE_EXPIRES_IN_SECONDS = 15 * 60;
+export const PASSWORD_RESET_TOKEN_EXPIRY_HOURS = 1;
+export const OTP_EXPIRY_MINUTES = 5;
+export const OTP_MAX_ATTEMPTS = 3;
+export const OTP_CODE_LENGTH = 6;

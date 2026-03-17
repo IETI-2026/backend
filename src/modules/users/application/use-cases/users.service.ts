@@ -7,7 +7,12 @@ import {
 } from '@nestjs/common';
 import type { IUserRepository } from '@users/domain';
 import { USER_REPOSITORY, UserStatus } from '@users/domain';
-import type { CreateUserDto, GetUsersQueryDto, UpdateUserDto } from '../dtos';
+import type {
+  CreateUserDto,
+  GetUsersQueryDto,
+  UpdateProfileDto,
+  UpdateUserDto,
+} from '../dtos';
 import { UserResponseDto } from '../dtos';
 
 @Injectable()
@@ -106,6 +111,13 @@ export class UsersService {
     }
 
     return this.mapToResponse(user);
+  }
+
+  async updateProfile(
+    userId: string,
+    updateProfileDto: UpdateProfileDto,
+  ): Promise<UserResponseDto> {
+    return this.update(userId, updateProfileDto);
   }
 
   async update(

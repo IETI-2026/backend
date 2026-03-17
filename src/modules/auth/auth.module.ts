@@ -2,11 +2,11 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
-import { PrismaModule } from '@/prisma/prisma.module';
+import { TenantModule } from '@/tenant';
 import { AuthService } from './application/services/auth.service';
 import { AUTH_REPOSITORY } from './domain/repositories';
 import { JwtAuthGuard, RolesGuard } from './infrastructure/guards';
-import { AuthPrismaRepository } from './infrastructure/persistence';
+import { AuthTypeOrmRepository } from './infrastructure/persistence';
 import {
   GoogleOAuthStrategy,
   JwtRefreshStrategy,
@@ -16,19 +16,18 @@ import { AuthController } from './presentation';
 
 @Module({
   imports: [
-    PrismaModule,
+    TenantModule,
     PassportModule,
     JwtModule.registerAsync({
       useFactory: (configService: ConfigService) => {
-        const expiresIn = configService.get<string>('jwt.expiresIn') ?? '15m';
+        const expiresIn = configService.get('jwt.expiresIn') ?? '15m';
         const secret = configService.get<string>('jwt.secret');
         if (!secret) {
           throw new Error('JWT secret is required');
         }
         return {
           secret,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          signOptions: { expiresIn: expiresIn as any },
+          signOptions: { expiresIn },
         };
       },
       inject: [ConfigService],
@@ -39,7 +38,7 @@ import { AuthController } from './presentation';
     AuthService,
     {
       provide: AUTH_REPOSITORY,
-      useClass: AuthPrismaRepository,
+      useClass: AuthTypeOrmRepository,
     },
     JwtStrategy,
     JwtRefreshStrategy,

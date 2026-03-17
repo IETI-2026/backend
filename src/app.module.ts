@@ -1,12 +1,14 @@
 import { configs } from '@config/index';
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { PrismaModule } from '@/prisma/prisma.module';
-import { ServiceRequestsModule } from './modules/service-requests';
+import { DatabaseModule } from '@/database/database.module';
+import { HealthController } from './common/health.controller';
 import { AuthModule } from './modules/auth';
+import { GeocodingModule } from './modules/geocoding';
+import { PaymentsModule } from './modules/payments';
+import { ServiceRequestsModule } from './modules/service-requests';
 import { UsersModule } from './modules/users';
 import { TenantMiddleware, TenantModule } from './tenant';
-import { HealthController } from './common/health.controller';
 
 @Module({
   imports: [
@@ -15,11 +17,13 @@ import { HealthController } from './common/health.controller';
       load: configs,
       envFilePath: '.env',
     }),
-    PrismaModule,
+    DatabaseModule,
     TenantModule,
+    GeocodingModule,
     AuthModule,
     UsersModule,
     ServiceRequestsModule,
+    PaymentsModule,
   ],
   controllers: [HealthController],
   providers: [],

@@ -1,1 +1,1 @@
-export * from './user-prisma.repository';
+export * from './user-typeorm.repository';

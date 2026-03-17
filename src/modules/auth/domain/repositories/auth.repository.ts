@@ -1,19 +1,20 @@
-import {
-  OAuthAccount,
-  RefreshToken,
-  Role,
-  User,
-  UserRole,
-} from '@prisma/client';
+import type {
+  OAuthAccountEntity,
+  RefreshTokenEntity,
+  RoleEntity,
+  UserEntity,
+  UserRoleEntity,
+} from '@/database/entities';
 
 // Type for User with populated roles
-export type UserWithRoles = User & {
-  roles: Array<UserRole & { role: Role }>;
+export type UserWithRoles = UserEntity & {
+  roles: Array<UserRoleEntity & { role: RoleEntity }>;
 };
 
 export interface IAuthRepository {
-  findUserByEmail(email: string): Promise<User | null>;
-  findUserById(userId: string): Promise<User | null>;
+  findUserByEmail(email: string): Promise<UserEntity | null>;
+  findUserById(userId: string): Promise<UserEntity | null>;
+  ensureUserInCurrentTenant(userId: string): Promise<void>;
   findUserWithRoles(userId: string): Promise<UserWithRoles | null>;
 
   createUser(data: {
@@ -22,7 +23,7 @@ export interface IAuthRepository {
     passwordHash?: string;
     phoneNumber?: string;
     emailVerified?: boolean;
-  }): Promise<User>;
+  }): Promise<UserEntity>;
 
   updateUser(
     userId: string,
@@ -31,12 +32,12 @@ export interface IAuthRepository {
       emailVerified: boolean;
       lastLoginAt: Date;
     }>,
-  ): Promise<User>;
+  ): Promise<UserEntity>;
 
   findOAuthAccount(
     provider: string,
     providerUserId: string,
-  ): Promise<OAuthAccount | null>;
+  ): Promise<OAuthAccountEntity | null>;
   createOAuthAccount(data: {
     userId: string;
     provider: string;
@@ -44,16 +45,16 @@ export interface IAuthRepository {
     accessToken?: string;
     refreshToken?: string;
     expiresAt?: Date;
-  }): Promise<OAuthAccount>;
+  }): Promise<OAuthAccountEntity>;
 
-  findRefreshToken(token: string): Promise<RefreshToken | null>;
+  findRefreshToken(token: string): Promise<RefreshTokenEntity | null>;
   createRefreshToken(data: {
     userId: string;
     token: string;
     expiresAt: Date;
     userAgent?: string;
     ipAddress?: string;
-  }): Promise<RefreshToken>;
+  }): Promise<RefreshTokenEntity>;
   revokeRefreshToken(tokenId: string): Promise<void>;
 
   assignRoleToUser(
@@ -62,4 +63,38 @@ export interface IAuthRepository {
     assignedBy?: string,
   ): Promise<void>;
   getUserRoles(userId: string): Promise<string[]>;
+
+  revokeAllUserRefreshTokens(userId: string): Promise<void>;
+  findUserByPhone(phone: string): Promise<UserEntity | null>;
+
+  createPasswordResetToken(data: {
+    userId: string;
+    token: string;
+    expiresAt: Date;
+  }): Promise<{ id: string; token: string; expiresAt: Date }>;
+  findValidPasswordResetToken(token: string): Promise<{
+    id: string;
+    userId: string;
+    expiresAt: Date;
+  } | null>;
+  markPasswordResetTokenUsed(tokenId: string): Promise<void>;
+
+  createOtpCode(data: {
+    userId?: string;
+    phone: string;
+    code: string;
+    expiresAt: Date;
+  }): Promise<void>;
+  findValidOtpCode(
+    phone: string,
+    code: string,
+  ): Promise<{
+    id: string;
+    userId: string | null;
+    phone: string;
+    attempts: number;
+  } | null>;
+  incrementOtpAttempts(otpId: string): Promise<void>;
+  markOtpUsed(otpId: string): Promise<void>;
+  invalidateOtpCodesForPhone(phone: string): Promise<void>;
 }

@@ -9,9 +9,11 @@ import {
   Patch,
   Post,
   Query,
-} from "@nestjs/common";
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiBadRequestResponse,
+  ApiBearerAuth,
   ApiConflictResponse,
   ApiCreatedResponse,
   ApiNotFoundResponse,
@@ -20,7 +22,9 @@ import {
   ApiParam,
   ApiQuery,
   ApiTags,
-} from "@nestjs/swagger";
+  ApiUnauthorizedResponse,
+} from '@nestjs/swagger';
+import { JwtAuthGuard } from '../../../auth/infrastructure/guards/jwt-auth.guard';
 import {
   AcceptedTechnicianUserDto,
   AcceptServiceRequestDto,
@@ -30,10 +34,13 @@ import {
   RejectServiceRequestDto,
   ServiceRequestResponseDto,
   ServiceRequestsService,
-} from "../../application";
+} from '../../application';
 
-@ApiTags("service-requests")
-@Controller("service-requests")
+@ApiTags('service-requests')
+@Controller('service-requests')
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
+@ApiUnauthorizedResponse({ description: 'Token de acceso inválido o expirado' })
 export class ServiceRequestsController {
   private readonly logger = new Logger(ServiceRequestsController.name);
 
@@ -44,40 +51,40 @@ export class ServiceRequestsController {
   @Get()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: "Listar todas las solicitudes",
+    summary: 'Listar todas las solicitudes',
     description:
-      "Retorna solicitudes de servicio incluyendo las asignadas, con filtros opcionales y paginación",
+      'Retorna solicitudes de servicio incluyendo las asignadas, con filtros opcionales y paginación',
   })
   @ApiQuery({
-    name: "status",
+    name: 'status',
     required: false,
     enum: [
-      "REQUESTED",
-      "ASSIGNED",
-      "ON_THE_WAY",
-      "IN_PROGRESS",
-      "COMPLETED",
-      "CANCELLED",
-      "FAILED",
+      'REQUESTED',
+      'ASSIGNED',
+      'ON_THE_WAY',
+      'IN_PROGRESS',
+      'COMPLETED',
+      'CANCELLED',
+      'FAILED',
     ],
   })
-  @ApiQuery({ name: "userId", required: false, type: String })
-  @ApiQuery({ name: "technicianUserId", required: false, type: String })
-  @ApiQuery({ name: "serviceCity", required: false, type: String })
-  @ApiQuery({ name: "page", required: false, type: Number, example: 0 })
-  @ApiQuery({ name: "limit", required: false, type: Number, example: 20 })
+  @ApiQuery({ name: 'userId', required: false, type: String })
+  @ApiQuery({ name: 'technicianUserId', required: false, type: String })
+  @ApiQuery({ name: 'serviceCity', required: false, type: String })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 0 })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 20 })
   @ApiOkResponse({
-    description: "Solicitudes obtenidas exitosamente",
+    description: 'Solicitudes obtenidas exitosamente',
     schema: {
-      type: "object",
+      type: 'object',
       properties: {
         requests: {
-          type: "array",
-          items: { $ref: "#/components/schemas/ServiceRequestResponseDto" },
+          type: 'array',
+          items: { $ref: '#/components/schemas/ServiceRequestResponseDto' },
         },
-        total: { type: "number", example: 10 },
-        page: { type: "number", example: 0 },
-        limit: { type: "number", example: 20 },
+        total: { type: 'number', example: 10 },
+        page: { type: 'number', example: 0 },
+        limit: { type: 'number', example: 20 },
       },
     },
   })
@@ -87,32 +94,32 @@ export class ServiceRequestsController {
     page: number;
     limit: number;
   }> {
-    this.logger.log("GET /service-requests - Listing all requests");
+    this.logger.log('GET /service-requests - Listing all requests');
     return await this.serviceRequestsService.findAll(query);
   }
 
-  @Get(":id/accepted-technicians")
+  @Get(':id/accepted-technicians')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: "Listar técnicos que aceptaron",
+    summary: 'Listar técnicos que aceptaron',
     description:
-      "Retorna todos los usuarios técnicos que aceptaron una solicitud de servicio",
+      'Retorna todos los usuarios técnicos que aceptaron una solicitud de servicio',
   })
   @ApiParam({
-    name: "id",
-    type: "string",
-    description: "ID de la solicitud de servicio",
+    name: 'id',
+    type: 'string',
+    description: 'ID de la solicitud de servicio',
   })
   @ApiOkResponse({
-    description: "Técnicos aceptados obtenidos exitosamente",
+    description: 'Técnicos aceptados obtenidos exitosamente',
     type: AcceptedTechnicianUserDto,
     isArray: true,
   })
   @ApiNotFoundResponse({
-    description: "Solicitud no encontrada",
+    description: 'Solicitud no encontrada',
   })
   async findAcceptedTechnicians(
-    @Param("id") id: string,
+    @Param('id') id: string,
   ): Promise<AcceptedTechnicianUserDto[]> {
     this.logger.log(
       `GET /service-requests/${id}/accepted-technicians - Listing accepted technicians`,
@@ -124,43 +131,43 @@ export class ServiceRequestsController {
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
-    summary: "Crear solicitud de servicio",
+    summary: 'Crear solicitud de servicio',
     description:
-      "Crea una solicitud y usa IA para inferir habilidades requeridas y urgencia a partir del problema",
+      'Crea una solicitud y usa IA para inferir habilidades requeridas y urgencia a partir del problema',
   })
   @ApiCreatedResponse({
-    description: "Solicitud creada exitosamente",
+    description: 'Solicitud creada exitosamente',
     type: ServiceRequestResponseDto,
   })
-  @ApiBadRequestResponse({ description: "Datos de entrada inválidos" })
-  @ApiNotFoundResponse({ description: "Usuario cliente no encontrado" })
+  @ApiBadRequestResponse({ description: 'Datos de entrada inválidos' })
+  @ApiNotFoundResponse({ description: 'Usuario cliente no encontrado' })
   async create(
     @Body() createServiceRequestDto: CreateServiceRequestDto,
   ): Promise<ServiceRequestResponseDto> {
-    this.logger.log("POST /service-requests - Creating service request");
+    this.logger.log('POST /service-requests - Creating service request');
     return await this.serviceRequestsService.create(createServiceRequestDto);
   }
 
-  @Get("available/:technicianUserId")
+  @Get('available/:technicianUserId')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: "Listar solicitudes disponibles para técnico",
+    summary: 'Listar solicitudes disponibles para técnico',
     description:
-      "Retorna solicitudes REQUESTED que comparten al menos una habilidad con el técnico",
+      'Retorna solicitudes REQUESTED que comparten al menos una habilidad con el técnico',
   })
   @ApiParam({
-    name: "technicianUserId",
-    type: "string",
-    description: "ID del usuario técnico",
+    name: 'technicianUserId',
+    type: 'string',
+    description: 'ID del usuario técnico',
   })
   @ApiOkResponse({
-    description: "Solicitudes disponibles obtenidas exitosamente",
+    description: 'Solicitudes disponibles obtenidas exitosamente',
     type: ServiceRequestResponseDto,
     isArray: true,
   })
-  @ApiNotFoundResponse({ description: "Técnico no encontrado" })
+  @ApiNotFoundResponse({ description: 'Técnico no encontrado' })
   async findAvailableForTechnician(
-    @Param("technicianUserId") technicianUserId: string,
+    @Param('technicianUserId') technicianUserId: string,
   ): Promise<ServiceRequestResponseDto[]> {
     this.logger.log(
       `GET /service-requests/available/${technicianUserId} - Fetching available requests`,
@@ -171,30 +178,30 @@ export class ServiceRequestsController {
     );
   }
 
-  @Patch(":id/accept")
+  @Patch(':id/accept')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: "Aceptar solicitud de servicio",
+    summary: 'Aceptar solicitud de servicio',
     description:
-      "Permite a un técnico aceptar una solicitud en estado REQUESTED. La asignación final la hace el cliente.",
+      'Permite a un técnico aceptar una solicitud en estado REQUESTED. La asignación final la hace el cliente.',
   })
   @ApiParam({
-    name: "id",
-    type: "string",
-    description: "ID de la solicitud de servicio",
+    name: 'id',
+    type: 'string',
+    description: 'ID de la solicitud de servicio',
   })
   @ApiOkResponse({
-    description: "Respuesta del técnico registrada exitosamente",
+    description: 'Respuesta del técnico registrada exitosamente',
     type: ServiceRequestResponseDto,
   })
   @ApiNotFoundResponse({
-    description: "Solicitud o técnico no encontrado",
+    description: 'Solicitud o técnico no encontrado',
   })
   @ApiConflictResponse({
-    description: "La solicitud ya no está disponible para responder",
+    description: 'La solicitud ya no está disponible para responder',
   })
   async accept(
-    @Param("id") id: string,
+    @Param('id') id: string,
     @Body() acceptServiceRequestDto: AcceptServiceRequestDto,
   ): Promise<ServiceRequestResponseDto> {
     this.logger.log(`PATCH /service-requests/${id}/accept - Accepting request`);
@@ -204,39 +211,39 @@ export class ServiceRequestsController {
     );
   }
 
-  @Patch(":id/reject")
+  @Patch(':id/reject')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: "Rechazar solicitud de servicio",
+    summary: 'Rechazar solicitud de servicio',
     description:
-      "Permite a un técnico rechazar una solicitud REQUESTED y registrar su respuesta",
+      'Permite a un técnico rechazar una solicitud REQUESTED y registrar su respuesta',
   })
   @ApiParam({
-    name: "id",
-    type: "string",
-    description: "ID de la solicitud de servicio",
+    name: 'id',
+    type: 'string',
+    description: 'ID de la solicitud de servicio',
   })
   @ApiOkResponse({
-    description: "Rechazo registrado exitosamente",
+    description: 'Rechazo registrado exitosamente',
     schema: {
-      type: "object",
+      type: 'object',
       properties: {
         message: {
-          type: "string",
+          type: 'string',
           example:
-            "Service request 6f9619ff-8b86-d011-b42d-00cf4fc964ff rejected by technician d94f7f76-7f57-45be-8a0f-47f6385ab81e",
+            'Service request 6f9619ff-8b86-d011-b42d-00cf4fc964ff rejected by technician d94f7f76-7f57-45be-8a0f-47f6385ab81e',
         },
       },
     },
   })
   @ApiNotFoundResponse({
-    description: "Solicitud o técnico no encontrado",
+    description: 'Solicitud o técnico no encontrado',
   })
   @ApiConflictResponse({
-    description: "La solicitud no se puede rechazar en su estado actual",
+    description: 'La solicitud no se puede rechazar en su estado actual',
   })
   async reject(
-    @Param("id") id: string,
+    @Param('id') id: string,
     @Body() rejectServiceRequestDto: RejectServiceRequestDto,
   ): Promise<{ message: string }> {
     this.logger.log(`PATCH /service-requests/${id}/reject - Rejecting request`);
@@ -246,31 +253,31 @@ export class ServiceRequestsController {
     );
   }
 
-  @Patch(":id/choose-technician")
+  @Patch(':id/choose-technician')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: "Cliente elige técnico",
+    summary: 'Cliente elige técnico',
     description:
-      "Permite al cliente elegir uno de los técnicos que aceptaron la solicitud",
+      'Permite al cliente elegir uno de los técnicos que aceptaron la solicitud',
   })
   @ApiParam({
-    name: "id",
-    type: "string",
-    description: "ID de la solicitud de servicio",
+    name: 'id',
+    type: 'string',
+    description: 'ID de la solicitud de servicio',
   })
   @ApiOkResponse({
-    description: "Técnico elegido y solicitud asignada exitosamente",
+    description: 'Técnico elegido y solicitud asignada exitosamente',
     type: ServiceRequestResponseDto,
   })
   @ApiNotFoundResponse({
-    description: "Solicitud no encontrada",
+    description: 'Solicitud no encontrada',
   })
   @ApiConflictResponse({
     description:
-      "El cliente no es dueño de la solicitud, el técnico no aceptó o el estado no permite asignar",
+      'El cliente no es dueño de la solicitud, el técnico no aceptó o el estado no permite asignar',
   })
   async chooseTechnician(
-    @Param("id") id: string,
+    @Param('id') id: string,
     @Body() chooseTechnicianDto: ChooseTechnicianDto,
   ): Promise<ServiceRequestResponseDto> {
     this.logger.log(

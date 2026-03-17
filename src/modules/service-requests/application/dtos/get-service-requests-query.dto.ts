@@ -1,5 +1,4 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { ServiceRequestStatus } from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
   IsEnum,
@@ -10,6 +9,7 @@ import {
   Max,
   Min,
 } from 'class-validator';
+import { ServiceRequestStatus } from '@/database/enums';
 
 export class GetServiceRequestsQueryDto {
   @ApiPropertyOptional({
