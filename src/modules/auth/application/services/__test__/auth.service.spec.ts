@@ -1,3 +1,4 @@
+import { MailService } from '@mail/application/mail.service';
 import {
   BadRequestException,
   ConflictException,
@@ -88,6 +89,12 @@ describe('AuthService', () => {
     get: jest.fn().mockReturnValue('mock-secret'),
   };
 
+  const mockMailService = {
+    sendWelcomeEmail: jest.fn().mockResolvedValue(undefined),
+    sendPasswordResetEmail: jest.fn().mockResolvedValue(undefined),
+    sendOtpEmail: jest.fn().mockResolvedValue(undefined),
+  };
+
   // ─── module setup ──────────────────────────────────────────────────────────
 
   beforeEach(async () => {
@@ -97,6 +104,7 @@ describe('AuthService', () => {
         { provide: AUTH_REPOSITORY, useValue: mockAuthRepository },
         { provide: JwtService, useValue: mockJwtService },
         { provide: ConfigService, useValue: mockConfigService },
+        { provide: MailService, useValue: mockMailService },
       ],
     }).compile();
 

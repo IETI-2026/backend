@@ -1,16 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
-import {
-  MailTemplate,
-  MailSendResult,
-  SendMailOptions,
-} from '../domain';
+import { MailSendResult, MailTemplate, SendMailOptions } from '../domain';
 import { NodemailerService } from '../infrastructure';
 
 @Injectable()
 export class MailService {
   private readonly logger: Logger = new Logger(MailService.name);
 
-  constructor(private readonly nodemailer: NodemailerService) { }
+  constructor(private readonly nodemailer: NodemailerService) {}
 
   /**
    * Envía correo de bienvenida a un nuevo usuario.
@@ -166,24 +162,23 @@ export class MailService {
       notificationTime?: string;
     },
   ): Promise<MailSendResult> {
-    this.logger.debug(`Enviando notificación a ${Array.isArray(to) ? to.join(', ') : to}`);
+    this.logger.debug(
+      `Enviando notificación a ${Array.isArray(to) ? to.join(', ') : to}`,
+    );
 
     return this.sendMail({
       to,
       templateName: MailTemplate.NOTIFICATION,
-      subject:
-        options?.subject || 'Notificación de CameYo',
+      subject: options?.subject || 'Notificación de CameYo',
       context: {
         userName,
         message,
         actionButtonText: options?.actionButtonText || 'Ver Más',
         actionUrl: options?.actionUrl,
         notificationDate:
-          options?.notificationDate ||
-          new Date().toLocaleDateString('es-CO'),
+          options?.notificationDate || new Date().toLocaleDateString('es-CO'),
         notificationTime:
-          options?.notificationTime ||
-          new Date().toLocaleTimeString('es-CO'),
+          options?.notificationTime || new Date().toLocaleTimeString('es-CO'),
       },
     });
   }

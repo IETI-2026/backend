@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { MailerService } from '@nestjs-modules/mailer';
-import { SendMailOptions, MailSendResult } from '../domain';
+import { MailSendResult, SendMailOptions } from '../domain';
 
 @Injectable()
 export class NodemailerService {
@@ -10,7 +10,7 @@ export class NodemailerService {
   constructor(
     private readonly mailerService: MailerService,
     private readonly configService: ConfigService,
-  ) { }
+  ) {}
 
   async sendMail(options: SendMailOptions): Promise<MailSendResult> {
     try {

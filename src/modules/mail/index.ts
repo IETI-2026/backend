@@ -18,7 +18,7 @@
  * 3. Llamar el método correspondiente (sendWelcomeEmail, sendResetPasswordEmail, etc)
  */
 
-export * from './mail.module';
 export * from './application';
 export * from './domain';
 export * from './infrastructure';
+export * from './mail.module';

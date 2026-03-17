@@ -1,11 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { MailService } from '../mail.service';
+import { MailSendResult, MailTemplate } from '../../domain';
 import { NodemailerService } from '../../infrastructure/nodemailer.service';
-import {
-  MailTemplate,
-  MailSendResult,
-  SendMailOptions,
-} from '../../domain';
+import { MailService } from '../mail.service';
 
 /**
  * MailService Unit Tests
@@ -44,7 +40,7 @@ describe('MailService', () => {
   describe('sendWelcomeEmail', () => {
     it('should send welcome email successfully', async () => {
       // Arrange
-      const email = 'user@example.com';
+      const email = 'user1@example.com';
       const userName = 'Juan Pérez';
       const profileUrl = 'https://app.camey.co/profile';
       const expectedResult: MailSendResult = {
@@ -75,7 +71,7 @@ describe('MailService', () => {
 
     it('should handle send failure gracefully', async () => {
       // Arrange
-      const email = 'user@example.com';
+      const email = 'user2@example.com';
       const errorResult: MailSendResult = {
         success: false,
         error: 'SMTP connection failed',
@@ -99,7 +95,7 @@ describe('MailService', () => {
   describe('sendResetPasswordEmail', () => {
     it('should send reset password email successfully', async () => {
       // Arrange
-      const email = 'user@example.com';
+      const email = 'user3@example.com';
       const resetLink = 'https://app.camey.co/reset?token=abc123';
       const expectedResult: MailSendResult = {
         success: true,
@@ -136,7 +132,7 @@ describe('MailService', () => {
 
       // Act
       await service.sendResetPasswordEmail(
-        'user@example.com',
+        'user4@example.com',
         'User',
         'https://reset.link',
       );
@@ -155,7 +151,7 @@ describe('MailService', () => {
   describe('sendPaymentConfirmationEmail', () => {
     it('should send payment confirmation email successfully', async () => {
       // Arrange
-      const email = 'user@example.com';
+      const email = 'user5@example.com';
       const paymentData = {
         amount: '120,000',
         paymentMethod: 'Tarjeta de crédito',
@@ -194,7 +190,7 @@ describe('MailService', () => {
   describe('sendNotification', () => {
     it('should send generic notification successfully', async () => {
       // Arrange
-      const email = 'user@example.com';
+      const email = 'user6@example.com';
       const message = 'Tu solicitud fue aceptada';
       const expectedResult: MailSendResult = {
         success: true,
@@ -226,7 +222,7 @@ describe('MailService', () => {
 
     it('should accept multiple recipients', async () => {
       // Arrange
-      const emails = ['user1@example.com', 'user2@example.com'];
+      const emails = ['user11@example.com', 'user22@example.com'];
       mockNodemailer.sendMail.mockResolvedValue({
         success: true,
         messageId: 'msg-bulk',
@@ -251,7 +247,7 @@ describe('MailService', () => {
       });
 
       // Act
-      await service.sendNotification('user@example.com', 'User', 'Message', {
+      await service.sendNotification('user11@example.com', 'User', 'Message', {
         subject: 'Asunto Personalizado',
       });
 
@@ -271,7 +267,7 @@ describe('MailService', () => {
       });
 
       // Act
-      await service.sendNotification('user@example.com', 'User', 'Message');
+      await service.sendNotification('user33@example.com', 'User', 'Message');
 
       // Assert
       expect(mockNodemailer.sendMail).toHaveBeenCalledWith(
@@ -292,7 +288,7 @@ describe('MailService', () => {
 
       // Act
       const result = await service.sendWelcomeEmail(
-        'user@example.com',
+        'user44@example.com',
         'User',
         'https://url.com',
       );
@@ -304,9 +300,7 @@ describe('MailService', () => {
 
     it('should not throw exceptions', async () => {
       // Arrange
-      mockNodemailer.sendMail.mockRejectedValue(
-        new Error('Unexpected error'),
-      );
+      mockNodemailer.sendMail.mockRejectedValue(new Error('Unexpected error'));
 
       // Act & Assert
       await expect(
@@ -324,7 +318,7 @@ describe('MailService', () => {
       });
 
       const result = await service.sendWelcomeEmail(
-        'user@example.com',
+        'user55@example.com',
         'User',
         'https://url',
       );

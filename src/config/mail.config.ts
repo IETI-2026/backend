@@ -14,8 +14,12 @@ export const mailConfigSchema = {
   SMTP_HOST: Joi.string().required().description('SMTP server host'),
   SMTP_PORT: Joi.number().required().description('SMTP server port'),
   SMTP_USER: Joi.string().email().required().description('SMTP user email'),
-  SMTP_PASSWORD: Joi.string().required().description('SMTP password or App Password'),
-  MAIL_FROM: Joi.string().required().description('Default sender email address'),
+  SMTP_PASSWORD: Joi.string()
+    .required()
+    .description('SMTP password or App Password'),
+  MAIL_FROM: Joi.string()
+    .required()
+    .description('Default sender email address'),
 };
 
 export default registerAs('mail', (): MailConfig => {

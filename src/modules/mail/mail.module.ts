@@ -1,11 +1,11 @@
+import * as path from 'node:path';
+import { MailConfig } from '@config/mail.config';
 import { Module } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MailerModule } from '@nestjs-modules/mailer';
 import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import * as path from 'node:path';
 import { MailService } from './application/mail.service';
 import { NodemailerService } from './infrastructure/nodemailer.service';
-import { MailConfig } from '@config/mail.config';
 
 @Module({
   imports: [
@@ -21,7 +21,11 @@ import { MailConfig } from '@config/mail.config';
           );
         }
 
-        const templatesDir = path.join(__dirname, 'infrastructure', 'templates');
+        const templatesDir = path.join(
+          __dirname,
+          'infrastructure',
+          'templates',
+        );
 
         return {
           transport: {
@@ -50,4 +54,4 @@ import { MailConfig } from '@config/mail.config';
   providers: [MailService, NodemailerService],
   exports: [MailService],
 })
-export class MailModule { }
+export class MailModule {}

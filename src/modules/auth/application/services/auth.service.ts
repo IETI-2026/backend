@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto';
+import { MailService } from '@mail/application/mail.service';
 import {
   BadRequestException,
   ConflictException,
@@ -12,7 +13,6 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { OAuth2Client } from 'google-auth-library';
 import { RoleName } from '@/database/enums';
-import { MailService } from '@mail/application/mail.service';
 import {
   AUTH_RESPONSE_EXPIRES_IN_SECONDS,
   JWT_ACCESS_TOKEN_EXPIRES_IN,
