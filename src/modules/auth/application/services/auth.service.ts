@@ -185,6 +185,15 @@ export class AuthService {
       }
 
       const fullName = payload.name?.trim() || payload.email;
+      const email = payload.email;
+
+      if (email) {
+        void this.mailService.sendWelcomeEmail(
+          email,
+          fullName || 'Usuario',
+          `${this.configService.get('app')?.frontendUrl || 'https://app.camey.co'}/complete-profile`,
+        );
+      }
 
       return this.handleGoogleOAuthCallback({
         providerId: payload.sub,

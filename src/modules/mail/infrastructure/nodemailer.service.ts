@@ -14,13 +14,40 @@ export class NodemailerService {
 
   async sendMail(options: SendMailOptions): Promise<MailSendResult> {
     try {
+      if (!options || !options.to) {
+        this.logger.warn('sendMail: Destinatario (to) es requerido');
+        return {
+          success: false,
+          error: 'Destinatario es requerido',
+        };
+      }
+
+      if (!options.templateName) {
+        this.logger.warn(
+          'sendMail: Nombre de plantilla (templateName) es requerido',
+        );
+        return {
+          success: false,
+          error: 'Nombre de plantilla es requerido',
+        };
+      }
+
       const mailConfig = this.configService.get('mail');
 
       const context = {
         ...options.context,
+        subject: options.subject || 'Notificación desde CameYo',
         year: new Date().getFullYear(),
         supportEmail: mailConfig?.mailFrom || 'support@camey.co',
       };
+
+      const recipients = Array.isArray(options.to)
+        ? options.to.join(', ')
+        : options.to;
+
+      this.logger.log(
+        `Enviando correo a ${recipients} con plantilla: ${options.templateName}`,
+      );
 
       const result = await this.mailerService.sendMail({
         to: options.to,
@@ -30,9 +57,8 @@ export class NodemailerService {
         from: options.from || mailConfig?.mailFrom,
       });
 
-      this.logger.debug(
-        `Correo enviado exitosamente a ${options.to}`,
-        result.messageId,
+      this.logger.log(
+        `Correo enviado exitosamente a ${recipients} (ID: ${result?.messageId})`,
       );
 
       return {
@@ -48,9 +74,35 @@ export class NodemailerService {
         error instanceof Error ? error.stack : '',
       );
 
+      if (error instanceof Error) {
+        if (error.message.includes('ENOENT')) {
+          return {
+            success: false,
+            error:
+              'Plantilla de correo no encontrada. Por favor, contacta al equipo de soporte.',
+          };
+        }
+
+        if (error.message.includes('SMTP')) {
+          return {
+            success: false,
+            error:
+              'Error de conexión con el servidor SMTP. Por favor, intenta más tarde.',
+          };
+        }
+
+        if (error.message.includes('timeout')) {
+          return {
+            success: false,
+            error:
+              'El servidor tardó demasiado en responder. Por favor, intenta más tarde.',
+          };
+        }
+      }
+
       return {
         success: false,
-        error: errorMessage,
+        error: errorMessage || 'Error desconocido al enviar el correo',
       };
     }
   }
@@ -62,17 +114,22 @@ export class NodemailerService {
       };
 
       if (!mailerWithTransporter.transporter) {
-        throw new Error('Transporter SMTP no disponible');
+        this.logger.error('Transporter SMTP no disponible');
+        return false;
       }
 
       await mailerWithTransporter.transporter.verify();
-      this.logger.log('Conexión SMTP verificada exitosamente');
+      this.logger.log('✓ Conexión SMTP verificada exitosamente');
       return true;
     } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+
       this.logger.error(
-        'Error verificando conexión SMTP',
-        error instanceof Error ? error.message : '',
+        `✗ Error verificando conexión SMTP: ${errorMessage}`,
+        error instanceof Error ? error.stack : '',
       );
+
       return false;
     }
   }

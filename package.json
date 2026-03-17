@@ -32,12 +32,13 @@
     "npm": ">=9.0.0"
   },
   "scripts": {
-    "build": "nest build",
+    "build": "nest build && npm run build:copy-assets",
+    "build:copy-assets": "copyfiles -u 0 src/modules/mail/infrastructure/templates/*.hbs dist/",
     "format": "biome format --write",
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/main",
+    "start:prod": "node dist/src/main",
     "lint": "biome check",
     "lint:fix": "biome check --write",
     "test": "jest",
@@ -118,6 +119,7 @@
     "@types/passport-jwt": "^4.0.1",
     "@types/pg": "^8.16.0",
     "@types/supertest": "^6.0.2",
+    "copyfiles": "^2.4.1",
     "globals": "^17.3.0",
     "husky": "^9.1.7",
     "jest": "^30.0.0",
