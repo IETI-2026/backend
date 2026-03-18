@@ -1,11 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { MailerService } from '@nestjs-modules/mailer';
-import { MailSendResult, SendMailOptions } from '../domain';
+import { MailErrorType, MailSendResult, SendMailOptions } from '../domain';
 
 const classifyNodemailerError = (
   error: Error,
-): { type: string; userMessage: string } => {
+): { type: MailErrorType; userMessage: string } => {
   const message = error.message.toLowerCase();
 
   if (
@@ -115,6 +115,7 @@ export class NodemailerService {
         this.logger.warn('sendMail: Destinatario (to) es requerido');
         return {
           success: false,
+          errorType: 'VALIDATION_ERROR',
           error: 'El destinatario (to) es requerido',
         };
       }
@@ -125,6 +126,7 @@ export class NodemailerService {
         );
         return {
           success: false,
+          errorType: 'VALIDATION_ERROR',
           error: 'El nombre de la plantilla (templateName) es requerido',
         };
       }
@@ -166,7 +168,10 @@ export class NodemailerService {
       const errorInfo =
         error instanceof Error
           ? classifyNodemailerError(error)
-          : { type: 'UNKNOWN', userMessage: String(error) };
+          : {
+              type: 'UNKNOWN_ERROR' as MailErrorType,
+              userMessage: String(error),
+            };
 
       this.logger.error(
         `Error ${errorInfo.type} al enviar correo a ${options.to}: ${error instanceof Error ? error.message : String(error)}`,
@@ -175,6 +180,7 @@ export class NodemailerService {
 
       return {
         success: false,
+        errorType: errorInfo.type,
         error: errorInfo.userMessage,
       };
     }
@@ -202,7 +208,10 @@ export class NodemailerService {
       const errorInfo =
         error instanceof Error
           ? classifyNodemailerError(error)
-          : { type: 'UNKNOWN', userMessage: String(error) };
+          : {
+              type: 'UNKNOWN_ERROR' as MailErrorType,
+              userMessage: String(error),
+            };
 
       this.logger.error(
         `✗ Error verificando conexión SMTP (${errorInfo.type}): ${error instanceof Error ? error.message : String(error)}`,

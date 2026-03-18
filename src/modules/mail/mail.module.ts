@@ -8,13 +8,8 @@ import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handleba
 import { MailService } from './application/mail.service';
 import { NodemailerService } from './infrastructure/nodemailer.service';
 
-/**
- * Resuelve la ruta de los templates de forma robusta para dev y prod.
- * Busca en múltiples ubicaciones posibles para mayor compatibilidad.
- */
 function resolveTemplatesDir(logger: Logger): string {
   const possiblePaths = [
-    // Desarrollo: ejecutar desde la raíz del proyecto
     path.resolve(
       process.cwd(),
       'src',
@@ -23,7 +18,6 @@ function resolveTemplatesDir(logger: Logger): string {
       'infrastructure',
       'templates',
     ),
-    // Desarrollo alternativo: ejecución con ts-node desde src/
     path.resolve(
       process.cwd(),
       'modules',
@@ -31,7 +25,6 @@ function resolveTemplatesDir(logger: Logger): string {
       'infrastructure',
       'templates',
     ),
-    // Producción: después del build, los templates se copian a dist/
     path.resolve(
       process.cwd(),
       'dist',
@@ -41,7 +34,6 @@ function resolveTemplatesDir(logger: Logger): string {
       'infrastructure',
       'templates',
     ),
-    // Producción alternativo: raíz de dist
     path.resolve(
       process.cwd(),
       'dist',
@@ -64,7 +56,6 @@ function resolveTemplatesDir(logger: Logger): string {
     }
   }
 
-  // Fallback: usar el primero (src) como predeterminado
   logger.warn(
     `No se encontró el directorio de templates en ubicaciones conocidas. Usando: ${possiblePaths[0]}`,
   );
@@ -89,7 +80,6 @@ function resolveTemplatesDir(logger: Logger): string {
           );
         }
 
-        // Resolver la ruta de templates de forma robusta
         const templatesDir = resolveTemplatesDir(logger);
 
         const mailerConfig = {

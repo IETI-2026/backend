@@ -83,6 +83,7 @@ export class MailService {
       this.logger.warn(`sendMail: ${errorMsg}`);
       return {
         success: false,
+        errorType: 'VALIDATION_ERROR',
         error: errorMsg,
       };
     }
@@ -100,6 +101,7 @@ export class MailService {
       );
       return {
         success: false,
+        errorType: 'UNKNOWN_ERROR',
         error: `Error al enviar el correo: ${errorMessage}`,
       };
     }
@@ -148,6 +150,7 @@ export class MailService {
 
       return {
         success: false,
+        errorType: 'VALIDATION_ERROR',
         error: `Campos requeridos faltando: ${missingFields}`,
       };
     }
@@ -206,6 +209,7 @@ export class MailService {
 
       return {
         success: false,
+        errorType: 'VALIDATION_ERROR',
         error: `Campos requeridos faltando: ${missingFields}`,
       };
     }
@@ -278,6 +282,7 @@ export class MailService {
 
       return {
         success: false,
+        errorType: 'VALIDATION_ERROR',
         error: `Campos requeridos faltando: ${missingFields}`,
       };
     }
@@ -301,6 +306,7 @@ export class MailService {
 
       return {
         success: false,
+        errorType: 'VALIDATION_ERROR',
         error: `Campos de pago requeridos faltando: ${missingPaymentFields.join(', ')}`,
       };
     }
@@ -369,6 +375,7 @@ export class MailService {
 
       return {
         success: false,
+        errorType: 'VALIDATION_ERROR',
         error: `Campos requeridos faltando: ${missingFields}`,
       };
     }

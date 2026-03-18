@@ -8,11 +8,20 @@ export interface SendMailOptions {
   from?: string;
 }
 
-export interface MailSendResult {
-  success: boolean;
-  messageId?: string;
-  error?: string;
-}
+export type MailErrorType =
+  | 'VALIDATION_ERROR'
+  | 'AUTH_ERROR'
+  | 'CONNECTION_ERROR'
+  | 'TIMEOUT_ERROR'
+  | 'TEMPLATE_ERROR'
+  | 'NETWORK_ERROR'
+  | 'SSL_ERROR'
+  | 'SMTP_ERROR'
+  | 'UNKNOWN_ERROR';
+
+export type MailSendResult =
+  | { success: true; messageId?: string }
+  | { success: false; errorType: MailErrorType; error: string };
 
 export interface MailTemplateDefinition {
   name: MailTemplate;
