@@ -16,8 +16,9 @@ import {
   TechnicianResponseStatus,
   UrgencyLevel,
 } from '@/database/enums';
-import { TenantDataSourceService } from '@/tenant';
+import { TenantContext, TenantDataSourceService } from '@/tenant';
 import { TENANT_DATA_SOURCE } from '@/tenant/tenant-datasource.provider';
+import { ServiceRequestsGateway } from '../../../presentation/gateways/service-requests.gateway';
 import { ServiceRequestsService } from '../service-requests.service';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -133,6 +134,17 @@ describe('ServiceRequestsService', () => {
         {
           provide: TenantDataSourceService,
           useValue: mockTenantDataSourceService,
+        },
+        {
+          provide: TenantContext,
+          useValue: { getTenantId: jest.fn().mockReturnValue('public') },
+        },
+        {
+          provide: ServiceRequestsGateway,
+          useValue: {
+            emitNewServiceRequest: jest.fn(),
+            emitTechnicianAccepted: jest.fn(),
+          },
         },
       ],
     }).compile();
