@@ -1,3 +1,4 @@
+import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { MailConfig } from '@config/mail.config';
 import { Logger, Module } from '@nestjs/common';
@@ -6,6 +7,69 @@ import { MailerModule } from '@nestjs-modules/mailer';
 import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
 import { MailService } from './application/mail.service';
 import { NodemailerService } from './infrastructure/nodemailer.service';
+
+/**
+ * Resuelve la ruta de los templates de forma robusta para dev y prod.
+ * Busca en múltiples ubicaciones posibles para mayor compatibilidad.
+ */
+function resolveTemplatesDir(logger: Logger): string {
+  const possiblePaths = [
+    // Desarrollo: ejecutar desde la raíz del proyecto
+    path.resolve(
+      process.cwd(),
+      'src',
+      'modules',
+      'mail',
+      'infrastructure',
+      'templates',
+    ),
+    // Desarrollo alternativo: ejecución con ts-node desde src/
+    path.resolve(
+      process.cwd(),
+      'modules',
+      'mail',
+      'infrastructure',
+      'templates',
+    ),
+    // Producción: después del build, los templates se copian a dist/
+    path.resolve(
+      process.cwd(),
+      'dist',
+      'src',
+      'modules',
+      'mail',
+      'infrastructure',
+      'templates',
+    ),
+    // Producción alternativo: raíz de dist
+    path.resolve(
+      process.cwd(),
+      'dist',
+      'modules',
+      'mail',
+      'infrastructure',
+      'templates',
+    ),
+  ];
+
+  for (const templatesPath of possiblePaths) {
+    if (fs.existsSync(templatesPath)) {
+      const files = fs
+        .readdirSync(templatesPath)
+        .filter((f) => f.endsWith('.hbs'));
+      logger.log(
+        `Templates directory resolved to: ${templatesPath} (${files.length} templates found)`,
+      );
+      return templatesPath;
+    }
+  }
+
+  // Fallback: usar el primero (src) como predeterminado
+  logger.warn(
+    `No se encontró el directorio de templates en ubicaciones conocidas. Usando: ${possiblePaths[0]}`,
+  );
+  return possiblePaths[0];
+}
 
 @Module({
   imports: [
@@ -25,15 +89,8 @@ import { NodemailerService } from './infrastructure/nodemailer.service';
           );
         }
 
-        // Resolver la ruta de plantillas
-        // En runtime: __dirname es la carpeta del archivo compilado en dist/modules/mail
-        const templatesDir = path.join(
-          __dirname,
-          'infrastructure',
-          'templates',
-        );
-
-        logger.log(`Templates directory resolved to: ${templatesDir}`);
+        // Resolver la ruta de templates de forma robusta
+        const templatesDir = resolveTemplatesDir(logger);
 
         const mailerConfig = {
           transport: {

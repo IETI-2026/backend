@@ -31,8 +31,79 @@ import { NodemailerService } from '../infrastructure';
 @Injectable()
 export class MailService {
   private readonly logger: Logger = new Logger(MailService.name);
+  private readonly emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
   constructor(private readonly nodemailer: NodemailerService) {}
+
+  /**
+   * Valida que un string sea un email válido.
+   * @private
+   */
+  private isValidEmail(email: string): boolean {
+    return this.emailRegex.test(email);
+  }
+
+  /**
+   * Valida un array de emails (string o array de strings).
+   * @private
+   * @returns Objeto con validación y errores encontrados
+   */
+  private validateRecipients(to: string | string[]): {
+    valid: boolean;
+    errors: string[];
+  } {
+    const emails = Array.isArray(to) ? to : [to];
+    const errors: string[] = [];
+
+    for (const email of emails) {
+      if (!email || email.trim() === '') {
+        errors.push('Email vacío');
+      } else if (!this.isValidEmail(email)) {
+        errors.push(`Email inválido: ${email}`);
+      }
+    }
+
+    return { valid: errors.length === 0, errors };
+  }
+
+  /**
+   * Método privado que orquesta el envío real.
+   * Traduce opciones de negocio a opciones de transporte.
+   * Delega el manejo de errores SMTP al NodemailerService.
+   *
+   * @private
+   * @param options - Opciones del correo a enviar
+   * @returns MailSendResult con información de éxito/error
+   */
+  private async sendMail(options: SendMailOptions): Promise<MailSendResult> {
+    // Validar recipients antes de intentar enviar
+    const recipientValidation = this.validateRecipients(options.to);
+    if (!recipientValidation.valid) {
+      const errorMsg = recipientValidation.errors.join('; ');
+      this.logger.warn(`sendMail: ${errorMsg}`);
+      return {
+        success: false,
+        error: errorMsg,
+      };
+    }
+
+    // Delegar al servicio de infraestructura - el maneja todos los errores SMTP
+    // Este try-catch es una capa de seguridad adicional por si el servicio falla inesperadamente
+    try {
+      return await this.nodemailer.sendMail(options);
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      this.logger.error(
+        `Error inesperado en sendMail: ${errorMessage}`,
+        error instanceof Error ? error.stack : '',
+      );
+      return {
+        success: false,
+        error: `Error al enviar el correo: ${errorMessage}`,
+      };
+    }
+  }
 
   /**
    * Envía correo de bienvenida a un nuevo usuario.
@@ -320,32 +391,5 @@ export class MailService {
           options?.notificationTime || new Date().toLocaleTimeString('es-CO'),
       },
     });
-  }
-
-  /**
-   * Método privado que orquesta el envío real.
-   * Traduce opciones de negocio a opciones de transporte.
-   *
-   * @private
-   * @param options - Opciones del correo a enviar
-   * @returns MailSendResult con información de éxito/error
-   */
-  private async sendMail(options: SendMailOptions): Promise<MailSendResult> {
-    try {
-      return await this.nodemailer.sendMail(options);
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-
-      this.logger.error(
-        `Error inesperado en MailService: ${errorMessage}`,
-        error instanceof Error ? error.stack : '',
-      );
-
-      return {
-        success: false,
-        error: 'Error interno al procesar el correo',
-      };
-    }
   }
 }
