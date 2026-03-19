@@ -4,6 +4,7 @@ import type { LogLevel } from '@nestjs/common';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import { IoAdapter } from '@nestjs/platform-socket.io';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import compression from 'compression';
 import helmet from 'helmet';
@@ -28,6 +29,8 @@ async function bootstrap() {
   const logger = new Logger('Bootstrap');
 
   app.enableShutdownHooks();
+
+  app.useWebSocketAdapter(new IoAdapter(app));
 
   app.use(helmet());
   app.use(compression());
