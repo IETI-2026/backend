@@ -4,26 +4,24 @@ import { BlobServiceClient, ContainerClient } from '@azure/storage-blob';
 @Injectable()
 export class BlobStorageService {
   private readonly logger = new Logger(BlobStorageService.name);
-  private readonly containerClient: ContainerClient;
   private readonly containerName = 'cameyo-storage';
 
-  constructor() {
+  private getContainerClient(): ContainerClient {
     const connectionString = process.env.STORAGE_CONNECTION_STRING;
     if (!connectionString) {
       throw new Error('STORAGE_CONNECTION_STRING is not defined');
     }
     const blobServiceClient =
       BlobServiceClient.fromConnectionString(connectionString);
-    this.containerClient = blobServiceClient.getContainerClient(
-      this.containerName,
-    );
+    return blobServiceClient.getContainerClient(this.containerName);
   }
 
   async uploadFile(file: Express.Multer.File): Promise<string> {
+    const containerClient = this.getContainerClient();
     const ext = file.originalname.split('.').pop()?.toLowerCase() ?? 'jpg';
     const blobName = `${crypto.randomUUID()}.${ext}`;
     const blockBlobClient =
-      this.containerClient.getBlockBlobClient(blobName);
+      containerClient.getBlockBlobClient(blobName);
 
     await blockBlobClient.uploadData(file.buffer, {
       blobHTTPHeaders: { blobContentType: file.mimetype },
