@@ -10,7 +10,15 @@
   "moduleNameMapper": {
     "^@/(.*)$": "<rootDir>/../src/$1",
     "^@common/(.*)$": "<rootDir>/../src/common/$1",
+    "^@config/(.*)$": "<rootDir>/../src/config/$1",
+    "^@database/(.*)$": "<rootDir>/../src/database/$1",
+    "^@tenant/(.*)$": "<rootDir>/../src/tenant/$1",
+    "^@modules/(.*)$": "<rootDir>/../src/modules/$1",
+    "^@auth/(.*)$": "<rootDir>/../src/modules/auth/$1",
     "^@users/(.*)$": "<rootDir>/../src/modules/users/$1",
-    "^@config/(.*)$": "<rootDir>/../src/config/$1"
+    "^@payments/(.*)$": "<rootDir>/../src/modules/payments/$1",
+    "^@service-requests/(.*)$": "<rootDir>/../src/modules/service-requests/$1",
+    "^@geocoding/(.*)$": "<rootDir>/../src/modules/geocoding/$1",
+    "^@mail/(.*)$": "<rootDir>/../src/modules/mail/$1"
   }
 }
