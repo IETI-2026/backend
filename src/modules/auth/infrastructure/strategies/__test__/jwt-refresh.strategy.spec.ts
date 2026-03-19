@@ -5,11 +5,6 @@ import { RoleName } from '@/database/enums';
 import { JwtPayloadEntity } from '../../../domain/entities';
 import { JwtRefreshStrategy } from '../jwt-refresh.strategy';
 
-// ---------------------------------------------------------------------------
-// We need to bypass the PassportStrategy super() call because it tries to
-// validate the secret at construction time. We mock passport-jwt so that
-// Strategy is a plain class that does nothing in its constructor.
-// ---------------------------------------------------------------------------
 jest.mock('passport-jwt', () => {
   const actual = jest.requireActual('passport-jwt');
   class MockStrategy {}
@@ -45,10 +40,6 @@ describe('JwtRefreshStrategy', () => {
     await buildStrategy();
   });
 
-  // -------------------------------------------------------------------------
-  // Constructor
-  // -------------------------------------------------------------------------
-
   describe('constructor', () => {
     it('reads jwt.refreshSecret from config', () => {
       expect(configService.get).toHaveBeenCalledWith('jwt.refreshSecret');
@@ -60,10 +51,6 @@ describe('JwtRefreshStrategy', () => {
       );
     });
   });
-
-  // -------------------------------------------------------------------------
-  // validate
-  // -------------------------------------------------------------------------
 
   describe('validate', () => {
     const mockRequest = {} as unknown;

@@ -4,8 +4,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { IS_PUBLIC_KEY } from '../../decorators/public.decorator';
 import { JwtAuthGuard } from '../jwt-auth.guard';
 
-// ─── helpers ─────────────────────────────────────────────────────────────────
-
 function buildContext(
   overrides: { handler?: object; classRef?: object } = {},
 ): ExecutionContext {
@@ -44,8 +42,6 @@ describe('JwtAuthGuard', () => {
   it('should be defined', () => {
     expect(guard).toBeDefined();
   });
-
-  // ─── canActivate ─────────────────────────────────────────────────────────────
 
   describe('canActivate', () => {
     it('should return true immediately for routes marked as public', () => {
@@ -95,8 +91,6 @@ describe('JwtAuthGuard', () => {
       superCanActivate.mockRestore();
     });
   });
-
-  // ─── handleRequest ────────────────────────────────────────────────────────────
 
   describe('handleRequest', () => {
     it('should return the user when no error and user is present', () => {

@@ -74,7 +74,6 @@ export class TenantDataSourceService implements OnModuleDestroy {
   }
 
   private async createDataSource(schema: string): Promise<DataSource> {
-    // Ensure schema exists
     await this.ensureSchemaExists(schema);
 
     const ds = new DataSource({
@@ -87,7 +86,6 @@ export class TenantDataSourceService implements OnModuleDestroy {
 
     await ds.initialize();
 
-    // Seed roles into every new schema
     await this.seedRoles(ds);
 
     return ds;

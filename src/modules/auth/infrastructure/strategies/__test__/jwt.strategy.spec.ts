@@ -6,8 +6,6 @@ import { AuthService } from '../../../application/services/auth.service';
 import { JwtPayloadEntity } from '../../../domain/entities';
 import { JwtStrategy } from '../jwt.strategy';
 
-// ─── shared fixtures ──────────────────────────────────────────────────────────
-
 const mockValidatedPayload: JwtPayloadEntity = {
   sub: 'user-uuid-001',
   email: 'user@example.com',
@@ -41,8 +39,6 @@ describe('JwtStrategy', () => {
   it('should be defined', () => {
     expect(strategy).toBeDefined();
   });
-
-  // ─── validate ────────────────────────────────────────────────────────────────
 
   describe('validate', () => {
     const incomingPayload: JwtPayloadEntity = {
@@ -102,8 +98,6 @@ describe('JwtStrategy', () => {
     });
   });
 
-  // ─── constructor (config guard) ───────────────────────────────────────────────
-
   describe('constructor', () => {
     it('should throw an error when JWT secret is not configured', () => {
       const configWithoutSecret = {
@@ -111,7 +105,6 @@ describe('JwtStrategy', () => {
       };
 
       expect(() => {
-        // Instantiate directly so we can test the constructor path
         new JwtStrategy(
           configWithoutSecret as unknown as ConfigService,
           mockAuthService as unknown as AuthService,

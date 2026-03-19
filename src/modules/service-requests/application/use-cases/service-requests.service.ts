@@ -209,8 +209,6 @@ export class ServiceRequestsService {
     if (normalizedSkills.length === 0) {
       return [];
     }
-
-    // Use query builder for array overlap and NOT EXISTS subquery
     const qb = this.requestRepo
       .createQueryBuilder('sr')
       .leftJoinAndSelect('sr.technicianResponses', 'tr')
@@ -264,8 +262,6 @@ export class ServiceRequestsService {
         `Service request ${serviceRequestId} is not available for acceptance`,
       );
     }
-
-    // Upsert: find existing or create
     let existingResponse = await this.responseRepo.findOne({
       where: { serviceRequestId, technicianUserId: dto.technicianUserId },
     });
@@ -343,8 +339,6 @@ export class ServiceRequestsService {
         `Service request ${serviceRequestId} cannot be rejected in status ${request.status}`,
       );
     }
-
-    // Upsert: find existing or create
     let existingResponse = await this.responseRepo.findOne({
       where: { serviceRequestId, technicianUserId: dto.technicianUserId },
     });

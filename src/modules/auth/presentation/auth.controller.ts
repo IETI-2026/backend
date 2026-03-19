@@ -37,8 +37,6 @@ import {
 import { JwtPayloadEntity } from '../domain/entities';
 import { CurrentUser, Public } from '../infrastructure/decorators';
 import { JwtAuthGuard, RolesGuard } from '../infrastructure/guards';
-
-// Interface for Google OAuth callback request
 interface GoogleOAuthRequest extends Request {
   user?: {
     provider: string;
@@ -229,7 +227,7 @@ export class AuthController {
     try {
       const authResponse = await this.authService.handleGoogleOAuthCallback({
         ...req.user,
-        email: req.user.email, // Ensure email is defined
+        email: req.user.email,
       });
 
       if (!authResponse.user) {

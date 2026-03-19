@@ -38,7 +38,6 @@ import {
   VerifyOtpDto,
 } from '../dtos';
 
-// User response type for getCurrentUser method
 export interface UserResponse {
   id: string;
   email: string | null;

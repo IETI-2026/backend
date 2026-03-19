@@ -41,8 +41,6 @@ describe('PublicGuard', () => {
       const getAllAndOverrideSpy = jest
         .spyOn(reflector, 'getAllAndOverride')
         .mockReturnValue(false);
-
-      // Mock the parent canActivate method to avoid extending AuthGuard issues
       jest
         .spyOn(guard as unknown, 'canActivate')
         .mockImplementation((ctx: ExecutionContext) => {
@@ -88,7 +86,7 @@ describe('PublicGuard', () => {
 
       jest
         .spyOn(reflector, 'getAllAndOverride')
-        .mockReturnValueOnce(1 as unknown as boolean); // Truthy value
+        .mockReturnValueOnce(1 as unknown as boolean);
 
       const result = guard.canActivate(mockContext);
 

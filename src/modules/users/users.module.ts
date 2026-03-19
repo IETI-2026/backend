@@ -5,6 +5,7 @@ import { ProviderProfileService, UsersService } from './application';
 import { USER_REPOSITORY } from './domain';
 import { UserTypeOrmRepository } from './infrastructure';
 import { ProviderProfileController, UsersController } from './presentation';
+import { BlobStorageService } from '../../common/services/blob-storage.service';
 
 @Module({
   imports: [TenantModule, AuthModule],
@@ -12,6 +13,7 @@ import { ProviderProfileController, UsersController } from './presentation';
   providers: [
     UsersService,
     ProviderProfileService,
+    BlobStorageService,
     {
       provide: USER_REPOSITORY,
       useClass: UserTypeOrmRepository,

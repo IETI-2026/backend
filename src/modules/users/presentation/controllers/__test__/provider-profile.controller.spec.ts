@@ -12,8 +12,6 @@ import { VerificationAction } from '../../../application/dtos/verify-provider.dt
 import { ProviderProfileService } from '../../../application/use-cases/provider-profile.service';
 import { ProviderProfileController } from '../provider-profile.controller';
 
-// ─── shared fixtures ──────────────────────────────────────────────────────────
-
 const mockProviderProfileResponse = {
   id: 'profile-uuid-001',
   userId: 'user-uuid-001',
@@ -84,8 +82,6 @@ describe('ProviderProfileController', () => {
     expect(controller).toBeDefined();
   });
 
-  // ─── createMyProfile ─────────────────────────────────────────────────────────
-
   describe('createMyProfile', () => {
     const createDto = {
       bio: 'Electricista con 10 años de experiencia',
@@ -132,8 +128,6 @@ describe('ProviderProfileController', () => {
     });
   });
 
-  // ─── getMyProfile ─────────────────────────────────────────────────────────────
-
   describe('getMyProfile', () => {
     it('should return the provider profile for the current user', async () => {
       mockProviderProfileService.findByUserId.mockResolvedValue(
@@ -168,8 +162,6 @@ describe('ProviderProfileController', () => {
       );
     });
   });
-
-  // ─── updateMyProfile ──────────────────────────────────────────────────────────
 
   describe('updateMyProfile', () => {
     const updateDto = { bio: 'Descripción actualizada', isAvailable: true };
@@ -214,8 +206,6 @@ describe('ProviderProfileController', () => {
     });
   });
 
-  // ─── getProviderProfile (admin) ───────────────────────────────────────────────
-
   describe('getProviderProfile', () => {
     it('should return the provider profile for a given user ID', async () => {
       mockProviderProfileService.findByUserId.mockResolvedValue(
@@ -240,8 +230,6 @@ describe('ProviderProfileController', () => {
       ).rejects.toThrow(NotFoundException);
     });
   });
-
-  // ─── verifyProvider ───────────────────────────────────────────────────────────
 
   describe('verifyProvider', () => {
     it('should approve a provider and return the updated profile', async () => {
