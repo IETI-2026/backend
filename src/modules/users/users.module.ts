@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
 import { TenantModule } from '@/tenant';
+import { BlobStorageService } from '../../common/services/blob-storage.service';
 import { AuthModule } from '../auth';
 import { ProviderProfileService, UsersService } from './application';
 import { USER_REPOSITORY } from './domain';
 import { UserTypeOrmRepository } from './infrastructure';
 import { ProviderProfileController, UsersController } from './presentation';
-import { BlobStorageService } from '../../common/services/blob-storage.service';
 
 @Module({
   imports: [TenantModule, AuthModule],

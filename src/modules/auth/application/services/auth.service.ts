@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto';
+import { MailService } from '@mail/application/mail.service';
 import {
   BadRequestException,
   ConflictException,
@@ -67,6 +68,7 @@ export class AuthService {
     private readonly authRepository: IAuthRepository,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly mailService: MailService,
   ) {}
 
   async signUp(signUpDto: SignUpDto): Promise<AuthResponseDto> {
@@ -86,6 +88,16 @@ export class AuthService {
       phoneNumber,
       emailVerified: false,
     });
+
+    // Enviar correo de bienvenida (no-blocking)
+    // Si falla, no interrumpe el flujo de autenticación
+    if (email) {
+      void this.mailService.sendWelcomeEmail(
+        email,
+        fullName || 'Usuario',
+        `${this.configService.get('app')?.frontendUrl || 'https://app.camey.co'}/complete-profile`,
+      );
+    }
 
     return this.generateAuthResponse(user.id, user.email || '');
   }
@@ -172,6 +184,15 @@ export class AuthService {
       }
 
       const fullName = payload.name?.trim() || payload.email;
+      const email = payload.email;
+
+      if (email) {
+        void this.mailService.sendWelcomeEmail(
+          email,
+          fullName || 'Usuario',
+          `${this.configService.get('app')?.frontendUrl || 'https://app.camey.co'}/complete-profile`,
+        );
+      }
 
       return this.handleGoogleOAuthCallback({
         providerId: payload.sub,

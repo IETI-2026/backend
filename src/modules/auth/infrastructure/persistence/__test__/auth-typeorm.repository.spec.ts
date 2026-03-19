@@ -740,7 +740,6 @@ describe('AuthTypeOrmRepository', () => {
       );
     });
   });
- 
 
   describe('tenantContext fallback', () => {
     it('falls back to public schema when getTenantId returns undefined', async () => {

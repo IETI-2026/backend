@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import type { IUserRepository } from '@users/domain';
 import { USER_REPOSITORY, UserStatus } from '@users/domain';
+import { BlobStorageService } from '../../../../common/services/blob-storage.service';
 import type {
   CreateUserDto,
   GetUsersQueryDto,
@@ -14,7 +15,6 @@ import type {
   UpdateUserDto,
 } from '../dtos';
 import { UserResponseDto } from '../dtos';
-import { BlobStorageService } from '../../../../common/services/blob-storage.service';
 
 @Injectable()
 export class UsersService {

@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+  <title>{{subject}}</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      line-height: 1.6;
+      color: #2c3e50;
+      background-color: #ecf0f1;
+      padding: 20px 0;
+    }
+    .wrapper {
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    .container {
+      background-color: #ffffff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+    .header-section {
+      background: linear-gradient(135deg, #0066cc 0%, #003d99 100%);
+      padding: 60px 30px;
+      text-align: center;
+      color: #ffffff;
+      position: relative;
+      overflow: hidden;
+    }
+    .header-section::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      right: -10%;
+      width: 400px;
+      height: 400px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 50%;
+    }
+    .header-section::after {
+      content: '';
+      position: absolute;
+      bottom: -40%;
+      left: -5%;
+      width: 250px;
+      height: 250px;
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: 50%;
+    }
+    .header-content {
+      position: relative;
+      z-index: 1;
+    }
+    .header-section .logo {
+      font-size: 36px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      letter-spacing: -0.5px;
+    }
+    .header-section h1 {
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      letter-spacing: -0.3px;
+    }
+    .header-section .subtitle {
+      font-size: 17px;
+      opacity: 0.95;
+      font-weight: 400;
+    }
+    .content-section {
+      padding: 40px 30px;
+    }
+    .greeting {
+      margin-bottom: 24px;
+      font-size: 16px;
+    }
+    .greeting strong {
+      color: #0066cc;
+    }
+    .intro-text {
+      color: #34495e;
+      line-height: 1.8;
+      margin-bottom: 24px;
+      font-size: 15px;
+    }
+    .features-section {
+      background-color: #f0f6ff;
+      border-radius: 8px;
+      padding: 24px;
+      margin: 24px 0;
+    }
+    .features-title {
+      color: #2c3e50;
+      font-weight: 600;
+      margin-bottom: 16px;
+      font-size: 16px;
+    }
+    .feature-item {
+      display: flex;
+      margin-bottom: 12px;
+      color: #34495e;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .feature-item:last-child {
+      margin-bottom: 0;
+    }
+    .feature-icon {
+      margin-right: 12px;
+      font-size: 18px;
+      color: #0066cc;
+      flex-shrink: 0;
+    }
+    .cta-section {
+      text-align: center;
+      margin: 32px 0;
+    }
+    .button {
+      display: inline-block;
+      padding: 14px 40px;
+      background: linear-gradient(135deg, #0066cc 0%, #003d99 100%);
+      color: white;
+      text-decoration: none;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 15px;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(0, 102, 204, 0.4);
+    }
+    .button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(0, 102, 204, 0.6);
+    }
+    .security-alert {
+      background-color: #fff5e6;
+      border-left: 4px solid #f39c12;
+      border-radius: 6px;
+      padding: 16px;
+      margin: 24px 0;
+      font-size: 13px;
+      color: #7d5c0f;
+      line-height: 1.6;
+    }
+    .security-alert strong {
+      color: #5a4608;
+    }
+    .divider {
+      height: 1px;
+      background-color: #ecf0f1;
+      margin: 32px 0;
+    }
+    .footer-section {
+      background-color: #f8f9fa;
+      padding: 30px;
+      text-align: center;
+      border-top: 1px solid #ecf0f1;
+    }
+    .footer-text {
+      color: #7f8c8d;
+      font-size: 12px;
+      line-height: 1.8;
+      margin: 0;
+    }
+    .footer-text strong {
+      color: #34495e;
+    }
+    .footer-link {
+      color: #0066cc;
+      text-decoration: none;
+    }
+    .footer-link:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="container">
+      <div class="header-section">
+        <div class="header-content">
+          <div class="logo">🎉 CameYo</div>
+          <h1>¡Bienvenido!</h1>
+          <p class="subtitle">Tu plataforma de conexión con técnicos verificados</p>
+        </div>
+      </div>
+
+      <div class="content-section">
+        <div class="greeting">Hola <strong>{{userName}}</strong>,</div>
+
+        <p class="intro-text">
+          ¡Gracias por unirte a CameYo! Estamos emocionados de contar contigo como parte de nuestra comunidad. Ahora puedes acceder a una red confiable de técnicos verificados, certificados y comprometidos con la calidad.
+        </p>
+
+        <div class="features-section">
+          <div class="features-title">🚀 ¿Qué puedes hacer ahora?</div>
+          <div class="feature-item">
+            <div class="feature-icon">✓</div>
+            <div>Conectar con técnicos verificados y certificados en tu municipio</div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-icon">✓</div>
+            <div>Solicitar servicios de calidad con tarifas transparentes</div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-icon">✓</div>
+            <div>Disfrutar de calificaciones y reseñas verificadas</div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-icon">✓</div>
+            <div>Acceder a tu historial de servicios completados</div>
+          </div>
+        </div>
+
+        <p class="intro-text">
+          Para completar tu perfil y acceder a todas las funcionalidades, haz clic en el botón a continuación:
+        </p>
+
+        <div class="cta-section">
+          <a href="{{profileUrl}}" class="button">Completar Perfil Ahora</a>
+        </div>
+
+        <div class="security-alert">
+          <strong>🔒 Seguridad:</strong> Si no creaste esta cuenta, no es necesario que hagas nada. Simplemente ignora este correo. Tu seguridad es nuestra prioridad.
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-section">
+      <p class="footer-text">
+        © {{year}} <strong>CameYo</strong> | Conectando técnicos verificados con clientes confiables
+      </p>
+      <p class="footer-text" style="margin-top: 12px;">
+        ¿Preguntas? Escríbenos a <a href="mailto:support@camey.co" class="footer-link">support@camey.co</a>
+      </p>
+    </div>
+  </div>
+</body>
+</html>

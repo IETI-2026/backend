@@ -1,5 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
 import { BlobServiceClient, ContainerClient } from '@azure/storage-blob';
+import { Injectable, Logger } from '@nestjs/common';
 
 @Injectable()
 export class BlobStorageService {
@@ -20,8 +20,7 @@ export class BlobStorageService {
     const containerClient = this.getContainerClient();
     const ext = file.originalname.split('.').pop()?.toLowerCase() ?? 'jpg';
     const blobName = `${crypto.randomUUID()}.${ext}`;
-    const blockBlobClient =
-      containerClient.getBlockBlobClient(blobName);
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
 
     await blockBlobClient.uploadData(file.buffer, {
       blobHTTPHeaders: { blobContentType: file.mimetype },

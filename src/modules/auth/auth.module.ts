@@ -1,3 +1,4 @@
+import { MailModule } from '@mail/mail.module';
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
@@ -17,6 +18,7 @@ import { AuthController } from './presentation';
 @Module({
   imports: [
     TenantModule,
+    MailModule,
     PassportModule,
     JwtModule.registerAsync({
       useFactory: (configService: ConfigService) => {

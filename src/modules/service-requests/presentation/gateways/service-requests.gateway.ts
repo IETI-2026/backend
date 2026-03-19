@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import {
   ConnectedSocket,
   MessageBody,
@@ -7,7 +8,6 @@ import {
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
-import { Logger } from '@nestjs/common';
 import type { Server, Socket } from 'socket.io';
 import type { AcceptedTechnicianUserDto } from '../../application/dtos/accepted-technician-user.dto';
 import type { ServiceRequestResponseDto } from '../../application/dtos/service-request-response.dto';
