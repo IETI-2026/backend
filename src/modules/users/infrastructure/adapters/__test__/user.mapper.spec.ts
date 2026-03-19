@@ -3,10 +3,6 @@ import { UserEntity as DbUserEntity } from '@/database/entities';
 import { UserStatus as DbUserStatus, RoleName } from '@/database/enums';
 import { toCreateData, toDomain, toUpdateData } from '../user.mapper';
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 function makeDbUser(partial: Partial<DbUserEntity> = {}): DbUserEntity {
   return {
     id: 'user-1',
@@ -28,7 +24,6 @@ function makeDbUser(partial: Partial<DbUserEntity> = {}): DbUserEntity {
     updatedAt: new Date('2024-06-01T00:00:00.000Z'),
     lastLoginAt: new Date('2025-03-01T00:00:00.000Z'),
     deletedAt: null,
-    // Relations (not mapped by toDomain)
     roles: [],
     oauthAccounts: [],
     refreshTokens: [],
@@ -49,10 +44,6 @@ function makeDbUser(partial: Partial<DbUserEntity> = {}): DbUserEntity {
     ...partial,
   };
 }
-
-// ---------------------------------------------------------------------------
-// toDomain
-// ---------------------------------------------------------------------------
 
 describe('toDomain', () => {
   it('maps all scalar fields correctly', () => {
@@ -124,10 +115,6 @@ describe('toDomain', () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// toCreateData
-// ---------------------------------------------------------------------------
-
 describe('toCreateData', () => {
   it('maps all create fields', () => {
     const input = {
@@ -173,10 +160,6 @@ describe('toCreateData', () => {
     expect(result.status).toBeUndefined();
   });
 });
-
-// ---------------------------------------------------------------------------
-// toUpdateData
-// ---------------------------------------------------------------------------
 
 describe('toUpdateData', () => {
   it('maps all update fields', () => {

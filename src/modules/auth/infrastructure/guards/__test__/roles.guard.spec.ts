@@ -5,9 +5,6 @@ import { RoleName } from '@/database/enums';
 import { ROLES_KEY } from '../../decorators/roles.decorator';
 import { RolesGuard } from '../roles.guard';
 
-// ---------------------------------------------------------------------------
-// Helper: build a minimal ExecutionContext mock
-// ---------------------------------------------------------------------------
 function buildContext(
   _requiredRoles: RoleName[] | undefined,
   userRoles: RoleName[] | undefined,
@@ -31,10 +28,6 @@ function buildContext(
   } as unknown as ExecutionContext;
 }
 
-// ---------------------------------------------------------------------------
-// Test suite
-// ---------------------------------------------------------------------------
-
 describe('RolesGuard', () => {
   let guard: RolesGuard;
   let reflector: jest.Mocked<Reflector>;
@@ -56,10 +49,6 @@ describe('RolesGuard', () => {
     reflector = module.get(Reflector);
   });
 
-  // -------------------------------------------------------------------------
-  // No metadata at all
-  // -------------------------------------------------------------------------
-
   describe('when no roles metadata is defined', () => {
     it('returns true (allows the request)', () => {
       reflector.getAllAndOverride.mockReturnValue(undefined);
@@ -79,10 +68,6 @@ describe('RolesGuard', () => {
       expect(result).toBe(true);
     });
   });
-
-  // -------------------------------------------------------------------------
-  // User has the required role
-  // -------------------------------------------------------------------------
 
   describe('when user has the required role', () => {
     it('returns true for a single matching role', () => {
@@ -131,10 +116,6 @@ describe('RolesGuard', () => {
     });
   });
 
-  // -------------------------------------------------------------------------
-  // User does not have the required role
-  // -------------------------------------------------------------------------
-
   describe('when user is missing the required role', () => {
     it('throws ForbiddenException', () => {
       reflector.getAllAndOverride.mockReturnValue([RoleName.ADMIN]);
@@ -167,10 +148,6 @@ describe('RolesGuard', () => {
       );
     });
   });
-
-  // -------------------------------------------------------------------------
-  // User object is absent or incomplete
-  // -------------------------------------------------------------------------
 
   describe('when the request user is absent or has no roles', () => {
     it('throws ForbiddenException when request.user is undefined', () => {

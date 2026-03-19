@@ -84,7 +84,6 @@ export class UserEntity {
   @Column({ type: 'timestamp', nullable: true })
   deletedAt!: Date | null;
 
-  // Relations
   @OneToMany(
     () => UserRoleEntity,
     (ur) => ur.user,

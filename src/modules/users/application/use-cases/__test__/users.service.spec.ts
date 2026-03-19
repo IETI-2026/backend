@@ -53,7 +53,6 @@ describe('UsersService', () => {
     service = module.get<UsersService>(UsersService);
     repository = module.get(USER_REPOSITORY);
 
-    // Reset all mocks before each test
     jest.clearAllMocks();
   });
 

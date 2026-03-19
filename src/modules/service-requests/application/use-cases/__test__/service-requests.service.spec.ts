@@ -21,8 +21,6 @@ import { TENANT_DATA_SOURCE } from '@/tenant/tenant-datasource.provider';
 import { ServiceRequestsGateway } from '../../../presentation/gateways/service-requests.gateway';
 import { ServiceRequestsService } from '../service-requests.service';
 
-// ─── helpers ──────────────────────────────────────────────────────────────────
-
 function buildMockRepo() {
   return {
     findOne: jest.fn(),
@@ -35,8 +33,6 @@ function buildMockRepo() {
     createQueryBuilder: jest.fn(),
   };
 }
-
-// ─── fixtures ─────────────────────────────────────────────────────────────────
 
 const USER_ID = 'user-uuid-001';
 const TECH_ID = 'tech-uuid-001';
@@ -72,8 +68,6 @@ function buildFetchMock(categoria = 'plomeria', urgencia = 'media') {
     text: jest.fn().mockResolvedValue(body),
   });
 }
-
-// ─── suite ────────────────────────────────────────────────────────────────────
 
 describe('ServiceRequestsService', () => {
   let service: ServiceRequestsService;
@@ -157,8 +151,6 @@ describe('ServiceRequestsService', () => {
     expect(service).toBeDefined();
   });
 
-  // ─── create ─────────────────────────────────────────────────────────────
-
   describe('create', () => {
     const createDto = {
       userId: USER_ID,
@@ -239,8 +231,6 @@ describe('ServiceRequestsService', () => {
     });
   });
 
-  // ─── findAll ────────────────────────────────────────────────────────────
-
   describe('findAll', () => {
     it('should return paginated service requests', async () => {
       requestRepo.findAndCount.mockResolvedValue([[mockServiceRequest], 1]);
@@ -281,8 +271,6 @@ describe('ServiceRequestsService', () => {
     });
   });
 
-  // ─── findAcceptedTechnicians ────────────────────────────────────────────
-
   describe('findAcceptedTechnicians', () => {
     it('should return the list of accepted technicians for a request', async () => {
       requestRepo.findOne.mockResolvedValue({ id: REQUEST_ID });
@@ -315,8 +303,6 @@ describe('ServiceRequestsService', () => {
       ).rejects.toThrow(NotFoundException);
     });
   });
-
-  // ─── findAvailableForTechnician ─────────────────────────────────────────
 
   describe('findAvailableForTechnician', () => {
     it('should return available requests matching the technician skills', async () => {
@@ -352,8 +338,6 @@ describe('ServiceRequestsService', () => {
       );
     });
   });
-
-  // ─── accept ─────────────────────────────────────────────────────────────
 
   describe('accept', () => {
     const acceptDto = { technicianUserId: TECH_ID };
@@ -438,8 +422,6 @@ describe('ServiceRequestsService', () => {
     });
   });
 
-  // ─── reject ─────────────────────────────────────────────────────────────
-
   describe('reject', () => {
     const rejectDto = { technicianUserId: TECH_ID, reason: 'Not available' };
 
@@ -491,8 +473,6 @@ describe('ServiceRequestsService', () => {
     });
   });
 
-  // ─── chooseTechnician ───────────────────────────────────────────────────
-
   describe('chooseTechnician', () => {
     const chooseDto = { customerUserId: USER_ID, technicianUserId: TECH_ID };
 
@@ -509,7 +489,6 @@ describe('ServiceRequestsService', () => {
       eventRepo.create.mockReturnValue({});
       eventRepo.save.mockResolvedValue({});
       requestRepo.findOneOrFail.mockResolvedValue(mockServiceRequest);
-      // second findOne call inside findByIdOrThrow
       requestRepo.findOne.mockResolvedValue(mockServiceRequest);
 
       const result = await service.chooseTechnician(REQUEST_ID, chooseDto);

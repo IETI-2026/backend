@@ -14,15 +14,12 @@ import {
 } from '../../../domain/repositories';
 import { AuthService } from '../auth.service';
 
-// Keep bcrypt fast and deterministic in unit tests
 jest.mock('bcrypt');
 const mockedBcrypt = bcrypt as jest.Mocked<typeof bcrypt>;
 
 describe('AuthService', () => {
   let service: AuthService;
   let authRepository: jest.Mocked<IAuthRepository>;
-
-  // ─── shared fixtures ───────────────────────────────────────────────────────
 
   const mockUser = {
     id: 'user-uuid-001',
@@ -88,8 +85,6 @@ describe('AuthService', () => {
     get: jest.fn().mockReturnValue('mock-secret'),
   };
 
-  // ─── module setup ──────────────────────────────────────────────────────────
-
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -105,7 +100,6 @@ describe('AuthService', () => {
 
     jest.clearAllMocks();
 
-    // Default stubs – individual tests override as needed
     mockAuthRepository.getUserRoles.mockResolvedValue([RoleName.USER]);
     mockAuthRepository.createRefreshToken.mockResolvedValue(
       mockRefreshTokenRecord as unknown,
@@ -118,8 +112,6 @@ describe('AuthService', () => {
   it('should be defined', () => {
     expect(service).toBeDefined();
   });
-
-  // ─── signUp ────────────────────────────────────────────────────────────────
 
   describe('signUp', () => {
     it('should create a new user and return auth tokens on success', async () => {
@@ -172,8 +164,6 @@ describe('AuthService', () => {
     });
   });
 
-  // ─── login ─────────────────────────────────────────────────────────────────
-
   describe('login', () => {
     it('should return auth tokens when credentials are valid', async () => {
       mockAuthRepository.findUserByEmail.mockResolvedValue(mockUser as unknown);
@@ -220,8 +210,6 @@ describe('AuthService', () => {
       ).rejects.toThrow(UnauthorizedException);
     });
   });
-
-  // ─── refreshToken ──────────────────────────────────────────────────────────
 
   describe('refreshToken', () => {
     it('should return new auth tokens for a valid refresh token', async () => {
@@ -284,8 +272,6 @@ describe('AuthService', () => {
     });
   });
 
-  // ─── logout ────────────────────────────────────────────────────────────────
-
   describe('logout', () => {
     it('should revoke all user sessions and return a success message', async () => {
       mockAuthRepository.revokeAllUserRefreshTokens.mockResolvedValue(
@@ -300,8 +286,6 @@ describe('AuthService', () => {
       expect(result.message).toContain('Logout successful');
     });
   });
-
-  // ─── sendOtp ───────────────────────────────────────────────────────────────
 
   describe('sendOtp', () => {
     it('should invalidate old codes, create a new OTP and return expiry info', async () => {
@@ -335,8 +319,6 @@ describe('AuthService', () => {
       );
     });
   });
-
-  // ─── verifyOtpAndLogin ─────────────────────────────────────────────────────
 
   describe('verifyOtpAndLogin', () => {
     const mockOtp = {
@@ -402,8 +384,6 @@ describe('AuthService', () => {
     });
   });
 
-  // ─── forgotPassword ────────────────────────────────────────────────────────
-
   describe('forgotPassword', () => {
     it('should create a reset token and return a generic message when the email is found', async () => {
       mockAuthRepository.findUserByEmail.mockResolvedValue(mockUser as unknown);
@@ -447,8 +427,6 @@ describe('AuthService', () => {
     });
   });
 
-  // ─── resetPassword ─────────────────────────────────────────────────────────
-
   describe('resetPassword', () => {
     it('should update password hash and mark the token as used on success', async () => {
       mockAuthRepository.findValidPasswordResetToken.mockResolvedValue({
@@ -488,8 +466,6 @@ describe('AuthService', () => {
       ).rejects.toThrow(BadRequestException);
     });
   });
-
-  // ─── changePassword ────────────────────────────────────────────────────────
 
   describe('changePassword', () => {
     it('should update the password when the current password is correct', async () => {
@@ -547,8 +523,6 @@ describe('AuthService', () => {
       ).rejects.toThrow(UnauthorizedException);
     });
   });
-
-  // ─── handleGoogleOAuthCallback ─────────────────────────────────────────────
 
   describe('handleGoogleOAuthCallback', () => {
     const googleProfile = {
@@ -618,8 +592,6 @@ describe('AuthService', () => {
     });
   });
 
-  // ─── validateJwtPayload ────────────────────────────────────────────────────
-
   describe('validateJwtPayload', () => {
     it('should return an enriched payload for an active user', async () => {
       mockAuthRepository.findUserById.mockResolvedValue({
@@ -668,8 +640,6 @@ describe('AuthService', () => {
     });
   });
 
-  // ─── getCurrentUser ────────────────────────────────────────────────────────
-
   describe('getCurrentUser', () => {
     it('should return a full user profile including roles', async () => {
       const userWithRoles = {
@@ -705,8 +675,6 @@ describe('AuthService', () => {
       expect(result.roles).toHaveLength(0);
     });
   });
-
-  // ─── revokeRefreshToken ────────────────────────────────────────────────────
 
   describe('revokeRefreshToken', () => {
     it('should delegate to the repository', async () => {

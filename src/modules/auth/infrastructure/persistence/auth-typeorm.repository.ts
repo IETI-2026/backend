@@ -145,7 +145,6 @@ export class AuthTypeOrmRepository implements IAuthRepository {
     });
     const saved = await r.save(user);
 
-    // Assign default USER role
     await this.assignRoleToUser(saved.id, RoleName.USER);
 
     return saved;

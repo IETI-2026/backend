@@ -57,7 +57,6 @@ export class ServiceRequestEntity {
   @Column('text', { array: true, default: '{}' })
   requestedSkills!: string[];
 
-  // Resultado del procesamiento IA
   @Column({ type: 'varchar', nullable: true })
   aiCategoryId!: string | null;
 
@@ -82,7 +81,6 @@ export class ServiceRequestEntity {
   @Column({ type: 'timestamp', nullable: true })
   aiProcessedAt!: Date | null;
 
-  // Ubicación
   @Column({ type: 'float' })
   latitude!: number;
 
@@ -102,7 +100,6 @@ export class ServiceRequestEntity {
   })
   status!: ServiceRequestStatus;
 
-  // Presupuesto
   @Column({ type: 'decimal', precision: 12, scale: 2, nullable: true })
   budgetMin!: string | null;
 
@@ -136,7 +133,6 @@ export class ServiceRequestEntity {
   @Column({ type: 'text', nullable: true })
   cancellationNote!: string | null;
 
-  // Relations
   @ManyToOne(
     () => UserEntity,
     (u) => u.serviceRequests,
