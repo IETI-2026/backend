@@ -17,12 +17,12 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiConsumes } from '@nestjs/swagger';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
   ApiBody,
   ApiConflictResponse,
+  ApiConsumes,
   ApiCreatedResponse,
   ApiForbiddenResponse,
   ApiNoContentResponse,
@@ -249,9 +249,7 @@ export class UsersController {
 
     const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png'];
     if (!allowedMimeTypes.includes(file.mimetype)) {
-      throw new BadRequestException(
-        'Only JPG, JPEG and PNG files are allowed',
-      );
+      throw new BadRequestException('Only JPG, JPEG and PNG files are allowed');
     }
 
     this.logger.log(

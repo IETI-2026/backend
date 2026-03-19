@@ -40,7 +40,9 @@ describe('UsersService', () => {
     exists: jest.fn(),
   };
 
-  const mockBlobStorageService: jest.Mocked<Pick<BlobStorageService, 'uploadFile'>> = {
+  const mockBlobStorageService: jest.Mocked<
+    Pick<BlobStorageService, 'uploadFile'>
+  > = {
     uploadFile: jest.fn(),
   };
 
