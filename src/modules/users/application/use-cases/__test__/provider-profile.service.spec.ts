@@ -8,8 +8,6 @@ import { AUTH_REPOSITORY } from '../../../../auth/domain/repositories';
 import { VerificationAction } from '../../dtos/verify-provider.dto';
 import { ProviderProfileService } from '../provider-profile.service';
 
-// ─── helpers ──────────────────────────────────────────────────────────────────
-
 function buildMockRepo() {
   return {
     findOne: jest.fn(),
@@ -19,8 +17,6 @@ function buildMockRepo() {
     update: jest.fn(),
   };
 }
-
-// ─── fixtures ─────────────────────────────────────────────────────────────────
 
 const USER_ID = 'user-uuid-001';
 const PROFILE_ID = 'profile-uuid-001';
@@ -46,8 +42,6 @@ const mockProviderProfile = {
 };
 
 const mockUserEntity = { id: USER_ID, skills: ['plomeria'] };
-
-// ─── suite ────────────────────────────────────────────────────────────────────
 
 describe('ProviderProfileService', () => {
   let service: ProviderProfileService;
@@ -113,8 +107,6 @@ describe('ProviderProfileService', () => {
     expect(service).toBeDefined();
   });
 
-  // ─── create ─────────────────────────────────────────────────────────────
-
   describe('create', () => {
     const createDto = {
       bio: 'Experienced plumber',
@@ -165,8 +157,6 @@ describe('ProviderProfileService', () => {
     });
   });
 
-  // ─── findByUserId ────────────────────────────────────────────────────────
-
   describe('findByUserId', () => {
     it('should return the provider profile for an existing user', async () => {
       profileRepo.findOne.mockResolvedValue(mockProviderProfile);
@@ -198,8 +188,6 @@ describe('ProviderProfileService', () => {
       expect(result.skills).toEqual([]);
     });
   });
-
-  // ─── update ──────────────────────────────────────────────────────────────
 
   describe('update', () => {
     it('should update profile fields and return the updated profile', async () => {
@@ -266,8 +254,6 @@ describe('ProviderProfileService', () => {
       ).rejects.toThrow(NotFoundException);
     });
   });
-
-  // ─── verifyProvider ──────────────────────────────────────────────────────
 
   describe('verifyProvider', () => {
     it('should set verification status to VERIFIED when action is APPROVE', async () => {

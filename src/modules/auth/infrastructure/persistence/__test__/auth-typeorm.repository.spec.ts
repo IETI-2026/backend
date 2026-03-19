@@ -12,10 +12,6 @@ import { AuthProvider, RoleName, UserStatus } from '@/database/enums';
 import { TenantContext, TenantDataSourceService } from '@/tenant';
 import { AuthTypeOrmRepository } from '../auth-typeorm.repository';
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 function makeRepo(overrides: Record<string, jest.Mock> = {}) {
   return {
     findOne: jest.fn(),
@@ -71,16 +67,10 @@ function makeUserEntity(partial: Partial<UserEntity> = {}): UserEntity {
   };
 }
 
-// ---------------------------------------------------------------------------
-// Test suite
-// ---------------------------------------------------------------------------
-
 describe('AuthTypeOrmRepository', () => {
   let repository: AuthTypeOrmRepository;
   let tenantContext: jest.Mocked<TenantContext>;
   let tenantDataSourceService: jest.Mocked<TenantDataSourceService>;
-
-  // Per-entity repositories captured per test
   let userRepo: ReturnType<typeof makeRepo>;
   let oauthRepo: ReturnType<typeof makeRepo>;
   let refreshRepo: ReturnType<typeof makeRepo>;
@@ -133,10 +123,6 @@ describe('AuthTypeOrmRepository', () => {
     tenantContext = module.get(TenantContext);
     tenantDataSourceService = module.get(TenantDataSourceService);
   });
-
-  // -------------------------------------------------------------------------
-  // Users
-  // -------------------------------------------------------------------------
 
   describe('findUserByEmail', () => {
     it('returns the user when found', async () => {
@@ -204,8 +190,6 @@ describe('AuthTypeOrmRepository', () => {
       const user = makeUserEntity({ id: 'new-user' });
       userRepo.create.mockReturnValue(user);
       userRepo.save.mockResolvedValue(user);
-
-      // assignRoleToUser path
       const roleEntity: Partial<RoleEntity> = {
         id: 'role-id',
         name: RoleName.USER,
@@ -296,10 +280,6 @@ describe('AuthTypeOrmRepository', () => {
     });
   });
 
-  // -------------------------------------------------------------------------
-  // findUserByPhone
-  // -------------------------------------------------------------------------
-
   describe('findUserByPhone', () => {
     it('returns user when phone matches', async () => {
       const user = makeUserEntity({ phoneNumber: '+57123' });
@@ -319,10 +299,6 @@ describe('AuthTypeOrmRepository', () => {
       expect(result).toBeNull();
     });
   });
-
-  // -------------------------------------------------------------------------
-  // OAuth
-  // -------------------------------------------------------------------------
 
   describe('findOAuthAccount', () => {
     it('returns oauth account when found', async () => {
@@ -394,10 +370,6 @@ describe('AuthTypeOrmRepository', () => {
       );
     });
   });
-
-  // -------------------------------------------------------------------------
-  // Refresh tokens
-  // -------------------------------------------------------------------------
 
   describe('findRefreshToken', () => {
     it('returns token when found', async () => {
@@ -490,10 +462,6 @@ describe('AuthTypeOrmRepository', () => {
     });
   });
 
-  // -------------------------------------------------------------------------
-  // Roles
-  // -------------------------------------------------------------------------
-
   describe('assignRoleToUser', () => {
     it('assigns role when role exists and user does not have it', async () => {
       const role: Partial<RoleEntity> = { id: 'role-id', name: RoleName.ADMIN };
@@ -557,10 +525,6 @@ describe('AuthTypeOrmRepository', () => {
       expect(result).toEqual([]);
     });
   });
-
-  // -------------------------------------------------------------------------
-  // Password reset
-  // -------------------------------------------------------------------------
 
   describe('createPasswordResetToken', () => {
     it('creates and saves a password reset token', async () => {
@@ -649,10 +613,6 @@ describe('AuthTypeOrmRepository', () => {
       );
     });
   });
-
-  // -------------------------------------------------------------------------
-  // OTP codes
-  // -------------------------------------------------------------------------
 
   describe('createOtpCode', () => {
     it('creates and saves an OTP record', async () => {
@@ -780,10 +740,7 @@ describe('AuthTypeOrmRepository', () => {
       );
     });
   });
-
-  // -------------------------------------------------------------------------
-  // Tenant fallback: no tenant ID in context
-  // -------------------------------------------------------------------------
+ 
 
   describe('tenantContext fallback', () => {
     it('falls back to public schema when getTenantId returns undefined', async () => {

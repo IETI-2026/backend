@@ -20,7 +20,6 @@ describe('HealthController', () => {
 
       expect(result).toHaveProperty('timestamp');
       expect(typeof result.timestamp).toBe('string');
-      // Validate ISO 8601 format
       expect(new Date(result.timestamp).toISOString()).toBe(result.timestamp);
     });
 

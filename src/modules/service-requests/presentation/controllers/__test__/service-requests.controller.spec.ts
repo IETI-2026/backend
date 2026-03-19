@@ -12,8 +12,6 @@ import { JwtAuthGuard } from '../../../../auth/infrastructure/guards/jwt-auth.gu
 import { ServiceRequestsService } from '../../../application';
 import { ServiceRequestsController } from '../service-requests.controller';
 
-// ─── shared fixtures ──────────────────────────────────────────────────────────
-
 const mockServiceRequest = {
   id: 'req-uuid-001',
   userId: 'user-uuid-001',
@@ -70,8 +68,6 @@ describe('ServiceRequestsController', () => {
     expect(controller).toBeDefined();
   });
 
-  // ─── findAll ──────────────────────────────────────────────────────────────────
-
   describe('findAll', () => {
     it('should return a paginated list of service requests', async () => {
       const paginatedResult = {
@@ -119,8 +115,6 @@ describe('ServiceRequestsController', () => {
     });
   });
 
-  // ─── findAcceptedTechnicians ──────────────────────────────────────────────────
-
   describe('findAcceptedTechnicians', () => {
     it('should return technicians who accepted a request', async () => {
       mockServiceRequestsService.findAcceptedTechnicians.mockResolvedValue([
@@ -154,8 +148,6 @@ describe('ServiceRequestsController', () => {
       ).rejects.toThrow(NotFoundException);
     });
   });
-
-  // ─── create ───────────────────────────────────────────────────────────────────
 
   describe('create', () => {
     const createDto = {
@@ -194,8 +186,6 @@ describe('ServiceRequestsController', () => {
     });
   });
 
-  // ─── findAvailableForTechnician ───────────────────────────────────────────────
-
   describe('findAvailableForTechnician', () => {
     it('should return available requests matching the technician skills', async () => {
       mockServiceRequestsService.findAvailableForTechnician.mockResolvedValue([
@@ -232,8 +222,6 @@ describe('ServiceRequestsController', () => {
       ).rejects.toThrow(NotFoundException);
     });
   });
-
-  // ─── accept ───────────────────────────────────────────────────────────────────
 
   describe('accept', () => {
     const acceptDto = { technicianUserId: 'tech-uuid-001' };
@@ -277,8 +265,6 @@ describe('ServiceRequestsController', () => {
       ).rejects.toThrow(NotFoundException);
     });
   });
-
-  // ─── reject ───────────────────────────────────────────────────────────────────
 
   describe('reject', () => {
     const rejectDto = {
@@ -324,8 +310,6 @@ describe('ServiceRequestsController', () => {
       ).rejects.toThrow(NotFoundException);
     });
   });
-
-  // ─── chooseTechnician ─────────────────────────────────────────────────────────
 
   describe('chooseTechnician', () => {
     const chooseDto = {

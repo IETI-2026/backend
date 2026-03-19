@@ -6,7 +6,6 @@ import type {
   UserRoleEntity,
 } from '@/database/entities';
 
-// Type for User with populated roles
 export type UserWithRoles = UserEntity & {
   roles: Array<UserRoleEntity & { role: RoleEntity }>;
 };

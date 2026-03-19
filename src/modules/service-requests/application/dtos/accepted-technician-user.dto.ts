@@ -35,6 +35,13 @@ export class AcceptedTechnicianUserDto {
   skills!: string[];
 
   @ApiPropertyOptional({
+    description: 'URL de la foto de perfil del técnico',
+    example: 'https://example.com/photo.jpg',
+    nullable: true,
+  })
+  profilePhotoUrl!: string | null;
+
+  @ApiPropertyOptional({
     description: 'Latitud actual del técnico',
     example: 4.60971,
     nullable: true,

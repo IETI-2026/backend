@@ -19,7 +19,8 @@ import {
   TechnicianResponseStatus,
   UrgencyLevel,
 } from '@/database/enums';
-import { TENANT_DATA_SOURCE, TenantDataSourceService } from '@/tenant';
+import { TENANT_DATA_SOURCE, TenantContext, TenantDataSourceService } from '@/tenant';
+import { ServiceRequestsGateway } from '../../presentation/gateways/service-requests.gateway';
 import {
   type AcceptedTechnicianUserDto,
   type AcceptServiceRequestDto,
@@ -62,6 +63,8 @@ export class ServiceRequestsService {
     dataSource: DataSource,
     private readonly configService: ConfigService,
     private readonly tenantDataSourceService: TenantDataSourceService,
+    private readonly tenantContext: TenantContext,
+    private readonly gateway: ServiceRequestsGateway,
   ) {
     this.requestRepo = dataSource.getRepository(ServiceRequestEntity);
     this.responseRepo = dataSource.getRepository(
@@ -110,7 +113,10 @@ export class ServiceRequestsService {
       relations: ['technicianResponses'],
     });
 
-    return this.toResponse(request);
+    const response = this.toResponse(request);
+    const tenantId = this.tenantContext.getTenantId() ?? 'public';
+    this.gateway.emitNewServiceRequest(tenantId, response);
+    return response;
   }
 
   async findAll(query: GetServiceRequestsQueryDto): Promise<{
@@ -175,6 +181,7 @@ export class ServiceRequestsService {
       email: response.technicianUser.email,
       phoneNumber: response.technicianUser.phoneNumber,
       skills: response.technicianUser.skills,
+      profilePhotoUrl: response.technicianUser.profilePhotoUrl,
       currentLatitude: response.technicianUser.currentLatitude,
       currentLongitude: response.technicianUser.currentLongitude,
       respondedAt: response.respondedAt,
@@ -202,8 +209,6 @@ export class ServiceRequestsService {
     if (normalizedSkills.length === 0) {
       return [];
     }
-
-    // Use query builder for array overlap and NOT EXISTS subquery
     const qb = this.requestRepo
       .createQueryBuilder('sr')
       .leftJoinAndSelect('sr.technicianResponses', 'tr')
@@ -257,8 +262,6 @@ export class ServiceRequestsService {
         `Service request ${serviceRequestId} is not available for acceptance`,
       );
     }
-
-    // Upsert: find existing or create
     let existingResponse = await this.responseRepo.findOne({
       where: { serviceRequestId, technicianUserId: dto.technicianUserId },
     });
@@ -286,6 +289,19 @@ export class ServiceRequestsService {
       metadata: { action: 'TECHNICIAN_ACCEPTED' },
     });
     await this.eventRepo.save(event);
+
+    const technicianPayload: AcceptedTechnicianUserDto = {
+      id: technician.id,
+      fullName: technician.fullName,
+      email: technician.email,
+      phoneNumber: technician.phoneNumber,
+      skills: technician.skills,
+      profilePhotoUrl: technician.profilePhotoUrl,
+      currentLatitude: technician.currentLatitude,
+      currentLongitude: technician.currentLongitude,
+      respondedAt: existingResponse.respondedAt,
+    };
+    this.gateway.emitTechnicianAccepted(serviceRequestId, technicianPayload);
 
     return this.findByIdOrThrow(serviceRequestId);
   }
@@ -323,8 +339,6 @@ export class ServiceRequestsService {
         `Service request ${serviceRequestId} cannot be rejected in status ${request.status}`,
       );
     }
-
-    // Upsert: find existing or create
     let existingResponse = await this.responseRepo.findOne({
       where: { serviceRequestId, technicianUserId: dto.technicianUserId },
     });

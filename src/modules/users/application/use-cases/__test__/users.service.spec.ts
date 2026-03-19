@@ -3,6 +3,7 @@ import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import type { IUserRepository } from '@users/domain';
 import { USER_REPOSITORY, UserStatus } from '@users/domain';
+import { BlobStorageService } from '../../../../../common/services/blob-storage.service';
 import type { CreateUserDto, UpdateUserDto } from '../../dtos';
 import { UsersService } from '../users.service';
 
@@ -39,6 +40,10 @@ describe('UsersService', () => {
     exists: jest.fn(),
   };
 
+  const mockBlobStorageService: jest.Mocked<Pick<BlobStorageService, 'uploadFile'>> = {
+    uploadFile: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -47,13 +52,16 @@ describe('UsersService', () => {
           provide: USER_REPOSITORY,
           useValue: mockUserRepository,
         },
+        {
+          provide: BlobStorageService,
+          useValue: mockBlobStorageService,
+        },
       ],
     }).compile();
 
     service = module.get<UsersService>(UsersService);
     repository = module.get(USER_REPOSITORY);
 
-    // Reset all mocks before each test
     jest.clearAllMocks();
   });
 

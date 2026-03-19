@@ -8,8 +8,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { of } from 'rxjs';
 import { GeocodingService } from '../geocoding.service';
 
-// ─── helpers ─────────────────────────────────────────────────────────────────
-
 function makeAxiosResponse(data: unknown) {
   return of({ data } as unknown);
 }
@@ -21,8 +19,6 @@ const mockHttpService = {
 const mockConfigService = {
   get: jest.fn(),
 };
-
-// ─── shared fixtures ──────────────────────────────────────────────────────────
 
 const bogotaComponents = [
   {
@@ -73,8 +69,6 @@ describe('GeocodingService', () => {
   it('should be defined', () => {
     expect(service).toBeDefined();
   });
-
-  // ─── reverseGeocode ───────────────────────────────────────────────────────────
 
   describe('reverseGeocode', () => {
     it('should return formatted address and tenantCandidate on success', async () => {
@@ -265,8 +259,6 @@ describe('GeocodingService', () => {
       expect(result.tenantCandidate).toBe('colombia');
     });
   });
-
-  // ─── resolveTenant ────────────────────────────────────────────────────────────
 
   describe('resolveTenant', () => {
     it('should return the slugified locality as tenant', async () => {

@@ -14,6 +14,7 @@ import type {
   UpdateUserDto,
 } from '../dtos';
 import { UserResponseDto } from '../dtos';
+import { BlobStorageService } from '../../../../common/services/blob-storage.service';
 
 @Injectable()
 export class UsersService {
@@ -22,6 +23,7 @@ export class UsersService {
   constructor(
     @Inject(USER_REPOSITORY)
     private readonly userRepository: IUserRepository,
+    private readonly blobStorageService: BlobStorageService,
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<UserResponseDto> {
@@ -120,6 +122,15 @@ export class UsersService {
     return this.update(userId, updateProfileDto);
   }
 
+  async uploadProfilePhoto(
+    userId: string,
+    file: Express.Multer.File,
+  ): Promise<UserResponseDto> {
+    this.logger.log(`Uploading profile photo for user: ${userId}`);
+    const photoUrl = await this.blobStorageService.uploadFile(file);
+    return this.updateProfile(userId, { profilePhotoUrl: photoUrl });
+  }
+
   async update(
     id: string,
     updateUserDto: UpdateUserDto,
@@ -136,13 +147,11 @@ export class UsersService {
       };
     }
 
-    // Verificar que el usuario existe
     const existingUser = await this.userRepository.findById(id);
     if (!existingUser) {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
 
-    // Validar unicidad de email si se está actualizando
     if (updateUserDto.email && updateUserDto.email !== existingUser.email) {
       const userWithEmail = await this.userRepository.findByEmail(
         updateUserDto.email,
@@ -152,7 +161,6 @@ export class UsersService {
       }
     }
 
-    // Validar unicidad de teléfono si se está actualizando
     if (
       updateUserDto.phoneNumber &&
       updateUserDto.phoneNumber !== existingUser.phoneNumber
