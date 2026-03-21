@@ -81,11 +81,17 @@ export class UsersService {
     const { page = 0, limit = 10, status } = query;
     const skip = page * limit;
 
+    this.logger.debug(
+      `Fetching users page=${page} limit=${limit} status=${status ?? 'all'}`,
+    );
+
     const { users, total } = await this.userRepository.findAll({
       skip,
       take: limit,
       status,
     });
+
+    this.logger.debug(`Found ${total} users (returned ${users.length})`);
 
     return {
       users: users.map((user) => this.mapToResponse(user)),
@@ -96,9 +102,12 @@ export class UsersService {
   }
 
   async findOne(id: string): Promise<UserResponseDto> {
+    this.logger.debug(`Finding user by ID: ${id}`);
+
     const user = await this.userRepository.findById(id);
 
     if (!user) {
+      this.logger.warn(`User not found with ID: ${id}`);
       throw new NotFoundException(`User with ID ${id} not found`);
     }
 
@@ -106,9 +115,12 @@ export class UsersService {
   }
 
   async findByEmail(email: string): Promise<UserResponseDto> {
+    this.logger.debug(`Finding user by email: ${email}`);
+
     const user = await this.userRepository.findByEmail(email);
 
     if (!user) {
+      this.logger.warn(`User not found with email: ${email}`);
       throw new NotFoundException(`User with email ${email} not found`);
     }
 

@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -21,6 +22,8 @@ import {
 
 @Injectable()
 export class PaymentsService {
+  private readonly logger = new Logger(PaymentsService.name);
+
   constructor(
     @InjectRepository(PaymentEntity)
     private readonly paymentRepository: Repository<PaymentEntity>,
@@ -68,9 +71,16 @@ export class PaymentsService {
     userId: string,
     dto: CreatePaymentMethodDto,
   ): Promise<UserPaymentMethodEntity> {
+    this.logger.log(
+      `Creating payment method type=${dto.methodType} for user=${userId}`,
+    );
+
     const availableMethods = await this.getAvailableMethodsForUser(userId);
 
     if (!availableMethods.includes(dto.methodType)) {
+      this.logger.warn(
+        `Payment method ${dto.methodType} not allowed for user=${userId}`,
+      );
       throw new BadRequestException(
         `Método ${dto.methodType} no habilitado para este usuario`,
       );
@@ -112,13 +122,21 @@ export class PaymentsService {
       isActive: true,
     });
 
-    return this.paymentMethodRepository.save(paymentMethod);
+    const saved = await this.paymentMethodRepository.save(paymentMethod);
+    this.logger.log(
+      `Payment method created id=${saved.id} type=${saved.methodType} user=${userId}`,
+    );
+    return saved;
   }
 
   async setDefaultPaymentMethod(
     userId: string,
     paymentMethodId: string,
   ): Promise<UserPaymentMethodEntity> {
+    this.logger.log(
+      `Setting default payment method id=${paymentMethodId} for user=${userId}`,
+    );
+
     const paymentMethod = await this.paymentMethodRepository.findOne({
       where: { id: paymentMethodId, userId, isActive: true },
     });
@@ -133,13 +151,21 @@ export class PaymentsService {
     );
 
     paymentMethod.isDefault = true;
-    return this.paymentMethodRepository.save(paymentMethod);
+    const saved = await this.paymentMethodRepository.save(paymentMethod);
+    this.logger.log(
+      `Default payment method updated to id=${paymentMethodId} for user=${userId}`,
+    );
+    return saved;
   }
 
   async disablePaymentMethod(
     userId: string,
     paymentMethodId: string,
   ): Promise<void> {
+    this.logger.log(
+      `Disabling payment method id=${paymentMethodId} for user=${userId}`,
+    );
+
     const paymentMethod = await this.paymentMethodRepository.findOne({
       where: { id: paymentMethodId, userId, isActive: true },
     });
@@ -151,6 +177,9 @@ export class PaymentsService {
     paymentMethod.isActive = false;
     paymentMethod.isDefault = false;
     await this.paymentMethodRepository.save(paymentMethod);
+    this.logger.log(
+      `Payment method disabled id=${paymentMethodId} for user=${userId}`,
+    );
   }
 
   async getMyPayments(userId: string): Promise<PaymentEntity[]> {
@@ -164,6 +193,10 @@ export class PaymentsService {
     userId: string,
     dto: CreatePaymentDto,
   ): Promise<PaymentEntity> {
+    this.logger.log(
+      `Creating payment for serviceRequest=${dto.serviceRequestId} user=${userId} grossAmount=${dto.grossAmount}`,
+    );
+
     const serviceRequest = await this.serviceRequestRepository.findOne({
       where: { id: dto.serviceRequestId },
       select: ['id', 'userId'],
@@ -245,7 +278,11 @@ export class PaymentsService {
       receiptUrl: null,
     });
 
-    return this.paymentRepository.save(payment);
+    const savedPayment = await this.paymentRepository.save(payment);
+    this.logger.log(
+      `Payment created id=${savedPayment.id} method=${savedPayment.paymentMethod} status=${savedPayment.status} net=${savedPayment.netAmount}`,
+    );
+    return savedPayment;
   }
 
   async updatePaymentStatus(
@@ -253,6 +290,10 @@ export class PaymentsService {
     paymentId: string,
     dto: UpdatePaymentStatusDto,
   ): Promise<PaymentEntity> {
+    this.logger.log(
+      `Updating payment status id=${paymentId} newStatus=${dto.status} user=${userId}`,
+    );
+
     const payment = await this.paymentRepository.findOne({
       where: { id: paymentId },
     });
@@ -286,6 +327,10 @@ export class PaymentsService {
       payment.receiptUrl = dto.receiptUrl.trim();
     }
 
-    return this.paymentRepository.save(payment);
+    const updated = await this.paymentRepository.save(payment);
+    this.logger.log(
+      `Payment status updated id=${paymentId} status=${payment.status}`,
+    );
+    return updated;
   }
 }

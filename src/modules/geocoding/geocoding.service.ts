@@ -3,6 +3,7 @@ import {
   BadRequestException,
   Injectable,
   InternalServerErrorException,
+  Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { lastValueFrom } from 'rxjs';
@@ -29,6 +30,8 @@ export interface GoogleGeocodeResponse {
 
 @Injectable()
 export class GeocodingService {
+  private readonly logger = new Logger(GeocodingService.name);
+
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
@@ -38,10 +41,13 @@ export class GeocodingService {
     const apiKey = this.configService.get<string>('googleMaps.apiKey');
 
     if (!apiKey) {
+      this.logger.error('Google Maps API key is not configured');
       throw new InternalServerErrorException(
         'Google Maps API key is not configured',
       );
     }
+
+    this.logger.debug(`Reverse geocoding lat=${params.lat} lng=${params.lng}`);
 
     const url = 'https://maps.googleapis.com/maps/api/geocode/json';
 
@@ -59,6 +65,9 @@ export class GeocodingService {
     if (!payload || payload.status !== 'OK' || payload.results.length === 0) {
       const reason =
         payload?.error_message || payload?.status || 'Unknown error';
+      this.logger.warn(
+        `Google Maps could not resolve address for lat=${params.lat} lng=${params.lng}: ${reason}`,
+      );
       throw new BadRequestException(
         `Google Maps could not resolve the address: ${reason}`,
       );
@@ -67,6 +76,10 @@ export class GeocodingService {
     const primary = payload.results[0];
     const tenantCandidate = this.deriveTenantCandidate(
       primary.address_components,
+    );
+
+    this.logger.log(
+      `Reverse geocode resolved: "${primary.formatted_address}" → tenant="${tenantCandidate ?? 'public'}"`,
     );
 
     return {
