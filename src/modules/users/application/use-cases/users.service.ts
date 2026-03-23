@@ -7,6 +7,8 @@ import {
 } from '@nestjs/common';
 import type { IUserRepository } from '@users/domain';
 import { USER_REPOSITORY, UserStatus } from '@users/domain';
+import { UserEntity as DbUserEntity } from '@/database/entities';
+import { TenantDataSourceService } from '@/tenant';
 import { BlobStorageService } from '../../../../common/services/blob-storage.service';
 import type {
   CreateUserDto,
@@ -24,6 +26,7 @@ export class UsersService {
     @Inject(USER_REPOSITORY)
     private readonly userRepository: IUserRepository,
     private readonly blobStorageService: BlobStorageService,
+    private readonly tenantDataSourceService: TenantDataSourceService,
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<UserResponseDto> {
@@ -215,6 +218,22 @@ export class UsersService {
     this.logger.log(`User hard deleted successfully with ID: ${id}`);
   }
 
+  async updateLocation(
+    userId: string,
+    latitude: number,
+    longitude: number,
+  ): Promise<void> {
+    this.logger.log(`Updating location for user: ${userId}`);
+    const locationData = {
+      currentLatitude: latitude,
+      currentLongitude: longitude,
+      lastLocationUpdate: new Date(),
+    };
+    await this.userRepository.update(userId, locationData);
+    const publicDs = await this.tenantDataSourceService.getDataSource('public');
+    await publicDs.getRepository(DbUserEntity).update(userId, locationData);
+  }
+
   private mapToResponse(user: {
     id: string;
     email: string | null;
@@ -229,6 +248,7 @@ export class UsersService {
     status: UserStatus;
     emailVerified: boolean;
     phoneVerified: boolean;
+    servicesCount: number;
     createdAt: Date;
     updatedAt: Date;
     lastLoginAt: Date | null;
@@ -247,6 +267,7 @@ export class UsersService {
     response.status = user.status;
     response.emailVerified = user.emailVerified;
     response.phoneVerified = user.phoneVerified;
+    response.servicesCount = user.servicesCount ?? 0;
     response.createdAt = user.createdAt;
     response.updatedAt = user.updatedAt;
     response.lastLoginAt = user.lastLoginAt;

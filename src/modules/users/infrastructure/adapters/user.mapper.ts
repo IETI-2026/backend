@@ -22,6 +22,7 @@ export function toDomain(dbUser: DbUserEntity): UserEntity {
     status: dbUser.status as UserStatus,
     emailVerified: dbUser.emailVerified,
     phoneVerified: dbUser.phoneVerified,
+    servicesCount: dbUser.servicesCount ?? 0,
     createdAt: dbUser.createdAt,
     updatedAt: dbUser.updatedAt,
     lastLoginAt: dbUser.lastLoginAt,

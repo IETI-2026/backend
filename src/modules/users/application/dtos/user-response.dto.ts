@@ -107,6 +107,12 @@ export class UserResponseDto {
   })
   updatedAt!: Date;
 
+  @ApiProperty({
+    description: 'Cantidad de servicios completados',
+    example: 5,
+  })
+  servicesCount!: number;
+
   @ApiPropertyOptional({
     description: 'Fecha y hora del último login',
     example: '2024-01-25T08:15:00Z',

@@ -42,10 +42,22 @@ import {
   UserResponseDto,
   UsersService,
 } from '@users/application';
+import { Type } from 'class-transformer';
+import { IsNumber } from 'class-validator';
 import { RoleName } from '@/database/enums';
 import { JwtPayloadEntity } from '../../../auth/domain/entities';
 import { CurrentUser, Roles } from '../../../auth/infrastructure/decorators';
 import { JwtAuthGuard, RolesGuard } from '../../../auth/infrastructure/guards';
+
+class UpdateLocationDto {
+  @IsNumber()
+  @Type(() => Number)
+  latitude!: number;
+
+  @IsNumber()
+  @Type(() => Number)
+  longitude!: number;
+}
 
 @ApiTags('users')
 @Controller('users')
@@ -207,6 +219,22 @@ export class UsersController {
     return await this.usersService.updateProfile(
       currentUser.sub,
       updateProfileDto,
+    );
+  }
+
+  @Patch('me/location')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Actualizar ubicación del usuario autenticado' })
+  async updateMyLocation(
+    @CurrentUser() currentUser: JwtPayloadEntity,
+    @Body() dto: UpdateLocationDto,
+  ): Promise<void> {
+    if (!currentUser.sub)
+      throw new UnauthorizedException('User ID not available');
+    await this.usersService.updateLocation(
+      currentUser.sub,
+      dto.latitude,
+      dto.longitude,
     );
   }
 

@@ -3,6 +3,7 @@ import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import type { IUserRepository } from '@users/domain';
 import { USER_REPOSITORY, UserStatus } from '@users/domain';
+import { TenantDataSourceService } from '@/tenant';
 import { BlobStorageService } from '../../../../../common/services/blob-storage.service';
 import type { CreateUserDto, UpdateUserDto } from '../../dtos';
 import { UsersService } from '../users.service';
@@ -46,6 +47,12 @@ describe('UsersService', () => {
     uploadFile: jest.fn(),
   };
 
+  const mockTenantDataSourceService: jest.Mocked<
+    Pick<TenantDataSourceService, 'getDataSource'>
+  > = {
+    getDataSource: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -57,6 +64,10 @@ describe('UsersService', () => {
         {
           provide: BlobStorageService,
           useValue: mockBlobStorageService,
+        },
+        {
+          provide: TenantDataSourceService,
+          useValue: mockTenantDataSourceService,
         },
       ],
     }).compile();
