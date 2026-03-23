@@ -453,14 +453,6 @@ export class ServiceRequestsService {
   ): Promise<ServiceRequestResponseDto> {
     const request = await this.requestRepo.findOne({
       where: { id: serviceRequestId },
-      select: [
-        'id',
-        'userId',
-        'assignedTechnicianId',
-        'status',
-        'clientMarkedComplete',
-        'technicianMarkedComplete',
-      ],
     });
 
     if (!request) {
@@ -521,6 +513,14 @@ export class ServiceRequestsService {
         { id: request.assignedTechnicianId },
         'servicesCount',
         1,
+      );
+      const updatedTech = await this.tenantUserRepo.findOne({
+        where: { id: request.assignedTechnicianId },
+        select: ['servicesCount'],
+      });
+      this.gateway.emitTechnicianStatsUpdated(
+        request.assignedTechnicianId,
+        updatedTech?.servicesCount ?? 0,
       );
     }
 
