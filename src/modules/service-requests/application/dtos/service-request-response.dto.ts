@@ -80,6 +80,24 @@ export class ServiceRequestResponseDto {
   })
   technicianResponses!: TechnicianResponseDto[];
 
+  @ApiPropertyOptional({
+    description: 'Fecha en que el servicio pasó a IN_PROGRESS',
+    type: 'string',
+    format: 'date-time',
+    nullable: true,
+  })
+  startedAt!: Date | null;
+
+  @ApiProperty({
+    description: 'Indica si el cliente marcó el servicio como finalizado',
+  })
+  clientMarkedComplete!: boolean;
+
+  @ApiProperty({
+    description: 'Indica si el técnico marcó el servicio como finalizado',
+  })
+  technicianMarkedComplete!: boolean;
+
   @ApiProperty({
     description: 'Fecha de creación de la solicitud',
     type: 'string',

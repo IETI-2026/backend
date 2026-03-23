@@ -138,6 +138,8 @@ describe('ServiceRequestsService', () => {
           useValue: {
             emitNewServiceRequest: jest.fn(),
             emitTechnicianAccepted: jest.fn(),
+            emitLocationUpdated: jest.fn(),
+            emitServiceStatusUpdated: jest.fn(),
           },
         },
       ],
@@ -497,7 +499,7 @@ describe('ServiceRequestsService', () => {
         REQUEST_ID,
         expect.objectContaining({
           assignedTechnicianId: TECH_ID,
-          status: ServiceRequestStatus.ASSIGNED,
+          status: ServiceRequestStatus.ON_THE_WAY,
         }),
       );
       expect(result.id).toBe(REQUEST_ID);

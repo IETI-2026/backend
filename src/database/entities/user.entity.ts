@@ -78,6 +78,9 @@ export class UserEntity {
   @UpdateDateColumn()
   updatedAt!: Date;
 
+  @Column({ type: 'int', default: 0 })
+  servicesCount!: number;
+
   @Column({ type: 'timestamp', nullable: true })
   lastLoginAt!: Date | null;
 

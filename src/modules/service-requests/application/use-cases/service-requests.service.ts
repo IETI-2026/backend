@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Inject,
   Injectable,
@@ -31,6 +32,7 @@ import {
   type ChooseTechnicianDto,
   type CreateServiceRequestDto,
   type GetServiceRequestsQueryDto,
+  type MarkCompleteDto,
   type RejectServiceRequestDto,
   ServiceRequestResponseDto,
 } from '../dtos';
@@ -424,14 +426,14 @@ export class ServiceRequestsService {
 
     await this.requestRepo.update(serviceRequestId, {
       assignedTechnicianId: dto.technicianUserId,
-      status: ServiceRequestStatus.ASSIGNED,
+      status: ServiceRequestStatus.ON_THE_WAY,
       assignedAt: new Date(),
     });
 
     const event = this.eventRepo.create({
       serviceRequestId,
       previousStatus: ServiceRequestStatus.REQUESTED,
-      newStatus: ServiceRequestStatus.ASSIGNED,
+      newStatus: ServiceRequestStatus.ON_THE_WAY,
       triggeredBy: dto.customerUserId,
       metadata: {
         action: 'CUSTOMER_SELECTED_TECHNICIAN',
@@ -440,7 +442,223 @@ export class ServiceRequestsService {
     });
     await this.eventRepo.save(event);
 
-    return this.findByIdOrThrow(serviceRequestId);
+    const updated = await this.findByIdOrThrow(serviceRequestId);
+    this.gateway.emitServiceStatusUpdated(serviceRequestId, updated.status);
+    return updated;
+  }
+
+  async markComplete(
+    serviceRequestId: string,
+    dto: MarkCompleteDto,
+  ): Promise<ServiceRequestResponseDto> {
+    const request = await this.requestRepo.findOne({
+      where: { id: serviceRequestId },
+      select: [
+        'id',
+        'userId',
+        'assignedTechnicianId',
+        'status',
+        'clientMarkedComplete',
+        'technicianMarkedComplete',
+      ],
+    });
+
+    if (!request) {
+      throw new NotFoundException(
+        `Service request with ID ${serviceRequestId} not found`,
+      );
+    }
+
+    if (
+      request.status !== ServiceRequestStatus.ON_THE_WAY &&
+      request.status !== ServiceRequestStatus.IN_PROGRESS
+    ) {
+      throw new BadRequestException(
+        `Service request ${serviceRequestId} cannot be marked complete in status ${request.status}`,
+      );
+    }
+
+    if (dto.role === 'client' && request.userId !== dto.userId) {
+      throw new BadRequestException(
+        `User ${dto.userId} is not the client of this service request`,
+      );
+    }
+
+    if (
+      dto.role === 'technician' &&
+      request.assignedTechnicianId !== dto.userId
+    ) {
+      throw new BadRequestException(
+        `User ${dto.userId} is not the assigned technician of this service request`,
+      );
+    }
+
+    const bothComplete =
+      (dto.role === 'client' ? true : request.clientMarkedComplete) &&
+      (dto.role === 'technician' ? true : request.technicianMarkedComplete);
+
+    const updatePayload: Record<string, unknown> = {};
+    if (dto.role === 'client') {
+      updatePayload.clientMarkedComplete = true;
+    } else {
+      updatePayload.technicianMarkedComplete = true;
+    }
+    if (bothComplete) {
+      updatePayload.status = ServiceRequestStatus.COMPLETED;
+      updatePayload.completedAt = new Date();
+    }
+
+    await this.requestRepo.update(serviceRequestId, updatePayload);
+
+    if (bothComplete && request.assignedTechnicianId) {
+      await this.tenantUserRepo.increment(
+        { id: request.assignedTechnicianId },
+        'servicesCount',
+        1,
+      );
+      const publicUserRepo = await this.getPublicUserRepo();
+      await publicUserRepo.increment(
+        { id: request.assignedTechnicianId },
+        'servicesCount',
+        1,
+      );
+    }
+
+    const event = this.eventRepo.create({
+      serviceRequestId,
+      previousStatus: request.status,
+      newStatus: bothComplete ? ServiceRequestStatus.COMPLETED : request.status,
+      triggeredBy: dto.userId,
+      metadata: { action: `${dto.role.toUpperCase()}_MARKED_COMPLETE` },
+    });
+    await this.eventRepo.save(event);
+
+    const updated = await this.findByIdOrThrow(serviceRequestId);
+    this.gateway.emitServiceStatusUpdated(serviceRequestId, updated.status);
+    return updated;
+  }
+
+  async updateUserLocation(
+    userId: string,
+    latitude: number,
+    longitude: number,
+  ): Promise<void> {
+    const locationData = {
+      currentLatitude: latitude,
+      currentLongitude: longitude,
+      lastLocationUpdate: new Date(),
+    };
+    await this.tenantUserRepo.update(userId, locationData);
+    const publicUserRepo = await this.getPublicUserRepo();
+    await publicUserRepo.update(userId, locationData);
+
+    const activeRequest = await this.requestRepo.findOne({
+      where: [
+        {
+          userId,
+          status: ServiceRequestStatus.ON_THE_WAY,
+        },
+        {
+          assignedTechnicianId: userId,
+          status: ServiceRequestStatus.ON_THE_WAY,
+        },
+        {
+          userId,
+          status: ServiceRequestStatus.IN_PROGRESS,
+        },
+        {
+          assignedTechnicianId: userId,
+          status: ServiceRequestStatus.IN_PROGRESS,
+        },
+      ],
+      select: [
+        'id',
+        'userId',
+        'assignedTechnicianId',
+        'status',
+        'latitude',
+        'longitude',
+      ],
+      relations: [],
+    });
+
+    if (!activeRequest) return;
+
+    const isClient = activeRequest.userId === userId;
+    this.gateway.emitLocationUpdated(activeRequest.id, {
+      userId,
+      role: isClient ? 'client' : 'technician',
+      latitude,
+      longitude,
+    });
+
+    if (activeRequest.status === ServiceRequestStatus.ON_THE_WAY) {
+      const client = await this.tenantUserRepo.findOne({
+        where: { id: activeRequest.userId },
+        select: ['id', 'currentLatitude', 'currentLongitude'],
+      });
+      const technician = await this.tenantUserRepo.findOne({
+        where: { id: activeRequest.assignedTechnicianId ?? '' },
+        select: ['id', 'currentLatitude', 'currentLongitude'],
+      });
+
+      const clientLat = client?.currentLatitude ?? activeRequest.latitude;
+      const clientLng = client?.currentLongitude ?? activeRequest.longitude;
+      const techLat = technician?.currentLatitude ?? null;
+      const techLng = technician?.currentLongitude ?? null;
+
+      if (techLat !== null && techLng !== null) {
+        const distance = this.haversineDistance(
+          clientLat,
+          clientLng,
+          techLat,
+          techLng,
+        );
+
+        if (distance <= 100) {
+          await this.requestRepo.update(activeRequest.id, {
+            status: ServiceRequestStatus.IN_PROGRESS,
+            startedAt: new Date(),
+          });
+
+          const event = this.eventRepo.create({
+            serviceRequestId: activeRequest.id,
+            previousStatus: ServiceRequestStatus.ON_THE_WAY,
+            newStatus: ServiceRequestStatus.IN_PROGRESS,
+            triggeredBy: userId,
+            metadata: {
+              action: 'PROXIMITY_TRIGGERED',
+              distanceMeters: distance,
+            },
+          });
+          await this.eventRepo.save(event);
+
+          this.gateway.emitServiceStatusUpdated(
+            activeRequest.id,
+            ServiceRequestStatus.IN_PROGRESS,
+          );
+        }
+      }
+    }
+  }
+
+  private haversineDistance(
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number,
+  ): number {
+    const R = 6371000;
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
   }
 
   private async findByIdOrThrow(
@@ -670,6 +888,9 @@ export class ServiceRequestsService {
     latitude: number;
     longitude: number;
     addressText: string;
+    startedAt?: Date | null;
+    clientMarkedComplete?: boolean;
+    technicianMarkedComplete?: boolean;
     createdAt: Date;
     updatedAt: Date;
     technicianResponses: {
@@ -690,6 +911,10 @@ export class ServiceRequestsService {
     response.longitude = request.longitude;
     response.addressText = request.addressText;
     response.serviceCity = request.serviceCity;
+    response.startedAt = request.startedAt ?? null;
+    response.clientMarkedComplete = request.clientMarkedComplete ?? false;
+    response.technicianMarkedComplete =
+      request.technicianMarkedComplete ?? false;
     response.technicianResponses = request.technicianResponses.map((item) => ({
       technicianUserId: item.technicianUserId,
       status: item.status,

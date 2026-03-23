@@ -133,6 +133,12 @@ export class ServiceRequestEntity {
   @Column({ type: 'text', nullable: true })
   cancellationNote!: string | null;
 
+  @Column({ type: 'boolean', default: false })
+  clientMarkedComplete!: boolean;
+
+  @Column({ type: 'boolean', default: false })
+  technicianMarkedComplete!: boolean;
+
   @ManyToOne(
     () => UserEntity,
     (u) => u.serviceRequests,

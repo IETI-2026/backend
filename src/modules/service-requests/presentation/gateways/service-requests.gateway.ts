@@ -78,4 +78,25 @@ export class ServiceRequestsGateway
     this.server.to(room).emit('technician_accepted', technician);
     this.logger.log(`Emitted technician_accepted to room ${room}`);
   }
+
+  emitLocationUpdated(
+    requestId: string,
+    data: {
+      userId: string;
+      role: string;
+      latitude: number;
+      longitude: number;
+    },
+  ): void {
+    const room = `request_${requestId}`;
+    this.server.to(room).emit('location_updated', data);
+  }
+
+  emitServiceStatusUpdated(requestId: string, status: string): void {
+    const room = `request_${requestId}`;
+    this.server.to(room).emit('service_status_updated', { requestId, status });
+    this.logger.log(
+      `Emitted service_status_updated to room ${room}: ${status}`,
+    );
+  }
 }

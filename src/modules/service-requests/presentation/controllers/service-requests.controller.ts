@@ -31,9 +31,11 @@ import {
   ChooseTechnicianDto,
   CreateServiceRequestDto,
   GetServiceRequestsQueryDto,
+  MarkCompleteDto,
   RejectServiceRequestDto,
   ServiceRequestResponseDto,
   ServiceRequestsService,
+  UpdateLocationDto,
 } from '../../application';
 
 @ApiTags('service-requests')
@@ -251,6 +253,61 @@ export class ServiceRequestsController {
       id,
       rejectServiceRequestDto,
     );
+  }
+
+  @Patch(':id/mark-complete')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Marcar servicio como finalizado',
+    description:
+      'Permite al cliente o técnico marcar el servicio como finalizado. Cuando ambos lo marquen, el estado cambia a COMPLETED.',
+  })
+  @ApiParam({
+    name: 'id',
+    type: 'string',
+    description: 'ID de la solicitud de servicio',
+  })
+  @ApiOkResponse({
+    description: 'Marcado como finalizado exitosamente',
+    type: ServiceRequestResponseDto,
+  })
+  async markComplete(
+    @Param('id') id: string,
+    @Body() markCompleteDto: MarkCompleteDto,
+  ): Promise<ServiceRequestResponseDto> {
+    this.logger.log(
+      `PATCH /service-requests/${id}/mark-complete - Marking complete`,
+    );
+    return await this.serviceRequestsService.markComplete(id, markCompleteDto);
+  }
+
+  @Patch(':id/update-location')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Actualizar ubicación del usuario en el servicio',
+    description:
+      'Actualiza la ubicación del usuario y emite eventos en tiempo real. Detecta proximidad para cambiar estado a IN_PROGRESS.',
+  })
+  @ApiParam({
+    name: 'id',
+    type: 'string',
+    description:
+      'ID de la solicitud de servicio (usado para el contexto del tenant)',
+  })
+  @ApiOkResponse({ description: 'Ubicación actualizada exitosamente' })
+  async updateLocation(
+    @Param('id') id: string,
+    @Body() updateLocationDto: UpdateLocationDto,
+  ): Promise<{ message: string }> {
+    this.logger.log(
+      `PATCH /service-requests/${id}/update-location - Updating location`,
+    );
+    await this.serviceRequestsService.updateUserLocation(
+      updateLocationDto.userId,
+      updateLocationDto.latitude,
+      updateLocationDto.longitude,
+    );
+    return { message: 'Location updated' };
   }
 
   @Patch(':id/choose-technician')
