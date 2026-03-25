@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
+import { BlobStorageService } from '@/common/services/blob-storage.service';
 import {
   ServiceRequestEntity,
   ServiceRequestEventEntity,
@@ -140,6 +141,13 @@ describe('ServiceRequestsService', () => {
             emitTechnicianAccepted: jest.fn(),
             emitLocationUpdated: jest.fn(),
             emitServiceStatusUpdated: jest.fn(),
+          },
+        },
+        {
+          provide: BlobStorageService,
+          useValue: {
+            uploadFile: jest.fn(),
+            uploadBuffer: jest.fn(),
           },
         },
       ],

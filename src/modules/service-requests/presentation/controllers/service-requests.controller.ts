@@ -100,6 +100,28 @@ export class ServiceRequestsController {
     return await this.serviceRequestsService.findAll(query);
   }
 
+  @Get(':id')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Obtener solicitud por ID',
+    description:
+      'Retorna una solicitud de servicio con todos sus detalles incluyendo resumen del servicio',
+  })
+  @ApiParam({
+    name: 'id',
+    type: 'string',
+    description: 'ID de la solicitud de servicio',
+  })
+  @ApiOkResponse({
+    description: 'Solicitud obtenida exitosamente',
+    type: ServiceRequestResponseDto,
+  })
+  @ApiNotFoundResponse({ description: 'Solicitud no encontrada' })
+  async findById(@Param('id') id: string): Promise<ServiceRequestResponseDto> {
+    this.logger.log(`GET /service-requests/${id} - Getting request by ID`);
+    return await this.serviceRequestsService.findById(id);
+  }
+
   @Get(':id/accepted-technicians')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -308,6 +330,29 @@ export class ServiceRequestsController {
       updateLocationDto.longitude,
     );
     return { message: 'Location updated' };
+  }
+
+  @Get(':id/receipt')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Obtener URL del recibo PDF del servicio',
+    description:
+      'Retorna la URL del recibo PDF en el blob storage. Si aún no fue generado, lo genera y lo sube automáticamente.',
+  })
+  @ApiParam({
+    name: 'id',
+    type: 'string',
+    description: 'ID de la solicitud de servicio',
+  })
+  @ApiOkResponse({ description: 'URL del recibo retornada exitosamente' })
+  @ApiNotFoundResponse({ description: 'Solicitud no encontrada' })
+  async getReceipt(@Param('id') id: string): Promise<{ url: string }> {
+    this.logger.log(
+      `GET /service-requests/${id}/receipt - Fetching receipt URL`,
+    );
+    const { url } =
+      await this.serviceRequestsService.generateServiceSummaryPdf(id);
+    return { url };
   }
 
   @Patch(':id/choose-technician')

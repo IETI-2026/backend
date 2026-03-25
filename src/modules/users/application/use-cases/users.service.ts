@@ -142,7 +142,14 @@ export class UsersService {
     file: Express.Multer.File,
   ): Promise<UserResponseDto> {
     this.logger.log(`Uploading profile photo for user: ${userId}`);
-    const photoUrl = await this.blobStorageService.uploadFile(file);
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new NotFoundException(`User with ID ${userId} not found`);
+    }
+    const photoUrl = await this.blobStorageService.uploadFile(
+      file,
+      user.email ?? undefined,
+    );
     return this.updateProfile(userId, { profilePhotoUrl: photoUrl });
   }
 

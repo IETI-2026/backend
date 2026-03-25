@@ -139,6 +139,12 @@ export class ServiceRequestEntity {
   @Column({ type: 'boolean', default: false })
   technicianMarkedComplete!: boolean;
 
+  @Column({ type: 'text', nullable: true })
+  receiptUrl!: string | null;
+
+  @Column({ type: 'float', nullable: true })
+  displacementDistanceKm!: number | null;
+
   @ManyToOne(
     () => UserEntity,
     (u) => u.serviceRequests,
