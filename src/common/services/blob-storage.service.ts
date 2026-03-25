@@ -16,17 +16,39 @@ export class BlobStorageService {
     return blobServiceClient.getContainerClient(this.containerName);
   }
 
-  async uploadFile(file: Express.Multer.File): Promise<string> {
+  async uploadFile(
+    file: Express.Multer.File,
+    userEmail?: string,
+  ): Promise<string> {
     const containerClient = this.getContainerClient();
     const ext = file.originalname.split('.').pop()?.toLowerCase() ?? 'jpg';
-    const blobName = `${crypto.randomUUID()}.${ext}`;
+    const fileName = `${crypto.randomUUID()}.${ext}`;
+    const blobName = userEmail ? `${userEmail}/${fileName}` : fileName;
     const blockBlobClient = containerClient.getBlockBlobClient(blobName);
 
     await blockBlobClient.uploadData(file.buffer, {
       blobHTTPHeaders: { blobContentType: file.mimetype },
     });
 
-    this.logger.log(`Uploaded profile photo: ${blobName}`);
+    this.logger.log(`Uploaded file: ${blobName}`);
+    return blockBlobClient.url;
+  }
+
+  async uploadBuffer(
+    buffer: Buffer,
+    fileName: string,
+    contentType: string,
+    userEmail?: string,
+  ): Promise<string> {
+    const containerClient = this.getContainerClient();
+    const blobName = userEmail ? `${userEmail}/${fileName}` : fileName;
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+
+    await blockBlobClient.uploadData(buffer, {
+      blobHTTPHeaders: { blobContentType: contentType },
+    });
+
+    this.logger.log(`Uploaded buffer: ${blobName}`);
     return blockBlobClient.url;
   }
 }

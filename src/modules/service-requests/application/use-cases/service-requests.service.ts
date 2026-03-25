@@ -8,7 +8,9 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import PDFDocument from 'pdfkit';
 import { DataSource, Repository } from 'typeorm';
+import { BlobStorageService } from '@/common/services/blob-storage.service';
 import {
   UserEntity as DbUserEntity,
   ServiceRequestEntity,
@@ -71,6 +73,7 @@ export class ServiceRequestsService {
     private readonly tenantDataSourceService: TenantDataSourceService,
     private readonly tenantContext: TenantContext,
     private readonly gateway: ServiceRequestsGateway,
+    private readonly blobStorageService: BlobStorageService,
   ) {
     this.requestRepo = dataSource.getRepository(ServiceRequestEntity);
     this.responseRepo = dataSource.getRepository(
@@ -125,6 +128,10 @@ export class ServiceRequestsService {
     return response;
   }
 
+  async findById(serviceRequestId: string): Promise<ServiceRequestResponseDto> {
+    return this.findByIdOrThrow(serviceRequestId);
+  }
+
   async findAll(query: GetServiceRequestsQueryDto): Promise<{
     requests: ServiceRequestResponseDto[];
     total: number;
@@ -147,7 +154,7 @@ export class ServiceRequestsService {
       skip: page * limit,
       take: limit,
       order: { createdAt: 'DESC' },
-      relations: ['technicianResponses'],
+      relations: ['technicianResponses', 'assignedTechnician'],
     });
 
     return {
@@ -218,6 +225,7 @@ export class ServiceRequestsService {
     const qb = this.requestRepo
       .createQueryBuilder('sr')
       .leftJoinAndSelect('sr.technicianResponses', 'tr')
+      .leftJoinAndSelect('sr.assignedTechnician', 'at')
       .where('sr.status = :status', { status: ServiceRequestStatus.REQUESTED })
       .andWhere('sr."requestedSkills" && :skills', { skills: normalizedSkills })
       .andWhere(
@@ -386,7 +394,7 @@ export class ServiceRequestsService {
   ): Promise<ServiceRequestResponseDto> {
     const request = await this.requestRepo.findOne({
       where: { id: serviceRequestId },
-      select: ['id', 'userId', 'status'],
+      select: ['id', 'userId', 'status', 'latitude', 'longitude'],
     });
 
     if (!request) {
@@ -424,10 +432,32 @@ export class ServiceRequestsService {
       );
     }
 
+    const publicUserRepo = await this.getPublicUserRepo();
+    const technician = await publicUserRepo.findOne({
+      where: { id: dto.technicianUserId },
+      select: ['id', 'currentLatitude', 'currentLongitude'],
+    });
+
+    let displacementDistanceKm: number | null = null;
+    if (
+      technician?.currentLatitude != null &&
+      technician?.currentLongitude != null
+    ) {
+      const distanceMeters = this.haversineDistance(
+        request.latitude,
+        request.longitude,
+        technician.currentLatitude ?? 0,
+        technician.currentLongitude ?? 0,
+      );
+      displacementDistanceKm = Math.round((distanceMeters / 1000) * 10) / 10;
+    }
+
     await this.requestRepo.update(serviceRequestId, {
       assignedTechnicianId: dto.technicianUserId,
       status: ServiceRequestStatus.ON_THE_WAY,
       assignedAt: new Date(),
+      displacementDistanceKm,
+      finalPrice: '58000',
     });
 
     const event = this.eventRepo.create({
@@ -453,14 +483,6 @@ export class ServiceRequestsService {
   ): Promise<ServiceRequestResponseDto> {
     const request = await this.requestRepo.findOne({
       where: { id: serviceRequestId },
-      select: [
-        'id',
-        'userId',
-        'assignedTechnicianId',
-        'status',
-        'clientMarkedComplete',
-        'technicianMarkedComplete',
-      ],
     });
 
     if (!request) {
@@ -522,6 +544,14 @@ export class ServiceRequestsService {
         'servicesCount',
         1,
       );
+      const updatedTech = await this.tenantUserRepo.findOne({
+        where: { id: request.assignedTechnicianId },
+        select: ['servicesCount'],
+      });
+      this.gateway.emitTechnicianStatsUpdated(
+        request.assignedTechnicianId,
+        updatedTech?.servicesCount ?? 0,
+      );
     }
 
     const event = this.eventRepo.create({
@@ -535,7 +565,149 @@ export class ServiceRequestsService {
 
     const updated = await this.findByIdOrThrow(serviceRequestId);
     this.gateway.emitServiceStatusUpdated(serviceRequestId, updated.status);
+
+    if (bothComplete) {
+      setImmediate(() => {
+        this.generateServiceSummaryPdf(serviceRequestId).catch((err: Error) => {
+          this.logger.error(
+            `Receipt generation failed for ${serviceRequestId}: ${err.message}`,
+          );
+        });
+      });
+    }
+
     return updated;
+  }
+
+  async generateServiceSummaryPdf(
+    serviceRequestId: string,
+  ): Promise<{ url: string; buffer: Buffer }> {
+    const request = await this.requestRepo.findOne({
+      where: { id: serviceRequestId },
+      relations: ['assignedTechnician'],
+    });
+
+    if (!request) {
+      throw new NotFoundException(
+        `Service request with ID ${serviceRequestId} not found`,
+      );
+    }
+
+    if (request.status !== ServiceRequestStatus.COMPLETED) {
+      throw new BadRequestException(
+        'Service summary can only be generated for completed services',
+      );
+    }
+
+    // Return cached URL if receipt was already generated
+    if (request.receiptUrl) {
+      return { url: request.receiptUrl, buffer: Buffer.alloc(0) };
+    }
+
+    const publicUserRepo = await this.getPublicUserRepo();
+    const clientUser = await publicUserRepo.findOne({
+      where: { id: request.userId },
+      select: ['id', 'email'],
+    });
+
+    const technicianName = request.assignedTechnician?.fullName ?? 'N/A';
+    const categoryName =
+      request.requestedSkills.length > 0 ? request.requestedSkills[0] : 'N/A';
+    const urgency = request.urgency ?? 'media';
+    const finalPrice = request.finalPrice ? Number(request.finalPrice) : 0;
+    const displacementKm = request.displacementDistanceKm ?? 0;
+
+    let durationText = 'N/A';
+    if (request.startedAt && request.completedAt) {
+      const diffMs =
+        request.completedAt.getTime() - request.startedAt.getTime();
+      const totalMinutes = Math.round(diffMs / 60000);
+      const hours = Math.floor(totalMinutes / 60);
+      const minutes = totalMinutes % 60;
+      durationText = hours > 0 ? `${hours}h ${minutes}min` : `${minutes}min`;
+    }
+
+    const completedDate = request.completedAt
+      ? request.completedAt.toLocaleDateString('es-CO', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+        })
+      : 'N/A';
+
+    const pdfBuffer = await new Promise<Buffer>((resolve, reject) => {
+      const doc = new PDFDocument({ size: 'A4', margin: 50 });
+      const chunks: Uint8Array[] = [];
+      doc.on('data', (chunk: Uint8Array) => chunks.push(chunk));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', reject);
+
+      doc
+        .fontSize(20)
+        .font('Helvetica-Bold')
+        .text('Servicio Completado', { align: 'center' });
+      doc
+        .fontSize(12)
+        .font('Helvetica')
+        .text(completedDate, { align: 'center' });
+      doc.moveDown(1.5);
+
+      doc.fontSize(14).font('Helvetica-Bold').text('Tecnico asignado');
+      doc.fontSize(12).font('Helvetica').text(technicianName);
+      doc.moveDown(1);
+
+      doc.fontSize(14).font('Helvetica-Bold').text('Detalles del servicio');
+      doc.moveDown(0.5);
+
+      const detailsLeft = 50;
+      const detailsRight = 350;
+      const details = [
+        ['Categoria', categoryName],
+        ['Urgencia', urgency],
+        ['Duracion', durationText],
+        ['Distancia', `${displacementKm} km`],
+      ];
+      for (const [label, value] of details) {
+        const y = doc.y;
+        doc.fontSize(12).font('Helvetica').text(label, detailsLeft, y);
+        doc
+          .fontSize(12)
+          .font('Helvetica-Bold')
+          .text(value, detailsRight, y, { align: 'right' });
+        doc.moveDown(0.3);
+      }
+
+      doc.moveDown(1);
+      doc.moveTo(50, doc.y).lineTo(545, doc.y).strokeColor('#cccccc').stroke();
+      doc.moveDown(0.5);
+
+      doc.fontSize(16).font('Helvetica-Bold').text('Total');
+      doc
+        .fontSize(22)
+        .font('Helvetica-Bold')
+        .text(
+          `$${finalPrice.toLocaleString('es-CO')}`,
+          detailsRight - 50,
+          doc.y - 26,
+          { align: 'right' },
+        );
+
+      doc.end();
+    });
+
+    const fileName = `recibo_${serviceRequestId.substring(0, 8)}.pdf`;
+    const url = await this.blobStorageService.uploadBuffer(
+      pdfBuffer,
+      fileName,
+      'application/pdf',
+      clientUser?.email ?? undefined,
+    );
+
+    await this.requestRepo.update(serviceRequestId, { receiptUrl: url });
+
+    return { url, buffer: pdfBuffer };
   }
 
   async updateUserLocation(
@@ -666,7 +838,7 @@ export class ServiceRequestsService {
   ): Promise<ServiceRequestResponseDto> {
     const request = await this.requestRepo.findOne({
       where: { id: serviceRequestId },
-      relations: ['technicianResponses'],
+      relations: ['technicianResponses', 'assignedTechnician'],
     });
 
     if (!request) {
@@ -889,8 +1061,16 @@ export class ServiceRequestsService {
     longitude: number;
     addressText: string;
     startedAt?: Date | null;
+    completedAt?: Date | null;
     clientMarkedComplete?: boolean;
     technicianMarkedComplete?: boolean;
+    displacementDistanceKm?: number | null;
+    finalPrice?: string | null;
+    receiptUrl?: string | null;
+    assignedTechnician?: {
+      fullName: string;
+      profilePhotoUrl?: string | null;
+    } | null;
     createdAt: Date;
     updatedAt: Date;
     technicianResponses: {
@@ -912,9 +1092,18 @@ export class ServiceRequestsService {
     response.addressText = request.addressText;
     response.serviceCity = request.serviceCity;
     response.startedAt = request.startedAt ?? null;
+    response.completedAt = request.completedAt ?? null;
     response.clientMarkedComplete = request.clientMarkedComplete ?? false;
     response.technicianMarkedComplete =
       request.technicianMarkedComplete ?? false;
+    response.displacementDistanceKm = request.displacementDistanceKm ?? null;
+    response.finalPrice = request.finalPrice ?? null;
+    response.technicianName = request.assignedTechnician?.fullName ?? null;
+    response.technicianPhotoUrl =
+      request.assignedTechnician?.profilePhotoUrl ?? null;
+    response.receiptUrl = request.receiptUrl ?? null;
+    response.categoryName =
+      request.requestedSkills.length > 0 ? request.requestedSkills[0] : null;
     response.technicianResponses = request.technicianResponses.map((item) => ({
       technicianUserId: item.technicianUserId,
       status: item.status,

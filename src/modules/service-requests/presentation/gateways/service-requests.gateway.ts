@@ -99,4 +99,15 @@ export class ServiceRequestsGateway
       `Emitted service_status_updated to room ${room}: ${status}`,
     );
   }
+
+  emitTechnicianStatsUpdated(
+    technicianId: string,
+    servicesCount: number,
+  ): void {
+    const room = `technician_${technicianId}`;
+    this.server.to(room).emit('technician_stats_updated', { servicesCount });
+    this.logger.log(
+      `Emitted technician_stats_updated to room ${room}: servicesCount=${servicesCount}`,
+    );
+  }
 }

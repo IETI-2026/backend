@@ -98,6 +98,58 @@ export class ServiceRequestResponseDto {
   })
   technicianMarkedComplete!: boolean;
 
+  @ApiPropertyOptional({
+    description:
+      'Distancia de desplazamiento del técnico en km al momento de ser elegido',
+    example: 3.2,
+    nullable: true,
+  })
+  displacementDistanceKm!: number | null;
+
+  @ApiPropertyOptional({
+    description: 'Precio final del servicio',
+    example: '58000',
+    nullable: true,
+  })
+  finalPrice!: string | null;
+
+  @ApiPropertyOptional({
+    description: 'Fecha en que el servicio fue completado',
+    type: 'string',
+    format: 'date-time',
+    nullable: true,
+  })
+  completedAt!: Date | null;
+
+  @ApiPropertyOptional({
+    description: 'Nombre del técnico asignado',
+    example: 'Carlos Alvarez',
+    nullable: true,
+  })
+  technicianName!: string | null;
+
+  @ApiPropertyOptional({
+    description: 'URL de la foto de perfil del técnico asignado',
+    example: 'https://cdn.example.com/photo.jpg',
+    nullable: true,
+  })
+  technicianPhotoUrl!: string | null;
+
+  @ApiPropertyOptional({
+    description: 'URL del recibo PDF en el blob storage',
+    example:
+      'https://storage.blob.core.windows.net/cameyo-storage/recibo_abc123.pdf',
+    nullable: true,
+  })
+  receiptUrl!: string | null;
+
+  @ApiPropertyOptional({
+    description: 'Nombre de la categoría del servicio',
+    example: 'plomeria',
+    nullable: true,
+  })
+  categoryName!: string | null;
+
   @ApiProperty({
     description: 'Fecha de creación de la solicitud',
     type: 'string',
