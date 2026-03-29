@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   HttpCode,
+  Logger,
   Post,
   Req,
   Res,
@@ -53,6 +54,8 @@ interface GoogleOAuthRequest extends Request {
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+
   constructor(
     private readonly authService: AuthService,
     private readonly configService: ConfigService,
@@ -65,6 +68,9 @@ export class AuthController {
   @ApiResponse({ status: 201, description: 'User registered successfully' })
   @ApiResponse({ status: 409, description: 'Email already registered' })
   async signUp(@Body() signUpDto: SignUpDto): Promise<AuthResponseDto> {
+    this.logger.log(
+      `POST /auth/signup - Registering user with email ${signUpDto.email}`,
+    );
     return this.authService.signUp(signUpDto);
   }
 
@@ -75,6 +81,7 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Login successful' })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
   async login(@Body() loginDto: LoginDto): Promise<AuthResponseDto> {
+    this.logger.log(`POST /auth/login - Login attempt for ${loginDto.email}`);
     return this.authService.login(loginDto);
   }
 
@@ -90,6 +97,7 @@ export class AuthController {
   async googleMobileLogin(
     @Body() googleMobileLoginDto: GoogleMobileLoginDto,
   ): Promise<AuthResponseDto> {
+    this.logger.log('POST /auth/google/mobile - Google mobile login attempt');
     return this.authService.loginWithGoogleIdToken(
       googleMobileLoginDto.idToken,
     );
@@ -104,6 +112,7 @@ export class AuthController {
   async refreshToken(
     @Body() refreshTokenDto: RefreshTokenDto,
   ): Promise<AuthResponseDto> {
+    this.logger.log('POST /auth/refresh - Token refresh requested');
     if (!refreshTokenDto.refreshToken) {
       throw new UnauthorizedException('Refresh token is required');
     }
@@ -118,6 +127,9 @@ export class AuthController {
   async forgotPassword(
     @Body() forgotPasswordDto: ForgotPasswordDto,
   ): Promise<{ message: string }> {
+    this.logger.log(
+      `POST /auth/forgot-password - Password reset requested for ${forgotPasswordDto.email}`,
+    );
     return this.authService.forgotPassword(forgotPasswordDto);
   }
 
@@ -130,6 +142,7 @@ export class AuthController {
   async resetPassword(
     @Body() resetPasswordDto: ResetPasswordDto,
   ): Promise<{ message: string }> {
+    this.logger.log('POST /auth/reset-password - Password reset with token');
     return this.authService.resetPassword(resetPasswordDto);
   }
 
@@ -144,6 +157,9 @@ export class AuthController {
     @CurrentUser() user: JwtPayloadEntity,
     @Body() changePasswordDto: ChangePasswordDto,
   ): Promise<{ message: string }> {
+    this.logger.log(
+      `POST /auth/change-password - Password change for user ${user.sub}`,
+    );
     if (!user.sub) {
       throw new UnauthorizedException('User ID not available');
     }
@@ -161,6 +177,7 @@ export class AuthController {
   async sendOtp(
     @Body() sendOtpDto: SendOtpDto,
   ): Promise<{ message: string; expiresInSeconds: number }> {
+    this.logger.log(`POST /auth/send-otp - Sending OTP to ${sendOtpDto.phone}`);
     return this.authService.sendOtp(sendOtpDto);
   }
 
@@ -175,6 +192,9 @@ export class AuthController {
   async verifyOtp(
     @Body() verifyOtpDto: VerifyOtpDto,
   ): Promise<AuthResponseDto> {
+    this.logger.log(
+      `POST /auth/verify-otp - Verifying OTP for ${verifyOtpDto.phone}`,
+    );
     return this.authService.verifyOtpAndLogin(verifyOtpDto);
   }
 
@@ -183,6 +203,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Get Google OAuth authorization URL' })
   @ApiResponse({ status: 200, description: 'OAuth URL generated' })
   async getGoogleAuthUrl(): Promise<{ authUrl: string }> {
+    this.logger.log('GET /auth/google - Generating Google OAuth URL');
     const clientId = this.configService.get<string>('oauth.google.clientId');
     const redirectUri = this.configService.get<string>(
       'oauth.google.callbackUrl',
@@ -215,6 +236,9 @@ export class AuthController {
     @Req() req: GoogleOAuthRequest,
     @Res() res: Response,
   ): Promise<void> {
+    this.logger.log(
+      'GET /auth/google/callback - Processing Google OAuth callback',
+    );
     if (!req.user) {
       throw new UnauthorizedException('Google authentication failed');
     }
@@ -245,6 +269,9 @@ export class AuthController {
         `expiresIn=${authResponse.expiresIn}&` +
         `userId=${authResponse.user.id}`;
 
+      this.logger.log(
+        `GET /auth/google/callback - OAuth successful for user ${authResponse.user.id}`,
+      );
       res.redirect(redirectUrl);
     } catch (error) {
       const frontendUrl =
@@ -253,6 +280,9 @@ export class AuthController {
       const errorMessage =
         error instanceof Error ? error.message : 'Authentication failed';
       const errorUrl = `${frontendUrl}/auth/error?message=${encodeURIComponent(errorMessage)}`;
+      this.logger.error(
+        `GET /auth/google/callback - OAuth failed: ${errorMessage}`,
+      );
       res.redirect(errorUrl);
     }
   }
@@ -266,6 +296,7 @@ export class AuthController {
   async getCurrentUser(
     @CurrentUser() user: JwtPayloadEntity,
   ): Promise<UserResponse> {
+    this.logger.log(`GET /auth/me - Fetching current user ${user.sub}`);
     if (!user.sub) {
       throw new UnauthorizedException('User ID not available');
     }
@@ -285,6 +316,7 @@ export class AuthController {
   async logout(
     @CurrentUser() user: JwtPayloadEntity,
   ): Promise<{ message: string }> {
+    this.logger.log(`POST /auth/logout - Logging out user ${user.sub}`);
     if (!user.sub) {
       throw new UnauthorizedException('User ID not available');
     }

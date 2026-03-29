@@ -1,5 +1,7 @@
+import { HttpService } from '@nestjs/axios';
 import {
   ConflictException,
+  ForbiddenException,
   Inject,
   Injectable,
   Logger,
@@ -25,11 +27,15 @@ export class ProviderProfileService {
   private readonly profileRepo: Repository<ProviderProfileEntity>;
   private readonly userRepo: Repository<DbUserEntity>;
 
+  private static readonly DOCUMENT_VERIFICATION_URL =
+    'http://localhost:3001/api/document-verification';
+
   constructor(
     @Inject(TENANT_DATA_SOURCE)
     dataSource: DataSource,
     @Inject(AUTH_REPOSITORY)
     private readonly authRepository: IAuthRepository,
+    private readonly httpService: HttpService,
   ) {
     this.profileRepo = dataSource.getRepository(ProviderProfileEntity);
     this.userRepo = dataSource.getRepository(DbUserEntity);
@@ -49,7 +55,6 @@ export class ProviderProfileService {
     const profile = this.profileRepo.create({
       userId,
       bio: dto.bio ?? null,
-      coverageRadiusKm: dto.coverageRadiusKm ?? 10.0,
       isAvailable: dto.isAvailable ?? false,
       nequiNumber: dto.nequiNumber ?? null,
       daviplataNumber: dto.daviplataNumber ?? null,
@@ -87,10 +92,17 @@ export class ProviderProfileService {
       throw new NotFoundException('Provider profile not found');
     }
 
+    if (
+      dto.isAvailable === true &&
+      existing.verificationStatus !== ProviderVerificationStatus.VERIFIED
+    ) {
+      throw new ForbiddenException(
+        'Cannot set availability: provider is not verified',
+      );
+    }
+
     const updateData: Record<string, unknown> = {};
     if (dto.bio !== undefined) updateData.bio = dto.bio;
-    if (dto.coverageRadiusKm !== undefined)
-      updateData.coverageRadiusKm = dto.coverageRadiusKm;
     if (dto.isAvailable !== undefined) updateData.isAvailable = dto.isAvailable;
     if (dto.nequiNumber !== undefined) updateData.nequiNumber = dto.nequiNumber;
     if (dto.daviplataNumber !== undefined)
@@ -159,6 +171,32 @@ export class ProviderProfileService {
     return this.mapToResponse(updated, profile.user?.skills ?? []);
   }
 
+  async forwardIdentityDocument(
+    userId: string,
+    file: Express.Multer.File,
+  ): Promise<{ message: string }> {
+    try {
+      const payload = {
+        userId,
+        fileName: file.originalname,
+        mimeType: file.mimetype,
+        fileBase64: file.buffer.toString('base64'),
+      };
+
+      await this.httpService.axiosRef.post(
+        ProviderProfileService.DOCUMENT_VERIFICATION_URL,
+        payload,
+      );
+      this.logger.log(`Identity document forwarded for user ${userId}`);
+    } catch {
+      this.logger.warn(
+        `Failed to forward identity document for user ${userId} — verification service may be unavailable`,
+      );
+    }
+
+    return { message: 'Document sent for verification' };
+  }
+
   private mapToResponse(
     profile: {
       id: string;
@@ -172,7 +210,6 @@ export class ProviderProfileService {
       isAvailable: boolean;
       currentLatitude: number | null;
       currentLongitude: number | null;
-      coverageRadiusKm: number;
       nequiNumber: string | null;
       daviplataNumber: string | null;
       createdAt: Date;
@@ -192,7 +229,6 @@ export class ProviderProfileService {
     dto.isAvailable = profile.isAvailable;
     dto.currentLatitude = profile.currentLatitude;
     dto.currentLongitude = profile.currentLongitude;
-    dto.coverageRadiusKm = profile.coverageRadiusKm;
     dto.nequiNumber = profile.nequiNumber;
     dto.daviplataNumber = profile.daviplataNumber;
     dto.skills = skills;

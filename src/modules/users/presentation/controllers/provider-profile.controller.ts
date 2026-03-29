@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -9,12 +10,17 @@ import {
   Patch,
   Post,
   UnauthorizedException,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
+  ApiBody,
   ApiConflictResponse,
+  ApiConsumes,
   ApiCreatedResponse,
   ApiForbiddenResponse,
   ApiNotFoundResponse,
@@ -97,6 +103,51 @@ export class ProviderProfileController {
     if (!user.sub) throw new UnauthorizedException('User ID not available');
     this.logger.log(`PATCH /users/me/provider-profile by ${user.email}`);
     return this.providerProfileService.update(user.sub, dto);
+  }
+
+  @Post('me/provider-profile/upload-document')
+  @HttpCode(HttpStatus.OK)
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary: 'Subir documento de identidad para verificación',
+    description:
+      'Sube una foto del documento de identidad (PDF, JPG, PNG, JPEG) y la envía a un servicio externo de verificación. El archivo no se almacena.',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', format: 'binary' },
+      },
+      required: ['file'],
+    },
+  })
+  @ApiOkResponse({ description: 'Documento enviado para verificación' })
+  @ApiBadRequestResponse({ description: 'Archivo no válido' })
+  async uploadIdentityDocument(
+    @CurrentUser() user: JwtPayloadEntity,
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<{ message: string }> {
+    if (!user.sub) throw new UnauthorizedException('User ID not available');
+    if (!file) throw new BadRequestException('File is required');
+
+    const allowedMimeTypes = [
+      'image/jpeg',
+      'image/jpg',
+      'image/png',
+      'application/pdf',
+    ];
+    if (!allowedMimeTypes.includes(file.mimetype)) {
+      throw new BadRequestException(
+        'Only PDF, JPG, JPEG and PNG files are allowed',
+      );
+    }
+
+    this.logger.log(
+      `POST /users/me/provider-profile/upload-document by ${user.email}`,
+    );
+    return this.providerProfileService.forwardIdentityDocument(user.sub, file);
   }
 
   @Get(':id/provider-profile')

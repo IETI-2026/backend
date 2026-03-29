@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Inject,
   Injectable,
   InternalServerErrorException,
@@ -13,11 +14,13 @@ import { DataSource, Repository } from 'typeorm';
 import { BlobStorageService } from '@/common/services/blob-storage.service';
 import {
   UserEntity as DbUserEntity,
+  ProviderProfileEntity,
   ServiceRequestEntity,
   ServiceRequestEventEntity,
   ServiceRequestTechnicianResponseEntity,
 } from '@/database/entities';
 import {
+  ProviderVerificationStatus,
   ServiceRequestStatus,
   TechnicianResponseStatus,
   UrgencyLevel,
@@ -255,6 +258,19 @@ export class ServiceRequestsService {
     if (!technician) {
       throw new NotFoundException(
         `Technician user with ID ${dto.technicianUserId} not found`,
+      );
+    }
+
+    const providerProfile = await publicUserRepo.manager
+      .getRepository(ProviderProfileEntity)
+      .findOne({ where: { userId: dto.technicianUserId } });
+
+    if (
+      !providerProfile ||
+      providerProfile.verificationStatus !== ProviderVerificationStatus.VERIFIED
+    ) {
+      throw new ForbiddenException(
+        'Technician is not verified and cannot accept service requests',
       );
     }
 

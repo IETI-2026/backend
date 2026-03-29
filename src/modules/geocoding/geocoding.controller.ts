@@ -1,4 +1,4 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Logger, Post } from '@nestjs/common';
 import { ApiBody } from '@nestjs/swagger';
 import { ReverseGeocodeDto } from './dto/reverse-geocode.dto';
 import { GeocodingService } from './geocoding.service';
@@ -10,6 +10,8 @@ const reverseGeocodeBodyExample = {
 
 @Controller('geocoding')
 export class GeocodingController {
+  private readonly logger = new Logger(GeocodingController.name);
+
   constructor(private readonly geocodingService: GeocodingService) {}
 
   @Post('reverse')
@@ -23,6 +25,9 @@ export class GeocodingController {
     },
   })
   reverse(@Body() payload: ReverseGeocodeDto) {
+    this.logger.log(
+      `POST /geocoding/reverse - Reverse geocoding for lat=${payload.lat}, lng=${payload.lng}`,
+    );
     return this.geocodingService.reverseGeocode(payload);
   }
 
@@ -39,6 +44,9 @@ export class GeocodingController {
   async getTenant(
     @Body() payload: ReverseGeocodeDto,
   ): Promise<{ tenant: string }> {
+    this.logger.log(
+      `POST /geocoding/tenant - Resolving tenant for lat=${payload.lat}, lng=${payload.lng}`,
+    );
     return this.geocodingService.resolveTenant(payload);
   }
 }
