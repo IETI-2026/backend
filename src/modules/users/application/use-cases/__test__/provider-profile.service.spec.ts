@@ -1,3 +1,4 @@
+import { HttpService } from '@nestjs/axios';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ProviderProfileEntity, UserEntity } from '@/database/entities';
@@ -33,7 +34,7 @@ const mockProviderProfile = {
   isAvailable: false,
   currentLatitude: null,
   currentLongitude: null,
-  coverageRadiusKm: 10,
+
   nequiNumber: null,
   daviplataNumber: null,
   createdAt: new Date('2024-01-01'),
@@ -94,6 +95,10 @@ describe('ProviderProfileService', () => {
         ProviderProfileService,
         { provide: TENANT_DATA_SOURCE, useValue: mockDataSource },
         { provide: AUTH_REPOSITORY, useValue: mockAuthRepository },
+        {
+          provide: HttpService,
+          useValue: { axiosRef: { post: jest.fn() } },
+        },
       ],
     }).compile();
 
@@ -110,7 +115,7 @@ describe('ProviderProfileService', () => {
   describe('create', () => {
     const createDto = {
       bio: 'Experienced plumber',
-      coverageRadiusKm: 15,
+
       isAvailable: true,
       skills: ['plomeria', 'gas'],
     };
@@ -192,13 +197,17 @@ describe('ProviderProfileService', () => {
   describe('update', () => {
     it('should update profile fields and return the updated profile', async () => {
       const updateDto = { bio: 'Updated bio', isAvailable: true };
-      const updatedProfile = {
+      const verifiedProfile = {
         ...mockProviderProfile,
+        verificationStatus: ProviderVerificationStatus.VERIFIED,
+      };
+      const updatedProfile = {
+        ...verifiedProfile,
         bio: 'Updated bio',
         isAvailable: true,
       };
 
-      profileRepo.findOne.mockResolvedValue(mockProviderProfile);
+      profileRepo.findOne.mockResolvedValue(verifiedProfile);
       profileRepo.update.mockResolvedValue({});
       profileRepo.findOneOrFail.mockResolvedValue(updatedProfile);
       userRepo.findOne.mockResolvedValue(mockUserEntity);

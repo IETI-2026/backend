@@ -61,9 +61,6 @@ export class ProviderProfileEntity {
   @Column({ type: 'timestamp', nullable: true })
   lastLocationUpdate!: Date | null;
 
-  @Column({ type: 'float', default: 10.0 })
-  coverageRadiusKm!: number;
-
   @Column({ type: 'varchar', nullable: true })
   bankAccountInfo!: string | null;
 

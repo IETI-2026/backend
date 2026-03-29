@@ -7,12 +7,14 @@ import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { BlobStorageService } from '@/common/services/blob-storage.service';
 import {
+  ProviderProfileEntity,
   ServiceRequestEntity,
   ServiceRequestEventEntity,
   ServiceRequestTechnicianResponseEntity,
   UserEntity,
 } from '@/database/entities';
 import {
+  ProviderVerificationStatus,
   ServiceRequestStatus,
   TechnicianResponseStatus,
   UrgencyLevel,
@@ -76,6 +78,7 @@ describe('ServiceRequestsService', () => {
   let responseRepo: ReturnType<typeof buildMockRepo>;
   let eventRepo: ReturnType<typeof buildMockRepo>;
   let userRepo: ReturnType<typeof buildMockRepo>;
+  let providerProfileRepo: ReturnType<typeof buildMockRepo>;
   let mockConfigService: { get: jest.Mock };
 
   afterEach(() => {
@@ -87,6 +90,7 @@ describe('ServiceRequestsService', () => {
     responseRepo = buildMockRepo();
     eventRepo = buildMockRepo();
     userRepo = buildMockRepo();
+    providerProfileRepo = buildMockRepo();
 
     const repoMap = new Map<unknown, ReturnType<typeof buildMockRepo>>([
       [ServiceRequestEntity, requestRepo],
@@ -101,8 +105,24 @@ describe('ServiceRequestsService', () => {
       ),
     };
 
+    const publicRepoMap = new Map<unknown, ReturnType<typeof buildMockRepo>>([
+      [UserEntity, userRepo],
+      [ProviderProfileEntity, providerProfileRepo],
+    ]);
+
+    const mockManager = {
+      getRepository: jest.fn(
+        (entity: unknown) => publicRepoMap.get(entity) ?? buildMockRepo(),
+      ),
+    };
+
+    // userRepo needs a manager property because the service accesses publicUserRepo.manager
+    (userRepo as Record<string, unknown>).manager = mockManager;
+
     const mockPublicDataSource = {
-      getRepository: jest.fn().mockReturnValue(userRepo),
+      getRepository: jest.fn(
+        (entity: unknown) => publicRepoMap.get(entity) ?? buildMockRepo(),
+      ),
     };
 
     const mockTenantDataSourceService = {
@@ -354,6 +374,10 @@ describe('ServiceRequestsService', () => {
 
     it('should record the acceptance and return the updated service request', async () => {
       userRepo.findOne.mockResolvedValue(mockTechnician);
+      providerProfileRepo.findOne.mockResolvedValue({
+        userId: TECH_ID,
+        verificationStatus: ProviderVerificationStatus.VERIFIED,
+      });
       requestRepo.findOne
         .mockResolvedValueOnce({
           id: REQUEST_ID,
@@ -380,6 +404,10 @@ describe('ServiceRequestsService', () => {
 
     it('should upsert an existing response when the technician re-accepts', async () => {
       userRepo.findOne.mockResolvedValue(mockTechnician);
+      providerProfileRepo.findOne.mockResolvedValue({
+        userId: TECH_ID,
+        verificationStatus: ProviderVerificationStatus.VERIFIED,
+      });
       requestRepo.findOne
         .mockResolvedValueOnce({
           id: REQUEST_ID,
@@ -412,6 +440,10 @@ describe('ServiceRequestsService', () => {
 
     it('should throw NotFoundException when the service request does not exist', async () => {
       userRepo.findOne.mockResolvedValue(mockTechnician);
+      providerProfileRepo.findOne.mockResolvedValue({
+        userId: TECH_ID,
+        verificationStatus: ProviderVerificationStatus.VERIFIED,
+      });
       requestRepo.findOne.mockResolvedValue(null);
 
       await expect(service.accept(REQUEST_ID, acceptDto)).rejects.toThrow(
@@ -421,6 +453,10 @@ describe('ServiceRequestsService', () => {
 
     it('should throw ConflictException when request is not in REQUESTED status', async () => {
       userRepo.findOne.mockResolvedValue(mockTechnician);
+      providerProfileRepo.findOne.mockResolvedValue({
+        userId: TECH_ID,
+        verificationStatus: ProviderVerificationStatus.VERIFIED,
+      });
       requestRepo.findOne.mockResolvedValue({
         id: REQUEST_ID,
         status: ServiceRequestStatus.ASSIGNED,

@@ -24,7 +24,7 @@ const mockProviderProfileResponse = {
   isAvailable: false,
   currentLatitude: null,
   currentLongitude: null,
-  coverageRadiusKm: 10,
+
   nequiNumber: null,
   daviplataNumber: null,
   skills: ['electricidad'],
@@ -85,7 +85,7 @@ describe('ProviderProfileController', () => {
   describe('createMyProfile', () => {
     const createDto = {
       bio: 'Electricista con 10 años de experiencia',
-      coverageRadiusKm: 15,
+
       isAvailable: true,
       skills: ['electricidad'],
     };

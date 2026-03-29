@@ -12,7 +12,6 @@ export class ProviderProfileResponseDto {
   @ApiProperty() isAvailable!: boolean;
   @ApiPropertyOptional() currentLatitude!: number | null;
   @ApiPropertyOptional() currentLongitude!: number | null;
-  @ApiProperty() coverageRadiusKm!: number;
   @ApiPropertyOptional() nequiNumber!: string | null;
   @ApiPropertyOptional() daviplataNumber!: string | null;
   @ApiProperty() skills!: string[];
