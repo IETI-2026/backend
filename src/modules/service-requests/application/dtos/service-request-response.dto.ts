@@ -151,6 +151,11 @@ export class ServiceRequestResponseDto {
   categoryName!: string | null;
 
   @ApiProperty({
+    description: 'Indica si el servicio ya fue calificado por el cliente',
+  })
+  isRated!: boolean;
+
+  @ApiProperty({
     description: 'Fecha de creación de la solicitud',
     type: 'string',
     format: 'date-time',

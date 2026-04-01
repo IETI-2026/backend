@@ -32,6 +32,7 @@ import {
   CreateServiceRequestDto,
   GetServiceRequestsQueryDto,
   MarkCompleteDto,
+  RateServiceRequestDto,
   RejectServiceRequestDto,
   ServiceRequestResponseDto,
   ServiceRequestsService,
@@ -353,6 +354,35 @@ export class ServiceRequestsController {
     const { url } =
       await this.serviceRequestsService.generateServiceSummaryPdf(id);
     return { url };
+  }
+
+  @Post(':id/rate')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Calificar un servicio completado',
+    description:
+      'Permite al cliente calificar el servicio y al técnico de forma independiente. Solo puede calificarse una vez.',
+  })
+  @ApiParam({
+    name: 'id',
+    type: 'string',
+    description: 'ID de la solicitud de servicio',
+  })
+  @ApiOkResponse({
+    description: 'Calificación registrada exitosamente',
+    type: ServiceRequestResponseDto,
+  })
+  @ApiBadRequestResponse({
+    description: 'El servicio no está completado o ya fue calificado',
+  })
+  @ApiConflictResponse({ description: 'El servicio ya fue calificado' })
+  @ApiNotFoundResponse({ description: 'Solicitud no encontrada' })
+  async rate(
+    @Param('id') id: string,
+    @Body() rateDto: RateServiceRequestDto,
+  ): Promise<ServiceRequestResponseDto> {
+    this.logger.log(`POST /service-requests/${id}/rate - Rating service`);
+    return await this.serviceRequestsService.rateService(id, rateDto);
   }
 
   @Patch(':id/choose-technician')

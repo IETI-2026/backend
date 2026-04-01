@@ -1,6 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
+  IsBoolean,
   IsEnum,
   IsInt,
   IsOptional,
@@ -44,6 +45,20 @@ export class GetServiceRequestsQueryDto {
   @IsOptional()
   @IsString()
   serviceCity?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filtrar por si el servicio ya fue calificado por el cliente',
+    example: false,
+  })
+  @IsOptional()
+  @Type(() => String)
+  @Transform(({ value }) => {
+    if (value === 'true' || value === true) return true;
+    if (value === 'false' || value === false) return false;
+    return value;
+  })
+  @IsBoolean()
+  isRated?: boolean;
 
   @ApiPropertyOptional({
     description: 'Página (inicia en 0)',

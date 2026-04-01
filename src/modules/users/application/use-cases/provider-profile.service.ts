@@ -203,7 +203,7 @@ export class ProviderProfileService {
       userId: string;
       bio: string | null;
       verificationStatus: string;
-      averageRating: number;
+      averageRating: number | null;
       totalRatings: number;
       totalCompletedServices: number;
       totalCancelledServices: number;

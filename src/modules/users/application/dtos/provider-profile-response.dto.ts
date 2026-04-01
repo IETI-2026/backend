@@ -5,7 +5,7 @@ export class ProviderProfileResponseDto {
   @ApiProperty() userId!: string;
   @ApiPropertyOptional() bio!: string | null;
   @ApiProperty() verificationStatus!: string;
-  @ApiProperty() averageRating!: number;
+  @ApiPropertyOptional({ nullable: true }) averageRating!: number | null;
   @ApiProperty() totalRatings!: number;
   @ApiProperty() totalCompletedServices!: number;
   @ApiProperty() totalCancelledServices!: number;
