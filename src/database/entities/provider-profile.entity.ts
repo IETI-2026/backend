@@ -34,8 +34,8 @@ export class ProviderProfileEntity {
   })
   verificationStatus!: ProviderVerificationStatus;
 
-  @Column({ type: 'float', default: 0.0 })
-  averageRating!: number;
+  @Column({ type: 'float', nullable: true })
+  averageRating!: number | null;
 
   @Column({ type: 'int', default: 0 })
   totalRatings!: number;

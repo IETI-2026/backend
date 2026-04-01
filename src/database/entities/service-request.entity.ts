@@ -145,6 +145,18 @@ export class ServiceRequestEntity {
   @Column({ type: 'float', nullable: true })
   displacementDistanceKm!: number | null;
 
+  @Column({ type: 'int', nullable: true })
+  serviceRating!: number | null;
+
+  @Column({ type: 'text', nullable: true })
+  clientComment!: string | null;
+
+  @Column({ type: 'int', nullable: true })
+  technicianRatingValue!: number | null;
+
+  @Column({ type: 'boolean', default: false })
+  isRated!: boolean;
+
   @ManyToOne(
     () => UserEntity,
     (u) => u.serviceRequests,

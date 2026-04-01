@@ -41,6 +41,7 @@ import {
   type RejectServiceRequestDto,
   ServiceRequestResponseDto,
 } from '../dtos';
+import type { RateServiceRequestDto } from '../dtos/rate-service-request.dto';
 
 type AgentClassificationResponse = {
   categoria?: unknown;
@@ -151,6 +152,7 @@ export class ServiceRequestsService {
     if (query.technicianUserId)
       where.assignedTechnicianId = query.technicianUserId;
     if (serviceCity) where.serviceCity = serviceCity;
+    if (query.isRated !== undefined) where.isRated = query.isRated;
 
     const [requests, total] = await this.requestRepo.findAndCount({
       where,
@@ -159,6 +161,10 @@ export class ServiceRequestsService {
       order: { createdAt: 'DESC' },
       relations: ['technicianResponses', 'assignedTechnician'],
     });
+
+    this.logger.log(
+      `findAll where=${JSON.stringify(where)} tenant=${this.tenantContext.getTenantId()} total=${total}`,
+    );
 
     return {
       requests: requests.map((request) => this.toResponse(request)),
@@ -1083,6 +1089,7 @@ export class ServiceRequestsService {
     displacementDistanceKm?: number | null;
     finalPrice?: string | null;
     receiptUrl?: string | null;
+    isRated?: boolean;
     assignedTechnician?: {
       fullName: string;
       profilePhotoUrl?: string | null;
@@ -1118,6 +1125,7 @@ export class ServiceRequestsService {
     response.technicianPhotoUrl =
       request.assignedTechnician?.profilePhotoUrl ?? null;
     response.receiptUrl = request.receiptUrl ?? null;
+    response.isRated = request.isRated ?? false;
     response.categoryName =
       request.requestedSkills.length > 0 ? request.requestedSkills[0] : null;
     response.technicianResponses = request.technicianResponses.map((item) => ({
@@ -1128,5 +1136,76 @@ export class ServiceRequestsService {
     response.createdAt = request.createdAt;
     response.updatedAt = request.updatedAt;
     return response;
+  }
+
+  async rateService(
+    serviceRequestId: string,
+    dto: RateServiceRequestDto,
+  ): Promise<ServiceRequestResponseDto> {
+    const request = await this.requestRepo.findOne({
+      where: { id: serviceRequestId },
+      relations: ['assignedTechnician', 'technicianResponses'],
+    });
+
+    if (!request) {
+      throw new NotFoundException(
+        `Service request with ID ${serviceRequestId} not found`,
+      );
+    }
+
+    if (request.status !== ServiceRequestStatus.COMPLETED) {
+      throw new BadRequestException('Only completed services can be rated');
+    }
+
+    if (request.isRated) {
+      throw new ConflictException('This service has already been rated');
+    }
+
+    if (!request.assignedTechnicianId) {
+      throw new BadRequestException(
+        'Cannot rate a service without an assigned technician',
+      );
+    }
+
+    await this.requestRepo.update(serviceRequestId, {
+      serviceRating: dto.serviceRating,
+      clientComment: dto.comment ?? null,
+      technicianRatingValue: dto.technicianRating,
+      isRated: true,
+    });
+
+    const publicDataSource =
+      await this.tenantDataSourceService.getDataSource('public');
+    const publicProfileRepo = publicDataSource.getRepository(
+      ProviderProfileEntity,
+    );
+
+    const profile = await publicProfileRepo.findOne({
+      where: { userId: request.assignedTechnicianId },
+    });
+
+    if (profile) {
+      const currentTotal = profile.totalRatings ?? 0;
+      const currentAvg = profile.averageRating ?? 0;
+      const newTotal = currentTotal + 1;
+      const newAvg =
+        (currentAvg * currentTotal + dto.technicianRating) / newTotal;
+
+      await publicProfileRepo.update(
+        { userId: request.assignedTechnicianId },
+        {
+          averageRating: newAvg,
+          totalRatings: newTotal,
+        },
+      );
+    }
+
+    const updated = await this.requestRepo.findOneOrFail({
+      where: { id: serviceRequestId },
+      relations: ['assignedTechnician', 'technicianResponses'],
+    });
+
+    this.logger.log(`Service request ${serviceRequestId} rated`);
+    return this.toResponse(updated);
   }
 }
