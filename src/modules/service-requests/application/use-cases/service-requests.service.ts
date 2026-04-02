@@ -15,6 +15,7 @@ import { BlobStorageService } from '@/common/services/blob-storage.service';
 import {
   UserEntity as DbUserEntity,
   ProviderProfileEntity,
+  ServiceCategoryEntity,
   ServiceRequestEntity,
   ServiceRequestEventEntity,
   ServiceRequestTechnicianResponseEntity,
@@ -69,6 +70,7 @@ export class ServiceRequestsService {
   private readonly responseRepo: Repository<ServiceRequestTechnicianResponseEntity>;
   private readonly eventRepo: Repository<ServiceRequestEventEntity>;
   private readonly tenantUserRepo: Repository<DbUserEntity>;
+  private readonly serviceCategoryRepo: Repository<ServiceCategoryEntity>;
 
   constructor(
     @Inject(TENANT_DATA_SOURCE)
@@ -85,6 +87,7 @@ export class ServiceRequestsService {
     );
     this.eventRepo = dataSource.getRepository(ServiceRequestEventEntity);
     this.tenantUserRepo = dataSource.getRepository(DbUserEntity);
+    this.serviceCategoryRepo = dataSource.getRepository(ServiceCategoryEntity);
   }
 
   private async getPublicUserRepo(): Promise<Repository<DbUserEntity>> {
@@ -479,7 +482,6 @@ export class ServiceRequestsService {
       status: ServiceRequestStatus.ON_THE_WAY,
       assignedAt: new Date(),
       displacementDistanceKm,
-      finalPrice: '58000',
     });
 
     const event = this.eventRepo.create({
@@ -549,7 +551,12 @@ export class ServiceRequestsService {
     }
     if (bothComplete) {
       updatePayload.status = ServiceRequestStatus.COMPLETED;
-      updatePayload.completedAt = new Date();
+      const completedAt = new Date();
+      updatePayload.completedAt = completedAt;
+      updatePayload.finalPrice = await this.calculateFinalPrice(
+        request,
+        completedAt,
+      );
     }
 
     await this.requestRepo.update(serviceRequestId, updatePayload);
@@ -870,6 +877,48 @@ export class ServiceRequestsService {
     }
 
     return this.toResponse(request);
+  }
+
+  private async calculateFinalPrice(
+    request: ServiceRequestEntity,
+    completedAt: Date,
+  ): Promise<string> {
+    const categorySlug =
+      request.requestedSkills.length > 0 ? request.requestedSkills[0] : null;
+
+    let basePrice = 0;
+    let pricePerKm = 0;
+    let pricePerHour = 0;
+
+    if (categorySlug) {
+      const category = await this.serviceCategoryRepo.findOne({
+        where: { slug: categorySlug },
+      });
+      if (category) {
+        basePrice = category.basePrice;
+        pricePerKm = category.pricePerKm;
+        pricePerHour = category.pricePerHour;
+      }
+    }
+
+    const distanceKm = request.displacementDistanceKm ?? 0;
+    const durationHours = request.startedAt
+      ? (completedAt.getTime() - request.startedAt.getTime()) / 3600000
+      : 0;
+
+    const urgencyFactors: Record<UrgencyLevel, number> = {
+      [UrgencyLevel.baja]: 1.0,
+      [UrgencyLevel.media]: 1.5,
+      [UrgencyLevel.alta]: 2.0,
+    };
+    const urgencyFactor = urgencyFactors[request.urgency] ?? 1.0;
+
+    const finalPrice = Math.round(
+      (basePrice + distanceKm * pricePerKm + durationHours * pricePerHour) *
+        urgencyFactor,
+    );
+
+    return String(finalPrice);
   }
 
   private normalizeSkills(skills: string[]): string[] {
