@@ -110,4 +110,24 @@ export class ServiceRequestsGateway
       `Emitted technician_stats_updated to room ${room}: servicesCount=${servicesCount}`,
     );
   }
+
+  emitPaymentCompleted(
+    serviceRequestId: string,
+    data: {
+      paymentId: string;
+      amount: number;
+      method: string;
+      status: string;
+      paidAt: Date;
+    },
+  ): void {
+    const room = `request_${serviceRequestId}`;
+    this.server.to(room).emit('payment_completed', {
+      serviceRequestId,
+      ...data,
+    });
+    this.logger.log(
+      `Emitted payment_completed to room ${room}: paymentId=${data.paymentId} status=${data.status}`,
+    );
+  }
 }

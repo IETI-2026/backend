@@ -1,9 +1,11 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import {
   PaymentEntity,
@@ -11,7 +13,13 @@ import {
   UserEntity,
   UserPaymentMethodEntity,
 } from '@/database/entities';
-import { PaymentMethodType, PaymentStatus, RoleName } from '@/database/enums';
+import {
+  PaymentMethodType,
+  PaymentStatus,
+  RoleName,
+  ServiceRequestStatus,
+} from '@/database/enums';
+import { ServiceRequestsGateway } from '../../../service-requests/presentation/gateways/service-requests.gateway';
 import {
   CreatePaymentDto,
   CreatePaymentMethodDto,
@@ -25,6 +33,7 @@ describe('PaymentsService', () => {
   let paymentMethodRepository: jest.Mocked<Repository<UserPaymentMethodEntity>>;
   let serviceRequestRepository: jest.Mocked<Repository<ServiceRequestEntity>>;
   let userRepository: jest.Mocked<Repository<UserEntity>>;
+  let gateway: jest.Mocked<any>;
 
   const mockUserId = 'user-123';
   const mockProviderId = 'provider-456';
@@ -47,7 +56,7 @@ describe('PaymentsService', () => {
   const mockServiceRequest = {
     id: mockRequestId,
     userId: mockUserId,
-    status: 'REQUESTED',
+    status: ServiceRequestStatus.COMPLETED,
   } as ServiceRequestEntity;
 
   const mockPaymentMethod = {
@@ -98,24 +107,32 @@ describe('PaymentsService', () => {
       findOne: jest.fn(),
     } as unknown as jest.Mocked<Repository<UserEntity>>;
 
+    gateway = {
+      emitPaymentCompleted: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PaymentsService,
         {
-          provide: 'PaymentEntityRepository',
+          provide: getRepositoryToken(PaymentEntity),
           useValue: paymentRepository,
         },
         {
-          provide: 'UserPaymentMethodEntityRepository',
+          provide: getRepositoryToken(UserPaymentMethodEntity),
           useValue: paymentMethodRepository,
         },
         {
-          provide: 'ServiceRequestEntityRepository',
+          provide: getRepositoryToken(ServiceRequestEntity),
           useValue: serviceRequestRepository,
         },
         {
-          provide: 'UserEntityRepository',
+          provide: getRepositoryToken(UserEntity),
           useValue: userRepository,
+        },
+        {
+          provide: ServiceRequestsGateway,
+          useValue: gateway,
         },
       ],
     }).compile();
@@ -394,6 +411,7 @@ describe('PaymentsService', () => {
 
       expect(paymentRepository.find).toHaveBeenCalledWith({
         where: { userId: mockUserId },
+        relations: ['serviceRequest'],
         order: { createdAt: 'DESC' },
       });
     });
@@ -445,7 +463,7 @@ describe('PaymentsService', () => {
       );
     });
 
-    it('should throw BadRequestException when payment already exists for request', async () => {
+    it('should throw ConflictException when payment already exists for request', async () => {
       serviceRequestRepository.findOne.mockResolvedValue(mockServiceRequest);
       paymentRepository.findOne.mockResolvedValue(mockPayment);
 
@@ -457,7 +475,7 @@ describe('PaymentsService', () => {
       };
 
       await expect(service.createPayment(mockUserId, dto)).rejects.toThrow(
-        BadRequestException,
+        ConflictException,
       );
     });
 
@@ -591,7 +609,11 @@ describe('PaymentsService', () => {
     });
 
     it('should update payment status to REFUNDED with reason', async () => {
-      paymentRepository.findOne.mockResolvedValue(mockPayment);
+      const completedPayment = {
+        ...mockPayment,
+        status: PaymentStatus.COMPLETED,
+      };
+      paymentRepository.findOne.mockResolvedValue(completedPayment);
       paymentRepository.save.mockResolvedValue({
         ...mockPayment,
         status: PaymentStatus.REFUNDED,
@@ -615,9 +637,10 @@ describe('PaymentsService', () => {
     });
 
     it('should update payment status to FAILED with reason', async () => {
-      paymentRepository.findOne.mockResolvedValue(mockPayment);
+      const pendingPayment = { ...mockPayment, status: PaymentStatus.PENDING };
+      paymentRepository.findOne.mockResolvedValue(pendingPayment);
       paymentRepository.save.mockResolvedValue({
-        ...mockPayment,
+        ...pendingPayment,
         status: PaymentStatus.FAILED,
         refundReason: 'Insufficient funds',
       } as unknown as PaymentEntity);
@@ -663,9 +686,10 @@ describe('PaymentsService', () => {
     });
 
     it('should update receipt URL if provided', async () => {
-      paymentRepository.findOne.mockResolvedValue(mockPayment);
+      const pendingPayment = { ...mockPayment, status: PaymentStatus.PENDING };
+      paymentRepository.findOne.mockResolvedValue(pendingPayment);
       paymentRepository.save.mockResolvedValue({
-        ...mockPayment,
+        ...pendingPayment,
         status: PaymentStatus.COMPLETED,
         receiptUrl: 'https://example.com/receipt.pdf',
       });
@@ -685,7 +709,8 @@ describe('PaymentsService', () => {
     });
 
     it('should set paidAt when status is COMPLETED', async () => {
-      paymentRepository.findOne.mockResolvedValue(mockPayment);
+      const pendingPayment = { ...mockPayment, status: PaymentStatus.PENDING };
+      paymentRepository.findOne.mockResolvedValue(pendingPayment);
 
       const dto: UpdatePaymentStatusDto = {
         status: PaymentStatus.COMPLETED,
@@ -702,7 +727,11 @@ describe('PaymentsService', () => {
     });
 
     it('should set refundedAt when status is REFUNDED', async () => {
-      paymentRepository.findOne.mockResolvedValue(mockPayment);
+      const completedPayment = {
+        ...mockPayment,
+        status: PaymentStatus.COMPLETED,
+      };
+      paymentRepository.findOne.mockResolvedValue(completedPayment);
 
       const dto: UpdatePaymentStatusDto = {
         status: PaymentStatus.REFUNDED,

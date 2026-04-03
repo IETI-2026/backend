@@ -8,6 +8,7 @@ import {
 } from '@/database/entities';
 import { TenantModule } from '@/tenant';
 import { AuthModule } from '../auth';
+import { ServiceRequestsModule } from '../service-requests';
 import { PaymentsService } from './application';
 import { PaymentsController } from './presentation';
 
@@ -21,6 +22,7 @@ import { PaymentsController } from './presentation';
     ]),
     TenantModule,
     AuthModule,
+    ServiceRequestsModule,
   ],
   controllers: [PaymentsController],
   providers: [PaymentsService],
