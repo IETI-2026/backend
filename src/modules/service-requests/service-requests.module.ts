@@ -16,6 +16,6 @@ import {
     ServiceRequestsService,
     BlobStorageService,
   ],
-  exports: [ServiceRequestsService],
+  exports: [ServiceRequestsService, ServiceRequestsGateway],
 })
 export class ServiceRequestsModule {}
