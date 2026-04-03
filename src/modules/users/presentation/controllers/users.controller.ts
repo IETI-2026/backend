@@ -49,7 +49,7 @@ import { JwtPayloadEntity } from '../../../auth/domain/entities';
 import { CurrentUser, Roles } from '../../../auth/infrastructure/decorators';
 import { JwtAuthGuard, RolesGuard } from '../../../auth/infrastructure/guards';
 
-class UpdateLocationDto {
+class UpdateUserLocationDto {
   @IsNumber()
   @Type(() => Number)
   latitude!: number;
@@ -227,7 +227,7 @@ export class UsersController {
   @ApiOperation({ summary: 'Actualizar ubicación del usuario autenticado' })
   async updateMyLocation(
     @CurrentUser() currentUser: JwtPayloadEntity,
-    @Body() dto: UpdateLocationDto,
+    @Body() dto: UpdateUserLocationDto,
   ): Promise<void> {
     if (!currentUser.sub)
       throw new UnauthorizedException('User ID not available');
