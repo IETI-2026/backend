@@ -181,7 +181,7 @@ export class ServiceRequestsService {
       ...new Set(
         requests
           .filter((r) => r.assignedTechnicianId)
-          .map((r) => r.assignedTechnicianId!),
+          .map((r) => r.assignedTechnicianId as string),
       ),
     ];
     const ratingMap: Record<string, number | null> = {};
