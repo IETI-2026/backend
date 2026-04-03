@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import PDFDocument from 'pdfkit';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, In, Repository } from 'typeorm';
 import { BlobStorageService } from '@/common/services/blob-storage.service';
 import {
   UserEntity as DbUserEntity,
@@ -96,6 +96,14 @@ export class ServiceRequestsService {
     return publicDataSource.getRepository(DbUserEntity);
   }
 
+  private async getPublicProfileRepo(): Promise<
+    Repository<ProviderProfileEntity>
+  > {
+    const publicDataSource =
+      await this.tenantDataSourceService.getDataSource('public');
+    return publicDataSource.getRepository(ProviderProfileEntity);
+  }
+
   async create(
     dto: CreateServiceRequestDto,
   ): Promise<ServiceRequestResponseDto> {
@@ -162,15 +170,43 @@ export class ServiceRequestsService {
       skip: page * limit,
       take: limit,
       order: { createdAt: 'DESC' },
-      relations: ['technicianResponses', 'assignedTechnician'],
+      relations: ['technicianResponses', 'assignedTechnician', 'user'],
     });
 
     this.logger.log(
       `findAll where=${JSON.stringify(where)} tenant=${this.tenantContext.getTenantId()} total=${total}`,
     );
 
+    const techIds = [
+      ...new Set(
+        requests
+          .filter((r) => r.assignedTechnicianId)
+          .map((r) => r.assignedTechnicianId!),
+      ),
+    ];
+    const ratingMap: Record<string, number | null> = {};
+    if (techIds.length > 0) {
+      try {
+        const profileRepo = await this.getPublicProfileRepo();
+        const profiles = await profileRepo.find({
+          where: { userId: In(techIds) },
+          select: ['userId', 'averageRating'],
+        });
+        profiles.forEach((p) => {
+          ratingMap[p.userId] = p.averageRating;
+        });
+      } catch (_) {}
+    }
+
     return {
-      requests: requests.map((request) => this.toResponse(request)),
+      requests: requests.map((request) =>
+        this.toResponse(
+          request,
+          request.assignedTechnicianId
+            ? (ratingMap[request.assignedTechnicianId] ?? null)
+            : null,
+        ),
+      ),
       total,
       page,
       limit,
@@ -200,6 +236,21 @@ export class ServiceRequestsService {
       relations: ['technicianUser'],
     });
 
+    const techIds = responses.map((r) => r.technicianUser.id);
+    const ratingMap: Record<string, number | null> = {};
+    if (techIds.length > 0) {
+      try {
+        const profileRepo = await this.getPublicProfileRepo();
+        const profiles = await profileRepo.find({
+          where: { userId: In(techIds) },
+          select: ['userId', 'averageRating'],
+        });
+        profiles.forEach((p) => {
+          ratingMap[p.userId] = p.averageRating;
+        });
+      } catch (_) {}
+    }
+
     return responses.map((response) => ({
       id: response.technicianUser.id,
       fullName: response.technicianUser.fullName,
@@ -209,6 +260,7 @@ export class ServiceRequestsService {
       profilePhotoUrl: response.technicianUser.profilePhotoUrl,
       currentLatitude: response.technicianUser.currentLatitude,
       currentLongitude: response.technicianUser.currentLongitude,
+      averageRating: ratingMap[response.technicianUser.id] ?? null,
       respondedAt: response.respondedAt,
     }));
   }
@@ -338,6 +390,7 @@ export class ServiceRequestsService {
       profilePhotoUrl: technician.profilePhotoUrl,
       currentLatitude: technician.currentLatitude,
       currentLongitude: technician.currentLongitude,
+      averageRating: null,
       respondedAt: existingResponse.respondedAt,
     };
     this.gateway.emitTechnicianAccepted(serviceRequestId, technicianPayload);
@@ -867,7 +920,7 @@ export class ServiceRequestsService {
   ): Promise<ServiceRequestResponseDto> {
     const request = await this.requestRepo.findOne({
       where: { id: serviceRequestId },
-      relations: ['technicianResponses', 'assignedTechnician'],
+      relations: ['technicianResponses', 'assignedTechnician', 'user'],
     });
 
     if (!request) {
@@ -876,7 +929,19 @@ export class ServiceRequestsService {
       );
     }
 
-    return this.toResponse(request);
+    let technicianRating: number | null = null;
+    if (request.assignedTechnicianId) {
+      try {
+        const profileRepo = await this.getPublicProfileRepo();
+        const profile = await profileRepo.findOne({
+          where: { userId: request.assignedTechnicianId },
+          select: ['userId', 'averageRating'],
+        });
+        technicianRating = profile?.averageRating ?? null;
+      } catch (_) {}
+    }
+
+    return this.toResponse(request, technicianRating);
   }
 
   private async calculateFinalPrice(
@@ -1119,38 +1184,42 @@ export class ServiceRequestsService {
     return UrgencyLevel.media;
   }
 
-  private toResponse(request: {
-    id: string;
-    userId: string;
-    assignedTechnicianId: string | null;
-    rawDescription: string;
-    serviceCity: string;
-    requestedSkills: string[];
-    status: ServiceRequestStatus;
-    urgency: UrgencyLevel;
-    latitude: number;
-    longitude: number;
-    addressText: string;
-    startedAt?: Date | null;
-    completedAt?: Date | null;
-    clientMarkedComplete?: boolean;
-    technicianMarkedComplete?: boolean;
-    displacementDistanceKm?: number | null;
-    finalPrice?: string | null;
-    receiptUrl?: string | null;
-    isRated?: boolean;
-    assignedTechnician?: {
-      fullName: string;
-      profilePhotoUrl?: string | null;
-    } | null;
-    createdAt: Date;
-    updatedAt: Date;
-    technicianResponses: {
-      technicianUserId: string;
-      status: TechnicianResponseStatus;
-      respondedAt: Date;
-    }[];
-  }): ServiceRequestResponseDto {
+  private toResponse(
+    request: {
+      id: string;
+      userId: string;
+      assignedTechnicianId: string | null;
+      rawDescription: string;
+      serviceCity: string;
+      requestedSkills: string[];
+      status: ServiceRequestStatus;
+      urgency: UrgencyLevel;
+      latitude: number;
+      longitude: number;
+      addressText: string;
+      startedAt?: Date | null;
+      completedAt?: Date | null;
+      clientMarkedComplete?: boolean;
+      technicianMarkedComplete?: boolean;
+      displacementDistanceKm?: number | null;
+      finalPrice?: string | null;
+      receiptUrl?: string | null;
+      isRated?: boolean;
+      user?: { fullName: string } | null;
+      assignedTechnician?: {
+        fullName: string;
+        profilePhotoUrl?: string | null;
+      } | null;
+      createdAt: Date;
+      updatedAt: Date;
+      technicianResponses: {
+        technicianUserId: string;
+        status: TechnicianResponseStatus;
+        respondedAt: Date;
+      }[];
+    },
+    technicianRating?: number | null,
+  ): ServiceRequestResponseDto {
     const response = new ServiceRequestResponseDto();
     response.id = request.id;
     response.userId = request.userId;
@@ -1177,6 +1246,8 @@ export class ServiceRequestsService {
     response.isRated = request.isRated ?? false;
     response.categoryName =
       request.requestedSkills.length > 0 ? request.requestedSkills[0] : null;
+    response.clientName = request.user?.fullName ?? null;
+    response.technicianRating = technicianRating ?? null;
     response.technicianResponses = request.technicianResponses.map((item) => ({
       technicianUserId: item.technicianUserId,
       status: item.status,
