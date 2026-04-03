@@ -109,7 +109,7 @@ describe('PaymentsService', () => {
 
     gateway = {
       emitPaymentCompleted: jest.fn(),
-    };
+    } as unknown as jest.Mocked<ServiceRequestsGateway>;
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
