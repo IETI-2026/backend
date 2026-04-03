@@ -33,7 +33,7 @@ describe('PaymentsService', () => {
   let paymentMethodRepository: jest.Mocked<Repository<UserPaymentMethodEntity>>;
   let serviceRequestRepository: jest.Mocked<Repository<ServiceRequestEntity>>;
   let userRepository: jest.Mocked<Repository<UserEntity>>;
-  let gateway: jest.Mocked<any>;
+  let gateway: jest.Mocked<ServiceRequestsGateway>;
 
   const mockUserId = 'user-123';
   const mockProviderId = 'provider-456';
