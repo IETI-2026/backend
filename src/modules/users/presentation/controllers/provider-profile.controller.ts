@@ -9,6 +9,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UnauthorizedException,
   UploadedFile,
   UseGuards,
@@ -27,6 +28,7 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
@@ -37,6 +39,7 @@ import { JwtAuthGuard, RolesGuard } from '../../../auth/infrastructure/guards';
 import {
   CreateProviderProfileDto,
   ProviderProfileResponseDto,
+  ProviderSearchResultDto,
   UpdateProviderProfileDto,
   VerifyProviderDto,
 } from '../../application/dtos';
@@ -148,6 +151,28 @@ export class ProviderProfileController {
       `POST /users/me/provider-profile/upload-document by ${user.email}`,
     );
     return this.providerProfileService.forwardIdentityDocument(user.sub, file);
+  }
+
+  @Get('providers/search')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Buscar prestadores por habilidad',
+    description:
+      'Retorna prestadores cuyas habilidades coincidan con el término de búsqueda',
+  })
+  @ApiQuery({
+    name: 'skill',
+    required: true,
+    type: String,
+    description: 'Término a buscar en las habilidades',
+  })
+  @ApiOkResponse({ type: [ProviderSearchResultDto] })
+  @ApiBadRequestResponse({ description: 'Parámetro skill requerido' })
+  async searchProviders(
+    @Query('skill') skill: string,
+  ): Promise<ProviderSearchResultDto[]> {
+    this.logger.log(`GET /users/providers/search?skill=${skill}`);
+    return this.providerProfileService.searchBySkill(skill);
   }
 
   @Get(':id/provider-profile')

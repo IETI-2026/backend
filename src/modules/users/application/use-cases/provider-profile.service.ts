@@ -18,6 +18,7 @@ import { AUTH_REPOSITORY } from '../../../auth/domain/repositories';
 import type { IAuthRepository } from '../../../auth/domain/repositories/auth.repository';
 import type { CreateProviderProfileDto } from '../dtos/create-provider-profile.dto';
 import { ProviderProfileResponseDto } from '../dtos/provider-profile-response.dto';
+import { ProviderSearchResultDto } from '../dtos/provider-search-result.dto';
 import type { UpdateProviderProfileDto } from '../dtos/update-provider-profile.dto';
 import { VerificationAction } from '../dtos/verify-provider.dto';
 
@@ -169,6 +170,31 @@ export class ProviderProfileService {
       `Provider ${providerUserId} verification: ${action} → ${statusMap[action]}`,
     );
     return this.mapToResponse(updated, profile.user?.skills ?? []);
+  }
+
+  async searchBySkill(skill: string): Promise<ProviderSearchResultDto[]> {
+    const profiles = await this.profileRepo
+      .createQueryBuilder('p')
+      .innerJoinAndSelect('p.user', 'u')
+      .where(
+        `EXISTS (SELECT 1 FROM unnest(u.skills) AS s WHERE s ILIKE :pattern)`,
+        { pattern: `%${skill}%` },
+      )
+      .getMany();
+
+    return profiles.map((p) => {
+      const dto = new ProviderSearchResultDto();
+      dto.userId = p.userId;
+      dto.fullName = p.user.fullName;
+      dto.profilePhotoUrl = p.user.profilePhotoUrl;
+      dto.bio = p.bio;
+      dto.skills = p.user.skills;
+      dto.averageRating = p.averageRating;
+      dto.totalRatings = p.totalRatings;
+      dto.isAvailable = p.isAvailable;
+      dto.verificationStatus = p.verificationStatus;
+      return dto;
+    });
   }
 
   async forwardIdentityDocument(
