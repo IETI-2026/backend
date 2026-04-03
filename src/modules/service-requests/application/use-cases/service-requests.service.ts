@@ -10,11 +10,12 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import PDFDocument from 'pdfkit';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, In, Repository } from 'typeorm';
 import { BlobStorageService } from '@/common/services/blob-storage.service';
 import {
   UserEntity as DbUserEntity,
   ProviderProfileEntity,
+  ServiceCategoryEntity,
   ServiceRequestEntity,
   ServiceRequestEventEntity,
   ServiceRequestTechnicianResponseEntity,
@@ -69,6 +70,7 @@ export class ServiceRequestsService {
   private readonly responseRepo: Repository<ServiceRequestTechnicianResponseEntity>;
   private readonly eventRepo: Repository<ServiceRequestEventEntity>;
   private readonly tenantUserRepo: Repository<DbUserEntity>;
+  private readonly serviceCategoryRepo: Repository<ServiceCategoryEntity>;
 
   constructor(
     @Inject(TENANT_DATA_SOURCE)
@@ -85,12 +87,21 @@ export class ServiceRequestsService {
     );
     this.eventRepo = dataSource.getRepository(ServiceRequestEventEntity);
     this.tenantUserRepo = dataSource.getRepository(DbUserEntity);
+    this.serviceCategoryRepo = dataSource.getRepository(ServiceCategoryEntity);
   }
 
   private async getPublicUserRepo(): Promise<Repository<DbUserEntity>> {
     const publicDataSource =
       await this.tenantDataSourceService.getDataSource('public');
     return publicDataSource.getRepository(DbUserEntity);
+  }
+
+  private async getPublicProfileRepo(): Promise<
+    Repository<ProviderProfileEntity>
+  > {
+    const publicDataSource =
+      await this.tenantDataSourceService.getDataSource('public');
+    return publicDataSource.getRepository(ProviderProfileEntity);
   }
 
   async create(
@@ -159,15 +170,43 @@ export class ServiceRequestsService {
       skip: page * limit,
       take: limit,
       order: { createdAt: 'DESC' },
-      relations: ['technicianResponses', 'assignedTechnician'],
+      relations: ['technicianResponses', 'assignedTechnician', 'user'],
     });
 
     this.logger.log(
       `findAll where=${JSON.stringify(where)} tenant=${this.tenantContext.getTenantId()} total=${total}`,
     );
 
+    const techIds = [
+      ...new Set(
+        requests
+          .filter((r) => r.assignedTechnicianId)
+          .map((r) => r.assignedTechnicianId as string),
+      ),
+    ];
+    const ratingMap: Record<string, number | null> = {};
+    if (techIds.length > 0) {
+      try {
+        const profileRepo = await this.getPublicProfileRepo();
+        const profiles = await profileRepo.find({
+          where: { userId: In(techIds) },
+          select: ['userId', 'averageRating'],
+        });
+        profiles.forEach((p) => {
+          ratingMap[p.userId] = p.averageRating;
+        });
+      } catch (_) {}
+    }
+
     return {
-      requests: requests.map((request) => this.toResponse(request)),
+      requests: requests.map((request) =>
+        this.toResponse(
+          request,
+          request.assignedTechnicianId
+            ? (ratingMap[request.assignedTechnicianId] ?? null)
+            : null,
+        ),
+      ),
       total,
       page,
       limit,
@@ -197,6 +236,21 @@ export class ServiceRequestsService {
       relations: ['technicianUser'],
     });
 
+    const techIds = responses.map((r) => r.technicianUser.id);
+    const ratingMap: Record<string, number | null> = {};
+    if (techIds.length > 0) {
+      try {
+        const profileRepo = await this.getPublicProfileRepo();
+        const profiles = await profileRepo.find({
+          where: { userId: In(techIds) },
+          select: ['userId', 'averageRating'],
+        });
+        profiles.forEach((p) => {
+          ratingMap[p.userId] = p.averageRating;
+        });
+      } catch (_) {}
+    }
+
     return responses.map((response) => ({
       id: response.technicianUser.id,
       fullName: response.technicianUser.fullName,
@@ -206,6 +260,7 @@ export class ServiceRequestsService {
       profilePhotoUrl: response.technicianUser.profilePhotoUrl,
       currentLatitude: response.technicianUser.currentLatitude,
       currentLongitude: response.technicianUser.currentLongitude,
+      averageRating: ratingMap[response.technicianUser.id] ?? null,
       respondedAt: response.respondedAt,
     }));
   }
@@ -335,6 +390,7 @@ export class ServiceRequestsService {
       profilePhotoUrl: technician.profilePhotoUrl,
       currentLatitude: technician.currentLatitude,
       currentLongitude: technician.currentLongitude,
+      averageRating: null,
       respondedAt: existingResponse.respondedAt,
     };
     this.gateway.emitTechnicianAccepted(serviceRequestId, technicianPayload);
@@ -479,7 +535,6 @@ export class ServiceRequestsService {
       status: ServiceRequestStatus.ON_THE_WAY,
       assignedAt: new Date(),
       displacementDistanceKm,
-      finalPrice: '58000',
     });
 
     const event = this.eventRepo.create({
@@ -549,7 +604,12 @@ export class ServiceRequestsService {
     }
     if (bothComplete) {
       updatePayload.status = ServiceRequestStatus.COMPLETED;
-      updatePayload.completedAt = new Date();
+      const completedAt = new Date();
+      updatePayload.completedAt = completedAt;
+      updatePayload.finalPrice = await this.calculateFinalPrice(
+        request,
+        completedAt,
+      );
     }
 
     await this.requestRepo.update(serviceRequestId, updatePayload);
@@ -860,7 +920,7 @@ export class ServiceRequestsService {
   ): Promise<ServiceRequestResponseDto> {
     const request = await this.requestRepo.findOne({
       where: { id: serviceRequestId },
-      relations: ['technicianResponses', 'assignedTechnician'],
+      relations: ['technicianResponses', 'assignedTechnician', 'user'],
     });
 
     if (!request) {
@@ -869,7 +929,61 @@ export class ServiceRequestsService {
       );
     }
 
-    return this.toResponse(request);
+    let technicianRating: number | null = null;
+    if (request.assignedTechnicianId) {
+      try {
+        const profileRepo = await this.getPublicProfileRepo();
+        const profile = await profileRepo.findOne({
+          where: { userId: request.assignedTechnicianId },
+          select: ['userId', 'averageRating'],
+        });
+        technicianRating = profile?.averageRating ?? null;
+      } catch (_) {}
+    }
+
+    return this.toResponse(request, technicianRating);
+  }
+
+  private async calculateFinalPrice(
+    request: ServiceRequestEntity,
+    completedAt: Date,
+  ): Promise<string> {
+    const categorySlug =
+      request.requestedSkills.length > 0 ? request.requestedSkills[0] : null;
+
+    let basePrice = 0;
+    let pricePerKm = 0;
+    let pricePerHour = 0;
+
+    if (categorySlug) {
+      const category = await this.serviceCategoryRepo.findOne({
+        where: { slug: categorySlug },
+      });
+      if (category) {
+        basePrice = category.basePrice;
+        pricePerKm = category.pricePerKm;
+        pricePerHour = category.pricePerHour;
+      }
+    }
+
+    const distanceKm = request.displacementDistanceKm ?? 0;
+    const durationHours = request.startedAt
+      ? (completedAt.getTime() - request.startedAt.getTime()) / 3600000
+      : 0;
+
+    const urgencyFactors: Record<UrgencyLevel, number> = {
+      [UrgencyLevel.baja]: 1.0,
+      [UrgencyLevel.media]: 1.5,
+      [UrgencyLevel.alta]: 2.0,
+    };
+    const urgencyFactor = urgencyFactors[request.urgency] ?? 1.0;
+
+    const finalPrice = Math.round(
+      (basePrice + distanceKm * pricePerKm + durationHours * pricePerHour) *
+        urgencyFactor,
+    );
+
+    return String(finalPrice);
   }
 
   private normalizeSkills(skills: string[]): string[] {
@@ -1070,38 +1184,42 @@ export class ServiceRequestsService {
     return UrgencyLevel.media;
   }
 
-  private toResponse(request: {
-    id: string;
-    userId: string;
-    assignedTechnicianId: string | null;
-    rawDescription: string;
-    serviceCity: string;
-    requestedSkills: string[];
-    status: ServiceRequestStatus;
-    urgency: UrgencyLevel;
-    latitude: number;
-    longitude: number;
-    addressText: string;
-    startedAt?: Date | null;
-    completedAt?: Date | null;
-    clientMarkedComplete?: boolean;
-    technicianMarkedComplete?: boolean;
-    displacementDistanceKm?: number | null;
-    finalPrice?: string | null;
-    receiptUrl?: string | null;
-    isRated?: boolean;
-    assignedTechnician?: {
-      fullName: string;
-      profilePhotoUrl?: string | null;
-    } | null;
-    createdAt: Date;
-    updatedAt: Date;
-    technicianResponses: {
-      technicianUserId: string;
-      status: TechnicianResponseStatus;
-      respondedAt: Date;
-    }[];
-  }): ServiceRequestResponseDto {
+  private toResponse(
+    request: {
+      id: string;
+      userId: string;
+      assignedTechnicianId: string | null;
+      rawDescription: string;
+      serviceCity: string;
+      requestedSkills: string[];
+      status: ServiceRequestStatus;
+      urgency: UrgencyLevel;
+      latitude: number;
+      longitude: number;
+      addressText: string;
+      startedAt?: Date | null;
+      completedAt?: Date | null;
+      clientMarkedComplete?: boolean;
+      technicianMarkedComplete?: boolean;
+      displacementDistanceKm?: number | null;
+      finalPrice?: string | null;
+      receiptUrl?: string | null;
+      isRated?: boolean;
+      user?: { fullName: string } | null;
+      assignedTechnician?: {
+        fullName: string;
+        profilePhotoUrl?: string | null;
+      } | null;
+      createdAt: Date;
+      updatedAt: Date;
+      technicianResponses: {
+        technicianUserId: string;
+        status: TechnicianResponseStatus;
+        respondedAt: Date;
+      }[];
+    },
+    technicianRating?: number | null,
+  ): ServiceRequestResponseDto {
     const response = new ServiceRequestResponseDto();
     response.id = request.id;
     response.userId = request.userId;
@@ -1128,6 +1246,8 @@ export class ServiceRequestsService {
     response.isRated = request.isRated ?? false;
     response.categoryName =
       request.requestedSkills.length > 0 ? request.requestedSkills[0] : null;
+    response.clientName = request.user?.fullName ?? null;
+    response.technicianRating = technicianRating ?? null;
     response.technicianResponses = request.technicianResponses.map((item) => ({
       technicianUserId: item.technicianUserId,
       status: item.status,

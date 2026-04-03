@@ -150,6 +150,20 @@ export class ServiceRequestResponseDto {
   })
   categoryName!: string | null;
 
+  @ApiPropertyOptional({
+    description: 'Nombre del cliente que realizó la solicitud',
+    example: 'María López',
+    nullable: true,
+  })
+  clientName!: string | null;
+
+  @ApiPropertyOptional({
+    description: 'Calificación promedio del técnico asignado',
+    example: 4.8,
+    nullable: true,
+  })
+  technicianRating!: number | null;
+
   @ApiProperty({
     description: 'Indica si el servicio ya fue calificado por el cliente',
   })

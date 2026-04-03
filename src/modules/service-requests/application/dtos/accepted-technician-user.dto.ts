@@ -55,6 +55,13 @@ export class AcceptedTechnicianUserDto {
   })
   currentLongitude!: number | null;
 
+  @ApiPropertyOptional({
+    description: 'Calificación promedio del técnico',
+    example: 4.8,
+    nullable: true,
+  })
+  averageRating!: number | null;
+
   @ApiProperty({
     description: 'Fecha en que aceptó la solicitud',
     type: 'string',
