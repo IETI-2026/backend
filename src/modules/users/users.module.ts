@@ -1,17 +1,34 @@
 import { Module } from '@nestjs/common';
 import { TenantModule } from '@/tenant';
 import { AuthModule } from '../auth';
-import { ProviderProfileService, UsersService } from './application';
+import {
+  AdminUsersService,
+  ProviderDocumentsService,
+  ProviderProfileService,
+  UsersService,
+} from './application';
 import { USER_REPOSITORY } from './domain';
 import { UserTypeOrmRepository } from './infrastructure';
-import { ProviderProfileController, UsersController } from './presentation';
+import {
+  AdminUsersController,
+  ProviderDocumentsController,
+  ProviderProfileController,
+  UsersController,
+} from './presentation';
 
 @Module({
   imports: [TenantModule, AuthModule],
-  controllers: [UsersController, ProviderProfileController],
+  controllers: [
+    UsersController,
+    ProviderProfileController,
+    AdminUsersController,
+    ProviderDocumentsController,
+  ],
   providers: [
     UsersService,
+    AdminUsersService,
     ProviderProfileService,
+    ProviderDocumentsService,
     {
       provide: USER_REPOSITORY,
       useClass: UserTypeOrmRepository,

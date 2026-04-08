@@ -2,5 +2,7 @@
   "sonarlint.connectedMode.project": {
     "connectionId": "ieti-2026",
     "projectKey": "IETI-2026_backend"
-  }
+  },
+  "snyk.advanced.autoSelectOrganization": true,
+  "snyk.advanced.organization": "94877677-6ae4-4341-bcdd-31edd7bb9809"
 }
