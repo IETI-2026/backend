@@ -18,6 +18,7 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import {
   AuthResponseDto,
@@ -63,6 +64,7 @@ export class AuthController {
 
   @Post('signup')
   @Public()
+  @Throttle({ default: { ttl: 60000, limit: 5 } })
   @HttpCode(201)
   @ApiOperation({ summary: 'Register a new user with email and password' })
   @ApiResponse({ status: 201, description: 'User registered successfully' })
@@ -76,6 +78,7 @@ export class AuthController {
 
   @Post('login')
   @Public()
+  @Throttle({ default: { ttl: 60000, limit: 5 } })
   @HttpCode(200)
   @ApiOperation({ summary: 'Login with email and password' })
   @ApiResponse({ status: 200, description: 'Login successful' })
@@ -105,6 +108,7 @@ export class AuthController {
 
   @Post('refresh')
   @Public()
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
   @HttpCode(200)
   @ApiOperation({ summary: 'Refresh access token using refresh token' })
   @ApiResponse({ status: 200, description: 'Token refreshed successfully' })
@@ -121,6 +125,7 @@ export class AuthController {
 
   @Post('forgot-password')
   @Public()
+  @Throttle({ default: { ttl: 60000, limit: 3 } })
   @HttpCode(200)
   @ApiOperation({ summary: 'Request password reset email' })
   @ApiResponse({ status: 200, description: 'If email exists, reset link sent' })
@@ -168,6 +173,7 @@ export class AuthController {
 
   @Post('send-otp')
   @Public()
+  @Throttle({ default: { ttl: 60000, limit: 3 } })
   @HttpCode(200)
   @ApiOperation({ summary: 'Send OTP code to phone number (simulated)' })
   @ApiResponse({
@@ -183,6 +189,7 @@ export class AuthController {
 
   @Post('verify-otp')
   @Public()
+  @Throttle({ default: { ttl: 60000, limit: 5 } })
   @HttpCode(200)
   @ApiOperation({
     summary: 'Verify OTP and login (creates account if new phone)',
@@ -259,9 +266,7 @@ export class AuthController {
         throw new UnauthorizedException('User data not available');
       }
 
-      const frontendUrl =
-        this.configService.get<string>('oauth.frontend.url') ||
-        'http://localhost:3000';
+      const frontendUrl = this.configService.get<string>('oauth.frontend.url');
       const redirectUrl =
         `${frontendUrl}/auth/callback?` +
         `accessToken=${authResponse.accessToken}&` +
@@ -274,9 +279,7 @@ export class AuthController {
       );
       res.redirect(redirectUrl);
     } catch (error) {
-      const frontendUrl =
-        this.configService.get<string>('oauth.frontend.url') ||
-        'http://localhost:3000';
+      const frontendUrl = this.configService.get<string>('oauth.frontend.url');
       const errorMessage =
         error instanceof Error ? error.message : 'Authentication failed';
       const errorUrl = `${frontendUrl}/auth/error?message=${encodeURIComponent(errorMessage)}`;

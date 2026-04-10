@@ -105,15 +105,16 @@ export class ServiceRequestsService {
   }
 
   async create(
+    userId: string,
     dto: CreateServiceRequestDto,
   ): Promise<ServiceRequestResponseDto> {
     const publicUserRepo = await this.getPublicUserRepo();
     const user = await publicUserRepo.findOne({
-      where: { id: dto.userId },
+      where: { id: userId },
     });
 
     if (!user) {
-      throw new NotFoundException(`User with ID ${dto.userId} not found`);
+      throw new NotFoundException(`User with ID ${userId} not found`);
     }
 
     await this.ensureTenantUserProjection(user);
@@ -121,7 +122,7 @@ export class ServiceRequestsService {
     const classification = await this.classifyProblemWithAgent(dto.problema);
 
     const entity = this.requestRepo.create({
-      userId: dto.userId,
+      userId,
       rawDescription: dto.problema,
       serviceCity: dto.serviceCity.trim().toLowerCase(),
       requestedSkills: classification.skills,
@@ -309,22 +310,23 @@ export class ServiceRequestsService {
 
   async accept(
     serviceRequestId: string,
+    technicianUserId: string,
     dto: AcceptServiceRequestDto,
   ): Promise<ServiceRequestResponseDto> {
     const publicUserRepo = await this.getPublicUserRepo();
     const technician = await publicUserRepo.findOne({
-      where: { id: dto.technicianUserId },
+      where: { id: technicianUserId },
     });
 
     if (!technician) {
       throw new NotFoundException(
-        `Technician user with ID ${dto.technicianUserId} not found`,
+        `Technician user with ID ${technicianUserId} not found`,
       );
     }
 
     const providerProfile = await publicUserRepo.manager
       .getRepository(ProviderProfileEntity)
-      .findOne({ where: { userId: dto.technicianUserId } });
+      .findOne({ where: { userId: technicianUserId } });
 
     if (
       !providerProfile ||
@@ -354,7 +356,7 @@ export class ServiceRequestsService {
       );
     }
     let existingResponse = await this.responseRepo.findOne({
-      where: { serviceRequestId, technicianUserId: dto.technicianUserId },
+      where: { serviceRequestId, technicianUserId },
     });
 
     if (existingResponse) {
@@ -365,7 +367,7 @@ export class ServiceRequestsService {
     } else {
       existingResponse = this.responseRepo.create({
         serviceRequestId,
-        technicianUserId: dto.technicianUserId,
+        technicianUserId,
         status: TechnicianResponseStatus.ACCEPTED,
         respondedAt: new Date(),
       });
@@ -376,7 +378,7 @@ export class ServiceRequestsService {
       serviceRequestId,
       previousStatus: ServiceRequestStatus.REQUESTED,
       newStatus: ServiceRequestStatus.REQUESTED,
-      triggeredBy: dto.technicianUserId,
+      triggeredBy: technicianUserId,
       metadata: { action: 'TECHNICIAN_ACCEPTED' },
     });
     await this.eventRepo.save(event);
@@ -468,6 +470,7 @@ export class ServiceRequestsService {
 
   async chooseTechnician(
     serviceRequestId: string,
+    customerUserId: string,
     dto: ChooseTechnicianDto,
   ): Promise<ServiceRequestResponseDto> {
     const request = await this.requestRepo.findOne({
@@ -481,9 +484,9 @@ export class ServiceRequestsService {
       );
     }
 
-    if (request.userId !== dto.customerUserId) {
+    if (request.userId !== customerUserId) {
       throw new ConflictException(
-        `User ${dto.customerUserId} is not the owner of service request ${serviceRequestId}`,
+        `User ${customerUserId} is not the owner of service request ${serviceRequestId}`,
       );
     }
 
@@ -541,7 +544,7 @@ export class ServiceRequestsService {
       serviceRequestId,
       previousStatus: ServiceRequestStatus.REQUESTED,
       newStatus: ServiceRequestStatus.ON_THE_WAY,
-      triggeredBy: dto.customerUserId,
+      triggeredBy: customerUserId,
       metadata: {
         action: 'CUSTOMER_SELECTED_TECHNICIAN',
         technicianUserId: dto.technicianUserId,
@@ -556,6 +559,7 @@ export class ServiceRequestsService {
 
   async markComplete(
     serviceRequestId: string,
+    userId: string,
     dto: MarkCompleteDto,
   ): Promise<ServiceRequestResponseDto> {
     const request = await this.requestRepo.findOne({
@@ -577,18 +581,15 @@ export class ServiceRequestsService {
       );
     }
 
-    if (dto.role === 'client' && request.userId !== dto.userId) {
+    if (dto.role === 'client' && request.userId !== userId) {
       throw new BadRequestException(
-        `User ${dto.userId} is not the client of this service request`,
+        `User ${userId} is not the client of this service request`,
       );
     }
 
-    if (
-      dto.role === 'technician' &&
-      request.assignedTechnicianId !== dto.userId
-    ) {
+    if (dto.role === 'technician' && request.assignedTechnicianId !== userId) {
       throw new BadRequestException(
-        `User ${dto.userId} is not the assigned technician of this service request`,
+        `User ${userId} is not the assigned technician of this service request`,
       );
     }
 
@@ -640,7 +641,7 @@ export class ServiceRequestsService {
       serviceRequestId,
       previousStatus: request.status,
       newStatus: bothComplete ? ServiceRequestStatus.COMPLETED : request.status,
-      triggeredBy: dto.userId,
+      triggeredBy: userId,
       metadata: { action: `${dto.role.toUpperCase()}_MARKED_COMPLETE` },
     });
     await this.eventRepo.save(event);

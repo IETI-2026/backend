@@ -48,6 +48,6 @@ import { AuthController } from './presentation';
     JwtAuthGuard,
     RolesGuard,
   ],
-  exports: [AuthService, JwtAuthGuard, RolesGuard, AUTH_REPOSITORY],
+  exports: [AuthService, JwtAuthGuard, RolesGuard, AUTH_REPOSITORY, JwtModule],
 })
 export class AuthModule {}

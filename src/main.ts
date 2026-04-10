@@ -60,7 +60,23 @@ async function bootstrap() {
 
   app.useWebSocketAdapter(new IoAdapter(app));
 
-  app.use(helmet());
+  if (isProduction) {
+    app.use((req: any, res: any, next: any) => {
+      if (req.headers['x-forwarded-proto'] !== 'https') {
+        return res.redirect(301, `https://${req.headers.host}${req.url}`);
+      }
+      next();
+    });
+  }
+
+  app.use(
+    helmet({
+      hsts: {
+        maxAge: 31536000,
+        includeSubDomains: true,
+      },
+    }),
+  );
   app.use(compression());
 
   const allowedOrigins = configService.get<string>('app.corsOrigins');

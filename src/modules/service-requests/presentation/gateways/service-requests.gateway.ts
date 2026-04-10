@@ -1,4 +1,4 @@
-import { Logger } from '@nestjs/common';
+import { Logger, UseGuards } from '@nestjs/common';
 import {
   ConnectedSocket,
   MessageBody,
@@ -9,13 +9,19 @@ import {
   WebSocketServer,
 } from '@nestjs/websockets';
 import type { Server, Socket } from 'socket.io';
+import { WsJwtGuard } from '@/common/guards/ws-jwt.guard';
 import type { AcceptedTechnicianUserDto } from '../../application/dtos/accepted-technician-user.dto';
 import type { ServiceRequestResponseDto } from '../../application/dtos/service-request-response.dto';
 
+const allowedOrigins = (process.env.CORS_ORIGINS ?? 'http://localhost:3000')
+  .split(',')
+  .map((o) => o.trim())
+  .filter((o) => o.length > 0);
+
+@UseGuards(WsJwtGuard)
 @WebSocketGateway({
   cors: {
-    origin: '*',
-    credentials: true,
+    origin: allowedOrigins,
   },
   transports: ['websocket', 'polling'],
 })
@@ -28,7 +34,7 @@ export class ServiceRequestsGateway
   server!: Server;
 
   handleConnection(client: Socket) {
-    this.logger.log(`Client connected: ${client.id}`);
+    this.logger.log(`Client attempting connection: ${client.id}`);
   }
 
   handleDisconnect(client: Socket) {
@@ -51,6 +57,15 @@ export class ServiceRequestsGateway
     @MessageBody() data: { technicianId: string; tenantId: string },
     @ConnectedSocket() client: Socket,
   ): { success: boolean } {
+    const authenticatedUserId = client.data.user?.sub as string | undefined;
+    if (authenticatedUserId !== data.technicianId) {
+      this.logger.warn(
+        `WS join_technician_room: user=${authenticatedUserId} tried to join as technicianId=${data.technicianId}`,
+      );
+      client.emit('error', { message: 'Unauthorized: technicianId mismatch' });
+      return { success: false };
+    }
+
     const technicianRoom = `technician_${data.technicianId}`;
     const tenantRoom = `tenant_${data.tenantId}_technicians`;
     void client.join(technicianRoom);

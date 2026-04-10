@@ -24,10 +24,12 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../../auth/infrastructure/guards/jwt-auth.guard';
+import { RoleName } from '../../../../database/enums';
+import { JwtPayloadEntity } from '../../../auth/domain/entities';
+import { CurrentUser, Roles } from '../../../auth/infrastructure/decorators';
+import { JwtAuthGuard, RolesGuard } from '../../../auth/infrastructure/guards';
 import {
   AcceptedTechnicianUserDto,
-  AcceptServiceRequestDto,
   ChooseTechnicianDto,
   CreateServiceRequestDto,
   GetServiceRequestsQueryDto,
@@ -41,7 +43,7 @@ import {
 
 @ApiTags('service-requests')
 @Controller('service-requests')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
 @ApiUnauthorizedResponse({ description: 'Token de acceso inválido o expirado' })
 export class ServiceRequestsController {
@@ -154,6 +156,7 @@ export class ServiceRequestsController {
   }
 
   @Post()
+  @Roles(RoleName.USER)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Crear solicitud de servicio',
@@ -167,10 +170,16 @@ export class ServiceRequestsController {
   @ApiBadRequestResponse({ description: 'Datos de entrada inválidos' })
   @ApiNotFoundResponse({ description: 'Usuario cliente no encontrado' })
   async create(
+    @CurrentUser() user: JwtPayloadEntity,
     @Body() createServiceRequestDto: CreateServiceRequestDto,
   ): Promise<ServiceRequestResponseDto> {
-    this.logger.log('POST /service-requests - Creating service request');
-    return await this.serviceRequestsService.create(createServiceRequestDto);
+    this.logger.log(
+      `POST /service-requests - Creating service request user=${user.sub}`,
+    );
+    return await this.serviceRequestsService.create(
+      user.sub!,
+      createServiceRequestDto,
+    );
   }
 
   @Get('available/:technicianUserId')
@@ -204,6 +213,7 @@ export class ServiceRequestsController {
   }
 
   @Patch(':id/accept')
+  @Roles(RoleName.PROVIDER)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Aceptar solicitud de servicio',
@@ -226,17 +236,17 @@ export class ServiceRequestsController {
     description: 'La solicitud ya no está disponible para responder',
   })
   async accept(
+    @CurrentUser() user: JwtPayloadEntity,
     @Param('id') id: string,
-    @Body() acceptServiceRequestDto: AcceptServiceRequestDto,
   ): Promise<ServiceRequestResponseDto> {
-    this.logger.log(`PATCH /service-requests/${id}/accept - Accepting request`);
-    return await this.serviceRequestsService.accept(
-      id,
-      acceptServiceRequestDto,
+    this.logger.log(
+      `PATCH /service-requests/${id}/accept - Accepting request user=${user.sub}`,
     );
+    return await this.serviceRequestsService.accept(id, user.sub!, {});
   }
 
   @Patch(':id/reject')
+  @Roles(RoleName.PROVIDER)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Rechazar solicitud de servicio',
@@ -279,6 +289,7 @@ export class ServiceRequestsController {
   }
 
   @Patch(':id/mark-complete')
+  @Roles(RoleName.USER, RoleName.PROVIDER)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Marcar servicio como finalizado',
@@ -295,16 +306,22 @@ export class ServiceRequestsController {
     type: ServiceRequestResponseDto,
   })
   async markComplete(
+    @CurrentUser() user: JwtPayloadEntity,
     @Param('id') id: string,
     @Body() markCompleteDto: MarkCompleteDto,
   ): Promise<ServiceRequestResponseDto> {
     this.logger.log(
-      `PATCH /service-requests/${id}/mark-complete - Marking complete`,
+      `PATCH /service-requests/${id}/mark-complete - Marking complete user=${user.sub}`,
     );
-    return await this.serviceRequestsService.markComplete(id, markCompleteDto);
+    return await this.serviceRequestsService.markComplete(
+      id,
+      user.sub!,
+      markCompleteDto,
+    );
   }
 
   @Patch(':id/update-location')
+  @Roles(RoleName.PROVIDER)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Actualizar ubicación del usuario en el servicio',
@@ -319,14 +336,15 @@ export class ServiceRequestsController {
   })
   @ApiOkResponse({ description: 'Ubicación actualizada exitosamente' })
   async updateLocation(
+    @CurrentUser() user: JwtPayloadEntity,
     @Param('id') id: string,
     @Body() updateLocationDto: UpdateLocationDto,
   ): Promise<{ message: string }> {
     this.logger.log(
-      `PATCH /service-requests/${id}/update-location - Updating location`,
+      `PATCH /service-requests/${id}/update-location - Updating location user=${user.sub}`,
     );
     await this.serviceRequestsService.updateUserLocation(
-      updateLocationDto.userId,
+      user.sub!,
       updateLocationDto.latitude,
       updateLocationDto.longitude,
     );
@@ -357,6 +375,7 @@ export class ServiceRequestsController {
   }
 
   @Post(':id/rate')
+  @Roles(RoleName.USER)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Calificar un servicio completado',
@@ -386,6 +405,7 @@ export class ServiceRequestsController {
   }
 
   @Patch(':id/choose-technician')
+  @Roles(RoleName.USER)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Cliente elige técnico',
@@ -409,14 +429,16 @@ export class ServiceRequestsController {
       'El cliente no es dueño de la solicitud, el técnico no aceptó o el estado no permite asignar',
   })
   async chooseTechnician(
+    @CurrentUser() user: JwtPayloadEntity,
     @Param('id') id: string,
     @Body() chooseTechnicianDto: ChooseTechnicianDto,
   ): Promise<ServiceRequestResponseDto> {
     this.logger.log(
-      `PATCH /service-requests/${id}/choose-technician - Choosing technician`,
+      `PATCH /service-requests/${id}/choose-technician - Choosing technician user=${user.sub}`,
     );
     return await this.serviceRequestsService.chooseTechnician(
       id,
+      user.sub!,
       chooseTechnicianDto,
     );
   }

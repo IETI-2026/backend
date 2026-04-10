@@ -1,5 +1,7 @@
-import { Body, Controller, Logger, Post } from '@nestjs/common';
+import { Body, Controller, Logger, Post, UseGuards } from '@nestjs/common';
 import { ApiBody } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
+import { JwtAuthGuard } from '../auth/infrastructure/guards/jwt-auth.guard';
 import { ReverseGeocodeDto } from './dto/reverse-geocode.dto';
 import { GeocodingService } from './geocoding.service';
 
@@ -9,6 +11,8 @@ const reverseGeocodeBodyExample = {
 };
 
 @Controller('geocoding')
+@UseGuards(JwtAuthGuard)
+@Throttle({ default: { ttl: 60000, limit: 30 } })
 export class GeocodingController {
   private readonly logger = new Logger(GeocodingController.name);
 

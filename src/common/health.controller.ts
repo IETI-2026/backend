@@ -7,10 +7,6 @@ export class HealthController {
   @Get()
   check() {
     this.logger.log('GET /health - Health check requested');
-    return {
-      status: 'ok',
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime(),
-    };
+    return { status: 'ok' };
   }
 }
