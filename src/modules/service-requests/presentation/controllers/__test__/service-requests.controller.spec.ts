@@ -159,9 +159,15 @@ describe('ServiceRequestsController', () => {
     it('should create and return a new service request', async () => {
       mockServiceRequestsService.create.mockResolvedValue(mockServiceRequest);
 
-      const result = await controller.create(createDto as unknown);
+      const result = await controller.create(
+        { sub: 'user-uuid-001' } as any,
+        createDto as any,
+      );
 
-      expect(mockServiceRequestsService.create).toHaveBeenCalledWith(createDto);
+      expect(mockServiceRequestsService.create).toHaveBeenCalledWith(
+        'user-uuid-001',
+        createDto,
+      );
       expect(result).toBe(mockServiceRequest);
     });
 
@@ -234,13 +240,14 @@ describe('ServiceRequestsController', () => {
       mockServiceRequestsService.accept.mockResolvedValue(accepted);
 
       const result = await controller.accept(
+        { sub: 'tech-uuid-001' } as any,
         'req-uuid-001',
-        acceptDto as unknown,
       );
 
       expect(mockServiceRequestsService.accept).toHaveBeenCalledWith(
         'req-uuid-001',
-        acceptDto,
+        'tech-uuid-001',
+        {},
       );
       expect(result).toBe(accepted);
     });
@@ -325,13 +332,15 @@ describe('ServiceRequestsController', () => {
       mockServiceRequestsService.chooseTechnician.mockResolvedValue(assigned);
 
       const result = await controller.chooseTechnician(
+        { sub: 'user-uuid-001' } as any,
         'req-uuid-001',
-        chooseDto as unknown,
+        { technicianUserId: 'tech-uuid-001' } as any,
       );
 
       expect(mockServiceRequestsService.chooseTechnician).toHaveBeenCalledWith(
         'req-uuid-001',
-        chooseDto,
+        'user-uuid-001',
+        { technicianUserId: 'tech-uuid-001' },
       );
       expect(result.status).toBe(ServiceRequestStatus.ASSIGNED);
     });
