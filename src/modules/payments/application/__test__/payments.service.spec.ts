@@ -84,6 +84,9 @@ describe('PaymentsService', () => {
   } as unknown as PaymentEntity;
 
   beforeEach(async () => {
+    process.env.EPAYCO_P_CUST_ID = 'test-customer-id';
+    process.env.EPAYCO_P_KEY = 'test-private-key';
+
     paymentRepository = {
       findOne: jest.fn(),
       find: jest.fn(),
