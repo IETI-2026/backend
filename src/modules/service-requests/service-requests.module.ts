@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { WsJwtGuard } from '@/common/guards/ws-jwt.guard';
 import { BlobStorageService } from '@/common/services/blob-storage.service';
 import { TenantModule } from '@/tenant';
 import { AuthModule } from '../auth';
@@ -15,6 +16,7 @@ import {
     ServiceRequestsGateway,
     ServiceRequestsService,
     BlobStorageService,
+    WsJwtGuard,
   ],
   exports: [ServiceRequestsService, ServiceRequestsGateway],
 })

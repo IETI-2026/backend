@@ -5,9 +5,11 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  UnauthorizedException,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { createHash, timingSafeEqual } from 'crypto';
 import { Repository } from 'typeorm';
 import {
   PaymentEntity,
@@ -57,6 +59,8 @@ const ALLOWED_TRANSITIONS: Record<PaymentStatus, readonly PaymentStatus[]> = {
 @Injectable()
 export class PaymentsService {
   private readonly logger = new Logger(PaymentsService.name);
+  private readonly epaycoCustomerId: string;
+  private readonly epaycoPrivateKey: string;
 
   constructor(
     @InjectRepository(PaymentEntity)
@@ -68,7 +72,18 @@ export class PaymentsService {
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
     private readonly gateway: ServiceRequestsGateway,
-  ) {}
+  ) {
+    const customerId = process.env.EPAYCO_P_CUST_ID;
+    const privateKey = process.env.EPAYCO_P_KEY;
+    if (!customerId) {
+      throw new Error('EPAYCO_P_CUST_ID environment variable is not defined');
+    }
+    if (!privateKey) {
+      throw new Error('EPAYCO_P_KEY environment variable is not defined');
+    }
+    this.epaycoCustomerId = customerId;
+    this.epaycoPrivateKey = privateKey;
+  }
 
   // ─────────────────────────────────────────────────────────────────────────
   // Payment Methods
@@ -465,6 +480,13 @@ export class PaymentsService {
   async processEpaycoWebhook(
     data: EpaycoWebhookDto,
   ): Promise<{ received: boolean }> {
+    if (!this.verifyEpaycoSignature(data)) {
+      this.logger.warn(
+        `ePayco webhook: invalid signature ref=${data.x_ref_payco}`,
+      );
+      throw new UnauthorizedException('Invalid signature');
+    }
+
     const { x_ref_payco, x_extra1, x_response } = data;
     this.logger.log(
       `ePayco webhook received ref=${x_ref_payco} response=${x_response}`,
@@ -539,6 +561,34 @@ export class PaymentsService {
   // ─────────────────────────────────────────────────────────────────────────
   // Private helpers
   // ─────────────────────────────────────────────────────────────────────────
+
+  private verifyEpaycoSignature(data: EpaycoWebhookDto): boolean {
+    if (!data.x_signature) {
+      return false;
+    }
+
+    const signatureString = [
+      this.epaycoCustomerId,
+      this.epaycoPrivateKey,
+      data.x_ref_payco,
+      data.x_transaction_id ?? '',
+      data.x_amount ?? '',
+      data.x_currency_code ?? '',
+      data.x_franchise ?? '',
+      data.x_response,
+    ].join('^');
+
+    const expected = createHash('sha256').update(signatureString).digest('hex');
+
+    try {
+      return timingSafeEqual(
+        Buffer.from(expected),
+        Buffer.from(data.x_signature.toLowerCase()),
+      );
+    } catch {
+      return false;
+    }
+  }
 
   private mapEpaycoResponse(xResponse: string): PaymentStatus {
     switch (xResponse) {

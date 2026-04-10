@@ -1,8 +1,12 @@
 import { configs } from '@config/index';
+import { mailConfigSchema } from '@config/mail.config';
 import { CacheModule } from '@nestjs/cache-manager';
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { redisStore } from 'cache-manager-redis-store';
+import * as Joi from 'joi';
 import type { RedisClientOptions } from 'redis';
 import { DatabaseModule } from '@/database/database.module';
 import { HealthController } from './common/health.controller';
@@ -20,6 +24,8 @@ import { TenantMiddleware, TenantModule } from './tenant';
       isGlobal: true,
       load: configs,
       envFilePath: '.env',
+      validationSchema: Joi.object(mailConfigSchema),
+      validationOptions: { abortEarly: false },
     }),
     CacheModule.registerAsync<RedisClientOptions>({
       isGlobal: true,
@@ -27,14 +33,12 @@ import { TenantMiddleware, TenantModule } from './tenant';
       useFactory: async (configService: ConfigService) => {
         const cacheConfig = configService.get('cache');
 
-        // Para testing: usar in-memory cache
         if (cacheConfig.isTest) {
           return {
             ttl: cacheConfig.ttl,
           };
         }
 
-        // Para production/development: usar Redis Cloud
         return {
           store: redisStore as unknown as string,
           url: cacheConfig.url,
@@ -42,6 +46,13 @@ import { TenantMiddleware, TenantModule } from './tenant';
         } as RedisClientOptions;
       },
     }),
+    ThrottlerModule.forRoot([
+      {
+        name: 'default',
+        ttl: 60000,
+        limit: 60,
+      },
+    ]),
     DatabaseModule,
     TenantModule,
     MailModule,
@@ -52,7 +63,12 @@ import { TenantMiddleware, TenantModule } from './tenant';
     PaymentsModule,
   ],
   controllers: [HealthController],
-  providers: [],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {

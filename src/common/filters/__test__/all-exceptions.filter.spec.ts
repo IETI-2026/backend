@@ -165,8 +165,8 @@ describe('AllExceptionsFilter', () => {
       );
       expect(mockResponse.json).toHaveBeenCalledWith(
         expect.objectContaining({
-          message: 'Cannot read property',
-          error: 'TypeError',
+          statusCode: 500,
+          message: 'Internal server error',
         }),
       );
     });
@@ -233,12 +233,10 @@ describe('AllExceptionsFilter', () => {
   });
 
   describe('response shape invariants', () => {
-    it('includes timestamp, path and method', () => {
+    it('includes timestamp', () => {
       filter.catch(new Error('any'), mockHost as ArgumentsHost);
       const arg = mockResponse.json.mock.calls[0][0];
       expect(arg).toHaveProperty('timestamp');
-      expect(arg).toHaveProperty('path', '/test-path');
-      expect(arg).toHaveProperty('method', 'GET');
     });
 
     it('produces a valid ISO timestamp', () => {

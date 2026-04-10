@@ -68,6 +68,12 @@ export class EpaycoWebhookDto {
   @IsString()
   x_extra2?: string;
 
+  /** Franquicia de tarjeta (VISA, MASTERCARD, etc.) */
+  @ApiPropertyOptional({ example: 'VISA' })
+  @IsOptional()
+  @IsString()
+  x_franchise?: string;
+
   /** Código de banco (para PSE) */
   @ApiPropertyOptional({ example: 'BANCOLOMBIA' })
   @IsOptional()
