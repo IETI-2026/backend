@@ -27,7 +27,7 @@ import { TenantMiddleware, TenantModule } from './tenant';
     ThrottlerModule.forRoot([
       {
         name: 'default',
-        ttl: 60000,
+        ttl: 60,
         limit: 60,
       },
     ]),
