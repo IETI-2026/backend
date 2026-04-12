@@ -811,6 +811,14 @@ export class ServiceRequestsService {
       where: [
         {
           userId,
+          status: ServiceRequestStatus.ASSIGNED,
+        },
+        {
+          assignedTechnicianId: userId,
+          status: ServiceRequestStatus.ASSIGNED,
+        },
+        {
+          userId,
           status: ServiceRequestStatus.ON_THE_WAY,
         },
         {

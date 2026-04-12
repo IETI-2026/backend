@@ -76,11 +76,18 @@ export class ServiceRequestsGateway
     return { success: true };
   }
 
+  private roomSize(room: string): number {
+    return this.server.sockets.adapter.rooms.get(room)?.size ?? 0;
+  }
+
   emitNewServiceRequest(
     tenantId: string,
     serviceRequest: ServiceRequestResponseDto,
   ): void {
     const room = `tenant_${tenantId}_technicians`;
+    this.logger.log(
+      `Room ${room} has ${this.roomSize(room)} connected clients`,
+    );
     this.server.to(room).emit('new_service_request', serviceRequest);
     this.logger.log(`Emitted new_service_request to room ${room}`);
   }
@@ -90,6 +97,9 @@ export class ServiceRequestsGateway
     technician: AcceptedTechnicianUserDto,
   ): void {
     const room = `request_${requestId}`;
+    this.logger.log(
+      `Room ${room} has ${this.roomSize(room)} connected clients`,
+    );
     this.server.to(room).emit('technician_accepted', technician);
     this.logger.log(`Emitted technician_accepted to room ${room}`);
   }
@@ -104,11 +114,18 @@ export class ServiceRequestsGateway
     },
   ): void {
     const room = `request_${requestId}`;
+    this.logger.log(
+      `Room ${room} has ${this.roomSize(room)} connected clients`,
+    );
     this.server.to(room).emit('location_updated', data);
+    this.logger.log(`Emitted location_updated to room ${room}`);
   }
 
   emitServiceStatusUpdated(requestId: string, status: string): void {
     const room = `request_${requestId}`;
+    this.logger.log(
+      `Room ${room} has ${this.roomSize(room)} connected clients`,
+    );
     this.server.to(room).emit('service_status_updated', { requestId, status });
     this.logger.log(
       `Emitted service_status_updated to room ${room}: ${status}`,
@@ -120,6 +137,9 @@ export class ServiceRequestsGateway
     servicesCount: number,
   ): void {
     const room = `technician_${technicianId}`;
+    this.logger.log(
+      `Room ${room} has ${this.roomSize(room)} connected clients`,
+    );
     this.server.to(room).emit('technician_stats_updated', { servicesCount });
     this.logger.log(
       `Emitted technician_stats_updated to room ${room}: servicesCount=${servicesCount}`,
@@ -137,6 +157,9 @@ export class ServiceRequestsGateway
     },
   ): void {
     const room = `request_${serviceRequestId}`;
+    this.logger.log(
+      `Room ${room} has ${this.roomSize(room)} connected clients`,
+    );
     this.server.to(room).emit('payment_completed', {
       serviceRequestId,
       ...data,
