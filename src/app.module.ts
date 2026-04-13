@@ -1,6 +1,9 @@
 import { configs } from '@config/index';
+import { CacheModule } from '@nestjs/cache-manager';
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { redisStore } from 'cache-manager-redis-store';
+import type { RedisClientOptions } from 'redis';
 import { DatabaseModule } from '@/database/database.module';
 import { HealthController } from './common/health.controller';
 import { AuthModule } from './modules/auth';
@@ -17,6 +20,27 @@ import { TenantMiddleware, TenantModule } from './tenant';
       isGlobal: true,
       load: configs,
       envFilePath: '.env',
+    }),
+    CacheModule.registerAsync<RedisClientOptions>({
+      isGlobal: true,
+      inject: [ConfigService],
+      useFactory: async (configService: ConfigService) => {
+        const cacheConfig = configService.get('cache');
+
+        // Para testing: usar in-memory cache
+        if (cacheConfig.isTest) {
+          return {
+            ttl: cacheConfig.ttl,
+          };
+        }
+
+        // Para production/development: usar Redis Cloud
+        return {
+          store: redisStore as unknown as string,
+          url: cacheConfig.url,
+          ttl: cacheConfig.ttl,
+        } as RedisClientOptions;
+      },
     }),
     DatabaseModule,
     TenantModule,

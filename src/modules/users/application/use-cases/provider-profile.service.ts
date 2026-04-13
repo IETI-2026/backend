@@ -1,4 +1,5 @@
 import { HttpService } from '@nestjs/axios';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import {
   ConflictException,
   ForbiddenException,
@@ -7,13 +8,15 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import type { Cache } from 'cache-manager';
 import { DataSource, Repository } from 'typeorm';
 import {
   UserEntity as DbUserEntity,
   ProviderProfileEntity,
 } from '@/database/entities';
 import { ProviderVerificationStatus, RoleName } from '@/database/enums';
-import { TENANT_DATA_SOURCE } from '@/tenant';
+import { TENANT_DATA_SOURCE, TenantContext } from '@/tenant';
 import { AUTH_REPOSITORY } from '../../../auth/domain/repositories';
 import type { IAuthRepository } from '../../../auth/domain/repositories/auth.repository';
 import type { CreateProviderProfileDto } from '../dtos/create-provider-profile.dto';
@@ -37,6 +40,10 @@ export class ProviderProfileService {
     @Inject(AUTH_REPOSITORY)
     private readonly authRepository: IAuthRepository,
     private readonly httpService: HttpService,
+    @Inject(CACHE_MANAGER)
+    private readonly cache: Cache,
+    private readonly configService: ConfigService,
+    private readonly tenantContext: TenantContext,
   ) {
     this.profileRepo = dataSource.getRepository(ProviderProfileEntity);
     this.userRepo = dataSource.getRepository(DbUserEntity);
@@ -124,6 +131,9 @@ export class ProviderProfileService {
       where: { userId },
     });
 
+    // Invalidate rating cache on update
+    await this.invalidateRatingCache(userId);
+
     let skills: string[] = [];
     if (dto.skills !== undefined) {
       await this.userRepo.update(userId, { skills: dto.skills });
@@ -162,6 +172,10 @@ export class ProviderProfileService {
       { userId: providerUserId },
       { verificationStatus: statusMap[action] },
     );
+
+    // Invalidate cache on verification status change
+    await this.invalidateRatingCache(providerUserId);
+
     const updated = await this.profileRepo.findOneOrFail({
       where: { userId: providerUserId },
     });
@@ -221,6 +235,54 @@ export class ProviderProfileService {
     }
 
     return { message: 'Document sent for verification' };
+  }
+
+  /**
+   * Get cached provider rating
+   */
+  async getCachedRating(providerId: string): Promise<number | null> {
+    const tenantId = this.tenantContext.getTenantId() || 'public';
+    const cacheConfig = this.configService.get('cache');
+    const ttl = cacheConfig.ttls?.provider_rating || cacheConfig.ttl;
+
+    const cacheKey = `provider:${tenantId}:rating:${providerId}`;
+
+    return (
+      (await this.cache.get<number | null>(cacheKey)) ||
+      (await this.computeAndCacheRating(providerId, cacheKey, ttl))
+    );
+  }
+
+  /**
+   * Compute and cache provider rating
+   */
+  private async computeAndCacheRating(
+    providerId: string,
+    cacheKey: string,
+    ttl: number,
+  ): Promise<number | null> {
+    const profile = await this.profileRepo.findOne({
+      where: { userId: providerId },
+      select: ['averageRating'],
+    });
+
+    const rating = profile?.averageRating ?? null;
+    await this.cache.set(cacheKey, rating, ttl);
+    return rating;
+  }
+
+  /**
+   * Invalidate rating cache for a provider
+   */
+  private async invalidateRatingCache(providerId: string): Promise<void> {
+    const tenantId = this.tenantContext.getTenantId() || 'public';
+    const cacheKey = `provider:${tenantId}:rating:${providerId}`;
+
+    try {
+      await this.cache.del(cacheKey);
+    } catch {
+      // Silently handle invalidation errors
+    }
   }
 
   private mapToResponse(
