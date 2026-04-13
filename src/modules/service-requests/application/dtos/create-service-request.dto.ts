@@ -1,20 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
-import {
-  IsNotEmpty,
-  IsNumber,
-  IsString,
-  IsUUID,
-  MaxLength,
-} from 'class-validator';
+import { IsNotEmpty, IsNumber, IsString, MaxLength } from 'class-validator';
 
 export class CreateServiceRequestDto {
-  @ApiProperty({
-    description: 'ID del usuario cliente que crea la solicitud',
-    example: '550e8400-e29b-41d4-a716-446655440000',
-  })
-  @IsUUID()
-  userId!: string;
-
   @ApiProperty({
     description: 'Descripción del problema reportado por el cliente',
     example: 'El lavamanos tiene una fuga y gotea constantemente',

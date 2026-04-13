@@ -63,13 +63,16 @@ export const mailConfigSchema = {
     .description('SMTP password or App Password'),
 
   MAIL_FROM: Joi.string()
-    .email()
+    .pattern(/^(?:[^<]*<[^>]+@[^>]+>|[^\s@]+@[^\s@]+\.[^\s@]+)$/)
     .required()
     .messages({
-      'string.email': 'MAIL_FROM debe ser un email válido',
+      'string.pattern.base':
+        'MAIL_FROM debe ser un email válido (ej: user@example.com o "Nombre <user@example.com>")',
       'any.required': 'MAIL_FROM es requerido',
     })
-    .description('Default sender email address'),
+    .description(
+      'Default sender email address (plain or "Display Name <email>" format)',
+    ),
 };
 
 export default registerAs('mail', (): MailConfig => {

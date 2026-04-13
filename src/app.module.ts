@@ -1,6 +1,10 @@
 import { configs } from '@config/index';
+import { mailConfigSchema } from '@config/mail.config';
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import * as Joi from 'joi';
 import { DatabaseModule } from '@/database/database.module';
 import { HealthController } from './common/health.controller';
 import { AuthModule } from './modules/auth';
@@ -17,7 +21,16 @@ import { TenantMiddleware, TenantModule } from './tenant';
       isGlobal: true,
       load: configs,
       envFilePath: '.env',
+      validationSchema: Joi.object(mailConfigSchema),
+      validationOptions: { abortEarly: false },
     }),
+    ThrottlerModule.forRoot([
+      {
+        name: 'default',
+        ttl: 60,
+        limit: 60,
+      },
+    ]),
     DatabaseModule,
     TenantModule,
     MailModule,
@@ -28,7 +41,12 @@ import { TenantMiddleware, TenantModule } from './tenant';
     PaymentsModule,
   ],
   controllers: [HealthController],
-  providers: [],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {

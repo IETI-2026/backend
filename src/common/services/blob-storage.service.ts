@@ -4,15 +4,31 @@ import { Injectable, Logger } from '@nestjs/common';
 @Injectable()
 export class BlobStorageService {
   private readonly logger = new Logger(BlobStorageService.name);
-  private readonly containerName = 'cameyo-storage';
+  private readonly containerName: string;
+  private readonly connectionString: string;
 
-  private getContainerClient(): ContainerClient {
+  constructor() {
+    // Azure Blob Storage applies AES-256 server-side encryption by default.
+    // Verify SSE is enabled in the Azure Portal under:
+    // Storage account > Security + networking > Encryption
     const connectionString = process.env.STORAGE_CONNECTION_STRING;
+    const containerName = process.env.STORAGE_CONTAINER_NAME;
+
     if (!connectionString) {
       throw new Error('STORAGE_CONNECTION_STRING is not defined');
     }
-    const blobServiceClient =
-      BlobServiceClient.fromConnectionString(connectionString);
+    if (!containerName) {
+      throw new Error('STORAGE_CONTAINER_NAME is not defined');
+    }
+
+    this.connectionString = connectionString;
+    this.containerName = containerName;
+  }
+
+  private getContainerClient(): ContainerClient {
+    const blobServiceClient = BlobServiceClient.fromConnectionString(
+      this.connectionString,
+    );
     return blobServiceClient.getContainerClient(this.containerName);
   }
 

@@ -4,6 +4,7 @@
   "testEnvironment": "node",
   "testRegex": ".e2e-spec.ts$",
   "testTimeout": 60000,
+  "setupFiles": ["<rootDir>/jest-setup.ts"],
   "transform": {
     "^.+\\.(t|j)s$": "ts-jest"
   },

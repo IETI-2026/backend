@@ -33,8 +33,16 @@ export class AllExceptionsFilter implements ExceptionFilter {
         error = (responseObj.error as string) || error;
       }
     } else if (exception instanceof Error) {
-      message = exception.message;
-      error = exception.name;
+      this.logger.error(
+        `${request.method} ${request.url} 500 - ${exception.name}: ${exception.message}`,
+        exception.stack,
+      );
+      response.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+        timestamp: new Date().toISOString(),
+        message: 'Internal server error',
+      });
+      return;
     }
 
     const logMessage = `${request.method} ${request.url} ${status} - ${error}: ${Array.isArray(message) ? message.join(', ') : message}`;
