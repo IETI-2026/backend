@@ -71,6 +71,11 @@ jobs:
           ADMIN_PASSWORD: admin123
           ADMIN_FULLNAME: Admin User
           ADMIN_PHONE: +1234567890
+          SMTP_HOST: smtp.example.com
+          SMTP_PORT: 587
+          SMTP_USER: test@example.com
+          SMTP_PASSWORD: test-smtp-password
+          MAIL_FROM: no-reply@example.com
         run: npm run test
 
       - name: Run e2e tests
@@ -86,6 +91,11 @@ jobs:
           ADMIN_PASSWORD: admin123
           ADMIN_FULLNAME: Admin User
           ADMIN_PHONE: +1234567890
+          SMTP_HOST: smtp.example.com
+          SMTP_PORT: 587
+          SMTP_USER: test@example.com
+          SMTP_PASSWORD: test-smtp-password
+          MAIL_FROM: no-reply@example.com
         run: npm run test:e2e
 
   build:
