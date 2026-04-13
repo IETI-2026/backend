@@ -1,7 +1,5 @@
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
-import type { Cache } from 'cache-manager';
 
 /**
  * Redis Configuration and Cache Verification Tests
@@ -14,7 +12,6 @@ import type { Cache } from 'cache-manager';
  */
 describe('Redis Configuration Verification', () => {
   let configService: ConfigService;
-  let cacheConfig: any;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -209,7 +206,7 @@ describe('Redis Configuration Verification', () => {
         'Overall DB load': '40-50%',
       };
 
-      Object.entries(impacts).forEach(([metric, improvement]) => {
+      Object.entries(impacts).forEach(([_metric, improvement]) => {
         expect(improvement).toMatch(/\d+-\d+%/);
       });
     });
