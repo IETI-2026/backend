@@ -32,7 +32,6 @@ import { NestFactory } from '@nestjs/core';
 import { IoAdapter } from '@nestjs/platform-socket.io';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import compression from 'compression';
-import type { NextFunction, Request, Response } from 'express';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 
@@ -62,7 +61,7 @@ async function bootstrap() {
   app.useWebSocketAdapter(new IoAdapter(app));
 
   if (isProduction) {
-    app.use((req: Request, res: Response, next: NextFunction) => {
+    app.use((req: any, res: any, next: any) => {
       if (req.headers['x-forwarded-proto'] !== 'https') {
         return res.redirect(301, `https://${req.headers.host}${req.url}`);
       }

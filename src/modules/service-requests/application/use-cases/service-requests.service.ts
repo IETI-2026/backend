@@ -311,7 +311,7 @@ export class ServiceRequestsService {
   async accept(
     serviceRequestId: string,
     technicianUserId: string,
-    _dto: AcceptServiceRequestDto,
+    dto: AcceptServiceRequestDto,
   ): Promise<ServiceRequestResponseDto> {
     const publicUserRepo = await this.getPublicUserRepo();
     const technician = await publicUserRepo.findOne({
