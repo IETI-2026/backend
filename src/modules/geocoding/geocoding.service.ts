@@ -1,11 +1,14 @@
 import { HttpService } from '@nestjs/axios';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import {
   BadRequestException,
+  Inject,
   Injectable,
   InternalServerErrorException,
   Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import type { Cache } from 'cache-manager';
 import { lastValueFrom } from 'rxjs';
 import { ReverseGeocodeDto } from './dto/reverse-geocode.dto';
 
@@ -28,6 +31,13 @@ export interface GoogleGeocodeResponse {
   error_message?: string;
 }
 
+export interface CachedGeocode {
+  formattedAddress: string;
+  placeId: string;
+  components: GoogleAddressComponent[];
+  tenantCandidate: string | null;
+}
+
 @Injectable()
 export class GeocodingService {
   private readonly logger = new Logger(GeocodingService.name);
@@ -35,9 +45,27 @@ export class GeocodingService {
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
+    @Inject(CACHE_MANAGER)
+    private readonly cache: Cache,
   ) {}
 
   async reverseGeocode(params: ReverseGeocodeDto) {
+    // Round coordinates to 4 decimal places for better cache hit rate
+    // (roughly 11 meters precision)
+    const roundedLat = Math.round(params.lat * 10000) / 10000;
+    const roundedLng = Math.round(params.lng * 10000) / 10000;
+    const cacheKey = `geocode:${roundedLat}:${roundedLng}`;
+
+    // Try to get from cache first (public namespace, shared across all tenants)
+    const cached = await this.cache.get<CachedGeocode>(cacheKey);
+    if (cached) {
+      this.logger.debug(
+        `Cache hit for reverse geocoding lat=${roundedLat} lng=${roundedLng}`,
+      );
+      return cached;
+    }
+
+    // Not in cache, call Google Maps API
     const apiKey = this.configService.get<string>('googleMaps.apiKey');
 
     if (!apiKey) {
@@ -78,16 +106,23 @@ export class GeocodingService {
       primary.address_components,
     );
 
-    this.logger.log(
-      `Reverse geocode resolved: "${primary.formatted_address}" → tenant="${tenantCandidate ?? 'public'}"`,
-    );
-
-    return {
+    const result: CachedGeocode = {
       formattedAddress: primary.formatted_address,
       placeId: primary.place_id,
       components: primary.address_components,
       tenantCandidate,
     };
+
+    // Cache for 24 hours (geographic data is stable)
+    const cacheConfig = this.configService.get('cache');
+    const ttl = cacheConfig.ttls?.geocoding || 3600 * 24;
+    await this.cache.set(cacheKey, result, ttl);
+
+    this.logger.log(
+      `Reverse geocode resolved: "${primary.formatted_address}" → tenant="${tenantCandidate ?? 'public'}"`,
+    );
+
+    return result;
   }
 
   async resolveTenant(params: ReverseGeocodeDto): Promise<{ tenant: string }> {

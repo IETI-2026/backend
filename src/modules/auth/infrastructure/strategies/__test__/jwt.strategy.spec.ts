@@ -1,6 +1,8 @@
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
+import { TenantContext } from '@/tenant';
 import { RoleName } from '../../../../../database/enums';
 import { AuthService } from '../../../application/services/auth.service';
 import { JwtPayloadEntity } from '../../../domain/entities';
@@ -20,6 +22,15 @@ const mockConfigService = {
   get: jest.fn().mockReturnValue('test-jwt-secret-that-is-long-enough'),
 };
 
+const mockCacheManager = {
+  get: jest.fn().mockResolvedValue(null),
+  set: jest.fn().mockResolvedValue(undefined),
+};
+
+const mockTenantContext = {
+  getTenantId: jest.fn().mockReturnValue('public'),
+};
+
 describe('JwtStrategy', () => {
   let strategy: JwtStrategy;
 
@@ -29,6 +40,8 @@ describe('JwtStrategy', () => {
         JwtStrategy,
         { provide: AuthService, useValue: mockAuthService },
         { provide: ConfigService, useValue: mockConfigService },
+        { provide: CACHE_MANAGER, useValue: mockCacheManager },
+        { provide: TenantContext, useValue: mockTenantContext },
       ],
     }).compile();
 

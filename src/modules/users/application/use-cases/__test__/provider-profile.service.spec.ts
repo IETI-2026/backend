@@ -1,9 +1,11 @@
 import { HttpService } from '@nestjs/axios';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { ConflictException, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ProviderProfileEntity, UserEntity } from '@/database/entities';
 import { ProviderVerificationStatus, RoleName } from '@/database/enums';
-import { TENANT_DATA_SOURCE } from '@/tenant/tenant-datasource.provider';
+import { TENANT_DATA_SOURCE, TenantContext } from '@/tenant';
 import type { IAuthRepository } from '../../../../auth/domain/repositories';
 import { AUTH_REPOSITORY } from '../../../../auth/domain/repositories';
 import { VerificationAction } from '../../dtos/verify-provider.dto';
@@ -90,6 +92,31 @@ describe('ProviderProfileService', () => {
       ),
     };
 
+    const mockCache = {
+      get: jest.fn().mockResolvedValue(null),
+      set: jest.fn().mockResolvedValue(undefined),
+      del: jest.fn().mockResolvedValue(undefined),
+    };
+
+    const mockConfigService = {
+      get: jest.fn((key: string) => {
+        if (key === 'cache') {
+          return {
+            ttls: {
+              provider_rating: 3600 * 4,
+              user_profile: 1800,
+            },
+            ttl: 300,
+          };
+        }
+        return undefined;
+      }),
+    };
+
+    const mockTenantContext = {
+      getTenantId: jest.fn().mockReturnValue('public'),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ProviderProfileService,
@@ -99,6 +126,9 @@ describe('ProviderProfileService', () => {
           provide: HttpService,
           useValue: { axiosRef: { post: jest.fn() } },
         },
+        { provide: CACHE_MANAGER, useValue: mockCache },
+        { provide: ConfigService, useValue: mockConfigService },
+        { provide: TenantContext, useValue: mockTenantContext },
       ],
     }).compile();
 

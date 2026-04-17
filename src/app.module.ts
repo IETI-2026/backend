@@ -1,5 +1,6 @@
 import { configs } from '@config/index';
 import { mailConfigSchema } from '@config/mail.config';
+import { CacheModule } from '@nestjs/cache-manager';
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
@@ -23,6 +24,9 @@ import { TenantMiddleware, TenantModule } from './tenant';
       envFilePath: '.env',
       validationSchema: Joi.object(mailConfigSchema),
       validationOptions: { abortEarly: false },
+    }),
+    CacheModule.register({
+      isGlobal: true,
     }),
     ThrottlerModule.forRoot([
       {

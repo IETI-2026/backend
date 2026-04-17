@@ -1,4 +1,5 @@
 import { HttpService } from '@nestjs/axios';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import {
   BadRequestException,
   InternalServerErrorException,
@@ -18,6 +19,11 @@ const mockHttpService = {
 
 const mockConfigService = {
   get: jest.fn(),
+};
+
+const mockCacheManager = {
+  get: jest.fn().mockResolvedValue(null),
+  set: jest.fn().mockResolvedValue(undefined),
 };
 
 const bogotaComponents = [
@@ -59,6 +65,7 @@ describe('GeocodingService', () => {
         GeocodingService,
         { provide: HttpService, useValue: mockHttpService },
         { provide: ConfigService, useValue: mockConfigService },
+        { provide: CACHE_MANAGER, useValue: mockCacheManager },
       ],
     }).compile();
 
