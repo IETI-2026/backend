@@ -9,6 +9,7 @@ import {
   Patch,
   Post,
   Query,
+  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -52,6 +53,14 @@ export class ServiceRequestsController {
   constructor(
     private readonly serviceRequestsService: ServiceRequestsService,
   ) {}
+
+  private getRequiredUserSub(user: JwtPayloadEntity): string {
+    if (!user.sub) {
+      throw new UnauthorizedException('Authenticated user id is required');
+    }
+
+    return user.sub;
+  }
 
   @Get()
   @HttpCode(HttpStatus.OK)
@@ -173,11 +182,12 @@ export class ServiceRequestsController {
     @CurrentUser() user: JwtPayloadEntity,
     @Body() createServiceRequestDto: CreateServiceRequestDto,
   ): Promise<ServiceRequestResponseDto> {
+    const userSub = this.getRequiredUserSub(user);
     this.logger.log(
       `POST /service-requests - Creating service request user=${user.sub}`,
     );
     return await this.serviceRequestsService.create(
-      user.sub!,
+      userSub,
       createServiceRequestDto,
     );
   }
@@ -239,10 +249,11 @@ export class ServiceRequestsController {
     @CurrentUser() user: JwtPayloadEntity,
     @Param('id') id: string,
   ): Promise<ServiceRequestResponseDto> {
+    const userSub = this.getRequiredUserSub(user);
     this.logger.log(
       `PATCH /service-requests/${id}/accept - Accepting request user=${user.sub}`,
     );
-    return await this.serviceRequestsService.accept(id, user.sub!, {});
+    return await this.serviceRequestsService.accept(id, userSub, {});
   }
 
   @Patch(':id/reject')
@@ -310,12 +321,13 @@ export class ServiceRequestsController {
     @Param('id') id: string,
     @Body() markCompleteDto: MarkCompleteDto,
   ): Promise<ServiceRequestResponseDto> {
+    const userSub = this.getRequiredUserSub(user);
     this.logger.log(
       `PATCH /service-requests/${id}/mark-complete - Marking complete user=${user.sub}`,
     );
     return await this.serviceRequestsService.markComplete(
       id,
-      user.sub!,
+      userSub,
       markCompleteDto,
     );
   }
@@ -340,11 +352,12 @@ export class ServiceRequestsController {
     @Param('id') id: string,
     @Body() updateLocationDto: UpdateLocationDto,
   ): Promise<{ message: string }> {
+    const userSub = this.getRequiredUserSub(user);
     this.logger.log(
       `PATCH /service-requests/${id}/update-location - Updating location user=${user.sub}`,
     );
     await this.serviceRequestsService.updateUserLocation(
-      user.sub!,
+      userSub,
       updateLocationDto.latitude,
       updateLocationDto.longitude,
     );
@@ -433,12 +446,13 @@ export class ServiceRequestsController {
     @Param('id') id: string,
     @Body() chooseTechnicianDto: ChooseTechnicianDto,
   ): Promise<ServiceRequestResponseDto> {
+    const userSub = this.getRequiredUserSub(user);
     this.logger.log(
       `PATCH /service-requests/${id}/choose-technician - Choosing technician user=${user.sub}`,
     );
     return await this.serviceRequestsService.chooseTechnician(
       id,
-      user.sub!,
+      userSub,
       chooseTechnicianDto,
     );
   }
