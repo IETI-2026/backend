@@ -31,8 +31,7 @@ export class ProviderProfileService {
   private readonly profileRepo: Repository<ProviderProfileEntity>;
   private readonly userRepo: Repository<DbUserEntity>;
 
-  private static readonly DOCUMENT_VERIFICATION_URL =
-    'http://localhost:3001/api/document-verification';
+  private readonly documentVerificationUrl: string;
 
   constructor(
     @Inject(TENANT_DATA_SOURCE)
@@ -47,6 +46,10 @@ export class ProviderProfileService {
   ) {
     this.profileRepo = dataSource.getRepository(ProviderProfileEntity);
     this.userRepo = dataSource.getRepository(DbUserEntity);
+    this.documentVerificationUrl = this.configService.get<string>(
+      'app.documentVerificationUrl',
+      '',
+    );
   }
 
   async create(
@@ -224,7 +227,7 @@ export class ProviderProfileService {
       };
 
       await this.httpService.axiosRef.post(
-        ProviderProfileService.DOCUMENT_VERIFICATION_URL,
+        this.documentVerificationUrl,
         payload,
       );
       this.logger.log(`Identity document forwarded for user ${userId}`);
