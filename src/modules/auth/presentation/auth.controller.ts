@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import {
   Body,
   Controller,
@@ -90,6 +91,7 @@ export class AuthController {
 
   @Post('google/mobile')
   @Public()
+  @Throttle({ default: { ttl: 60000, limit: 5 } })
   @HttpCode(200)
   @ApiOperation({
     summary:
@@ -140,6 +142,7 @@ export class AuthController {
 
   @Post('reset-password')
   @Public()
+  @Throttle({ default: { ttl: 60000, limit: 5 } })
   @HttpCode(200)
   @ApiOperation({ summary: 'Reset password with token from email' })
   @ApiResponse({ status: 200, description: 'Password reset successfully' })
@@ -221,7 +224,7 @@ export class AuthController {
     }
 
     const scope = encodeURIComponent('openid profile email');
-    const state = Math.random().toString(36).substring(7);
+    const state = randomBytes(16).toString('hex');
 
     const authUrl =
       `https://accounts.google.com/o/oauth2/v2/auth?` +

@@ -150,8 +150,7 @@ jobs:
           cache: "npm"
 
       - name: Run npm audit
-        run: npm audit --audit-level=moderate
-        continue-on-error: true
+        run: npm audit --audit-level=high
 
   success:
     name: All Checks Passed
