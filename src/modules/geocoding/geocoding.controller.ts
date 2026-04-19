@@ -12,7 +12,7 @@ const reverseGeocodeBodyExample = {
 
 @Controller('geocoding')
 @UseGuards(JwtAuthGuard)
-@Throttle({ default: { ttl: 60000, limit: 30 } })
+@Throttle({ default: { ttl: 60, limit: 30 } })
 export class GeocodingController {
   private readonly logger = new Logger(GeocodingController.name);
 

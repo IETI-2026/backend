@@ -13,6 +13,7 @@ import { GeocodingModule } from './modules/geocoding';
 import { MailModule } from './modules/mail';
 import { PaymentsModule } from './modules/payments';
 import { ServiceRequestsModule } from './modules/service-requests';
+import { SkillSuggestionsModule } from './modules/skill-suggestions';
 import { UsersModule } from './modules/users';
 import { TenantMiddleware, TenantModule } from './tenant';
 
@@ -43,6 +44,7 @@ import { TenantMiddleware, TenantModule } from './tenant';
     UsersModule,
     ServiceRequestsModule,
     PaymentsModule,
+    SkillSuggestionsModule,
   ],
   controllers: [HealthController],
   providers: [
