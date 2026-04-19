@@ -1,6 +1,7 @@
 import { HttpService } from '@nestjs/axios';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import {
+  BadGatewayException,
   ConflictException,
   ForbiddenException,
   Inject,
@@ -218,6 +219,12 @@ export class ProviderProfileService {
     userId: string,
     file: Express.Multer.File,
   ): Promise<{ message: string }> {
+    if (!this.documentVerificationUrl) {
+      throw new BadGatewayException(
+        'Document verification service is not configured',
+      );
+    }
+
     try {
       const payload = {
         userId,
@@ -231,9 +238,13 @@ export class ProviderProfileService {
         payload,
       );
       this.logger.log(`Identity document forwarded for user ${userId}`);
-    } catch {
-      this.logger.warn(
-        `Failed to forward identity document for user ${userId} — verification service may be unavailable`,
+    } catch (error) {
+      this.logger.error(
+        `Failed to forward identity document for user ${userId}`,
+        error,
+      );
+      throw new BadGatewayException(
+        'Document verification service is unavailable',
       );
     }
 
