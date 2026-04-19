@@ -82,5 +82,5 @@ jobs:
 
           az acr run \
             --registry cameyo \
-            --cmd "acr purge --filter 'cameyo-backend:.*' --ago 7d --untagged" \
+            --cmd "acr purge --filter 'cameyo-backend:.*' --ago 3d --untagged" \
             /dev/null
