@@ -216,9 +216,8 @@ export class ProviderProfileService {
     const externalServices = this.configService.get<{
       documentVerificationUrl?: string;
     }>('externalServices');
-    const documentVerificationUrl = externalServices?.documentVerificationUrl;
 
-    if (!documentVerificationUrl) {
+    if (!externalServices?.documentVerificationUrl) {
       throw new BadGatewayException(
         'Document verification service is not configured',
       );
@@ -232,7 +231,10 @@ export class ProviderProfileService {
         fileBase64: file.buffer.toString('base64'),
       };
 
-      await this.httpService.axiosRef.post(documentVerificationUrl, payload);
+      await this.httpService.axiosRef.post(
+        externalServices.documentVerificationUrl,
+        payload,
+      );
       this.logger.log(`Identity document forwarded for user ${userId}`);
     } catch {
       this.logger.warn(
