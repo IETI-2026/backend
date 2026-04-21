@@ -697,4 +697,117 @@ describe('AuthService', () => {
       );
     });
   });
+
+  describe('loginWithGoogleIdToken', () => {
+    function buildMockGoogleClient(
+      payloadOverrides: Record<string, unknown> = {},
+    ) {
+      const payload = {
+        sub: 'google-sub-001',
+        email: 'google@example.com',
+        email_verified: true,
+        name: 'Google User',
+        picture: 'https://photo.url',
+        iss: 'accounts.google.com',
+        ...payloadOverrides,
+      };
+      return {
+        verifyIdToken: jest
+          .fn()
+          .mockResolvedValue({ getPayload: () => payload }),
+      };
+    }
+
+    beforeEach(() => {
+      mockConfigService.get.mockImplementation((key: string) => {
+        if (key === 'oauth.google.clientId') return 'configured-client-id';
+        return 'mock-secret';
+      });
+      process.env.GOOGLE_WEB_CLIENT_ID = 'web-client-id';
+      process.env.GOOGLE_ANDROID_CLIENT_ID = '';
+      process.env.GOOGLE_IOS_CLIENT_ID = '';
+      process.env.GOOGLE_MOBILE_CLIENT_IDS = '';
+    });
+
+    it('should throw BadRequestException when idToken is empty', async () => {
+      await expect(service.loginWithGoogleIdToken('')).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should throw UnauthorizedException when no audiences are configured', async () => {
+      mockConfigService.get.mockReturnValue('');
+      process.env.GOOGLE_WEB_CLIENT_ID = '';
+      process.env.GOOGLE_ANDROID_CLIENT_ID = '';
+      process.env.GOOGLE_IOS_CLIENT_ID = '';
+      process.env.GOOGLE_MOBILE_CLIENT_IDS = '';
+
+      await expect(
+        service.loginWithGoogleIdToken('some-token'),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('should throw UnauthorizedException when verifyIdToken throws', async () => {
+      const mockClient = {
+        verifyIdToken: jest.fn().mockRejectedValue(new Error('invalid token')),
+      };
+      (service as unknown as Record<string, unknown>)['googleOAuthClient'] =
+        mockClient;
+
+      await expect(service.loginWithGoogleIdToken('bad-token')).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+
+    it('should throw UnauthorizedException when payload is missing sub', async () => {
+      const mockClient = buildMockGoogleClient({ sub: undefined });
+      (service as unknown as Record<string, unknown>)['googleOAuthClient'] =
+        mockClient;
+
+      await expect(
+        service.loginWithGoogleIdToken('valid-token'),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('should throw UnauthorizedException when email is not verified', async () => {
+      const mockClient = buildMockGoogleClient({ email_verified: false });
+      (service as unknown as Record<string, unknown>)['googleOAuthClient'] =
+        mockClient;
+
+      await expect(
+        service.loginWithGoogleIdToken('valid-token'),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('should throw UnauthorizedException when issuer is invalid', async () => {
+      const mockClient = buildMockGoogleClient({ iss: 'evil.com' });
+      (service as unknown as Record<string, unknown>)['googleOAuthClient'] =
+        mockClient;
+
+      await expect(
+        service.loginWithGoogleIdToken('valid-token'),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('should succeed and return auth response for a valid token (new user)', async () => {
+      const mockClient = buildMockGoogleClient();
+      (service as unknown as Record<string, unknown>)['googleOAuthClient'] =
+        mockClient;
+
+      mockAuthRepository.findOAuthAccount.mockResolvedValue(null);
+      mockAuthRepository.findUserByEmail.mockResolvedValue(null);
+      mockAuthRepository.createUser.mockResolvedValue(mockUser as unknown);
+      mockAuthRepository.createOAuthAccount.mockResolvedValue(undefined);
+      mockAuthRepository.assignRoleToUser.mockResolvedValue(undefined);
+      mockAuthRepository.getUserRoles.mockResolvedValue([RoleName.USER]);
+      mockAuthRepository.createRefreshToken.mockResolvedValue(
+        mockRefreshTokenRecord as unknown,
+      );
+      mockJwtService.sign.mockReturnValue('access.token');
+
+      const result = await service.loginWithGoogleIdToken('valid-token');
+
+      expect(result.accessToken).toBeDefined();
+    });
+  });
 });

@@ -309,6 +309,104 @@ describe('MailService', () => {
     });
   });
 
+  describe('Validation — missing required fields', () => {
+    it('sendWelcomeEmail should return VALIDATION_ERROR when to is empty', async () => {
+      const result = await service.sendWelcomeEmail(
+        '',
+        'User',
+        'https://url.com',
+      );
+      expect(result.success).toBe(false);
+      expect(result.errorType).toBe('VALIDATION_ERROR');
+    });
+
+    it('sendWelcomeEmail should return VALIDATION_ERROR when userName is empty', async () => {
+      const result = await service.sendWelcomeEmail(
+        'u@x.com',
+        '',
+        'https://url.com',
+      );
+      expect(result.success).toBe(false);
+      expect(result.errorType).toBe('VALIDATION_ERROR');
+    });
+
+    it('sendWelcomeEmail should return VALIDATION_ERROR when profileUrl is empty', async () => {
+      const result = await service.sendWelcomeEmail('u@x.com', 'User', '');
+      expect(result.success).toBe(false);
+      expect(result.errorType).toBe('VALIDATION_ERROR');
+    });
+
+    it('sendResetPasswordEmail should return VALIDATION_ERROR when to is empty', async () => {
+      const result = await service.sendResetPasswordEmail(
+        '',
+        'User',
+        'https://reset.link',
+      );
+      expect(result.success).toBe(false);
+      expect(result.errorType).toBe('VALIDATION_ERROR');
+    });
+
+    it('sendPaymentConfirmationEmail should return VALIDATION_ERROR when to is empty', async () => {
+      const paymentData = {
+        amount: '100',
+        paymentMethod: 'NEQUI',
+        transactionId: 'TXN-001',
+        paymentDate: '2026-04-20',
+        paymentTime: '10:00',
+      };
+      const result = await service.sendPaymentConfirmationEmail(
+        '',
+        'User',
+        paymentData,
+        'https://url',
+      );
+      expect(result.success).toBe(false);
+      expect(result.errorType).toBe('VALIDATION_ERROR');
+    });
+
+    it('sendPaymentConfirmationEmail should return VALIDATION_ERROR for missing payment fields', async () => {
+      const partialData = { amount: '100' } as unknown as Parameters<
+        typeof service.sendPaymentConfirmationEmail
+      >[2];
+      const result = await service.sendPaymentConfirmationEmail(
+        'u@x.com',
+        'User',
+        partialData,
+        'https://url',
+      );
+      expect(result.success).toBe(false);
+      expect(result.errorType).toBe('VALIDATION_ERROR');
+    });
+
+    it('sendNotification should return VALIDATION_ERROR when to is empty', async () => {
+      const result = await service.sendNotification('', 'User', 'Hello');
+      expect(result.success).toBe(false);
+      expect(result.errorType).toBe('VALIDATION_ERROR');
+    });
+
+    it('sendNotification should return VALIDATION_ERROR when message is empty', async () => {
+      const result = await service.sendNotification('u@x.com', 'User', '');
+      expect(result.success).toBe(false);
+      expect(result.errorType).toBe('VALIDATION_ERROR');
+    });
+  });
+
+  describe('sendMail — invalid email recipients', () => {
+    it('should return VALIDATION_ERROR for invalid email format', async () => {
+      mockNodemailer.sendMail.mockResolvedValue({
+        success: true,
+        messageId: 'x',
+      });
+      const result = await service.sendWelcomeEmail(
+        'not-an-email',
+        'User',
+        'https://url',
+      );
+      expect(result.success).toBe(false);
+      expect(result.errorType).toBe('VALIDATION_ERROR');
+    });
+  });
+
   describe('Result Type Compliance', () => {
     it('always returns MailSendResult with proper type', async () => {
       // This test verifies TypeScript typing is correct
