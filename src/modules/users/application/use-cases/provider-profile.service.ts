@@ -1,6 +1,7 @@
 import { HttpService } from '@nestjs/axios';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import {
+  BadGatewayException,
   ConflictException,
   ForbiddenException,
   Inject,
@@ -30,9 +31,6 @@ export class ProviderProfileService {
   private readonly logger = new Logger(ProviderProfileService.name);
   private readonly profileRepo: Repository<ProviderProfileEntity>;
   private readonly userRepo: Repository<DbUserEntity>;
-
-  private static readonly DOCUMENT_VERIFICATION_URL =
-    'http://localhost:3001/api/document-verification';
 
   constructor(
     @Inject(TENANT_DATA_SOURCE)
@@ -215,6 +213,17 @@ export class ProviderProfileService {
     userId: string,
     file: Express.Multer.File,
   ): Promise<{ message: string }> {
+    const externalServices = this.configService.get<{
+      documentVerificationUrl?: string;
+    }>('externalServices');
+    const documentVerificationUrl = externalServices?.documentVerificationUrl;
+
+    if (!documentVerificationUrl) {
+      throw new BadGatewayException(
+        'Document verification service is not configured',
+      );
+    }
+
     try {
       const payload = {
         userId,
@@ -223,10 +232,7 @@ export class ProviderProfileService {
         fileBase64: file.buffer.toString('base64'),
       };
 
-      await this.httpService.axiosRef.post(
-        ProviderProfileService.DOCUMENT_VERIFICATION_URL,
-        payload,
-      );
+      await this.httpService.axiosRef.post(documentVerificationUrl, payload);
       this.logger.log(`Identity document forwarded for user ${userId}`);
     } catch {
       this.logger.warn(

@@ -109,6 +109,14 @@ describe('ProviderProfileService', () => {
             ttl: 300,
           };
         }
+        if (key === 'externalServices') {
+          return {
+            skillSuggestionEndpointUrl:
+              'https://example.com/api/skill-suggestions',
+            documentVerificationUrl:
+              'https://example.com/api/document-verification',
+          };
+        }
         return undefined;
       }),
     };
