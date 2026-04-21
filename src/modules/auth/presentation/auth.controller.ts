@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import {
   Body,
   Controller,
@@ -64,7 +65,7 @@ export class AuthController {
 
   @Post('signup')
   @Public()
-  @Throttle({ default: { ttl: 60000, limit: 5 } })
+  @Throttle({ default: { ttl: 60, limit: 5 } })
   @HttpCode(201)
   @ApiOperation({ summary: 'Register a new user with email and password' })
   @ApiResponse({ status: 201, description: 'User registered successfully' })
@@ -78,7 +79,7 @@ export class AuthController {
 
   @Post('login')
   @Public()
-  @Throttle({ default: { ttl: 60000, limit: 5 } })
+  @Throttle({ default: { ttl: 60, limit: 5 } })
   @HttpCode(200)
   @ApiOperation({ summary: 'Login with email and password' })
   @ApiResponse({ status: 200, description: 'Login successful' })
@@ -90,6 +91,7 @@ export class AuthController {
 
   @Post('google/mobile')
   @Public()
+  @Throttle({ default: { ttl: 60, limit: 5 } })
   @HttpCode(200)
   @ApiOperation({
     summary:
@@ -108,7 +110,7 @@ export class AuthController {
 
   @Post('refresh')
   @Public()
-  @Throttle({ default: { ttl: 60000, limit: 10 } })
+  @Throttle({ default: { ttl: 60, limit: 10 } })
   @HttpCode(200)
   @ApiOperation({ summary: 'Refresh access token using refresh token' })
   @ApiResponse({ status: 200, description: 'Token refreshed successfully' })
@@ -125,7 +127,7 @@ export class AuthController {
 
   @Post('forgot-password')
   @Public()
-  @Throttle({ default: { ttl: 60000, limit: 3 } })
+  @Throttle({ default: { ttl: 60, limit: 3 } })
   @HttpCode(200)
   @ApiOperation({ summary: 'Request password reset email' })
   @ApiResponse({ status: 200, description: 'If email exists, reset link sent' })
@@ -140,6 +142,7 @@ export class AuthController {
 
   @Post('reset-password')
   @Public()
+  @Throttle({ default: { ttl: 60, limit: 5 } })
   @HttpCode(200)
   @ApiOperation({ summary: 'Reset password with token from email' })
   @ApiResponse({ status: 200, description: 'Password reset successfully' })
@@ -173,7 +176,7 @@ export class AuthController {
 
   @Post('send-otp')
   @Public()
-  @Throttle({ default: { ttl: 60000, limit: 3 } })
+  @Throttle({ default: { ttl: 60, limit: 3 } })
   @HttpCode(200)
   @ApiOperation({ summary: 'Send OTP code to phone number (simulated)' })
   @ApiResponse({
@@ -189,7 +192,7 @@ export class AuthController {
 
   @Post('verify-otp')
   @Public()
-  @Throttle({ default: { ttl: 60000, limit: 5 } })
+  @Throttle({ default: { ttl: 60, limit: 5 } })
   @HttpCode(200)
   @ApiOperation({
     summary: 'Verify OTP and login (creates account if new phone)',
@@ -221,7 +224,7 @@ export class AuthController {
     }
 
     const scope = encodeURIComponent('openid profile email');
-    const state = Math.random().toString(36).substring(7);
+    const state = randomBytes(16).toString('hex');
 
     const authUrl =
       `https://accounts.google.com/o/oauth2/v2/auth?` +

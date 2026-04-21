@@ -45,6 +45,10 @@ export class ProviderProfileService {
   ) {
     this.profileRepo = dataSource.getRepository(ProviderProfileEntity);
     this.userRepo = dataSource.getRepository(DbUserEntity);
+    this.documentVerificationUrl = this.configService.get<string>(
+      'app.documentVerificationUrl',
+      '',
+    );
   }
 
   async create(
@@ -236,9 +240,13 @@ export class ProviderProfileService {
         payload,
       );
       this.logger.log(`Identity document forwarded for user ${userId}`);
-    } catch {
-      this.logger.warn(
-        `Failed to forward identity document for user ${userId} — verification service may be unavailable`,
+    } catch (error) {
+      this.logger.error(
+        `Failed to forward identity document for user ${userId}`,
+        error,
+      );
+      throw new BadGatewayException(
+        'Document verification service is unavailable',
       );
     }
 
