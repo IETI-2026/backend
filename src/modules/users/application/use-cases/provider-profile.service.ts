@@ -45,10 +45,6 @@ export class ProviderProfileService {
   ) {
     this.profileRepo = dataSource.getRepository(ProviderProfileEntity);
     this.userRepo = dataSource.getRepository(DbUserEntity);
-    this.documentVerificationUrl = this.configService.get<string>(
-      'app.documentVerificationUrl',
-      '',
-    );
   }
 
   async create(
