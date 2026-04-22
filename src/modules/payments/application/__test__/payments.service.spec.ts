@@ -3,6 +3,8 @@ import {
   ConflictException,
   ForbiddenException,
   NotFoundException,
+  UnauthorizedException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
@@ -748,6 +750,306 @@ describe('PaymentsService', () => {
           refundedAt: expect.any(Date),
         }),
       );
+    });
+  });
+
+  describe('getPaymentByServiceRequest', () => {
+    it('should return payment for service request owner', async () => {
+      serviceRequestRepository.findOne.mockResolvedValue({
+        id: mockRequestId,
+        userId: mockUserId,
+        assignedTechnicianId: mockProviderId,
+      });
+      paymentRepository.findOne.mockResolvedValue(mockPayment);
+
+      const result = await service.getPaymentByServiceRequest(
+        mockRequestId,
+        mockUserId,
+      );
+
+      expect(result).toEqual(mockPayment);
+    });
+
+    it('should return payment for assigned technician', async () => {
+      serviceRequestRepository.findOne.mockResolvedValue({
+        id: mockRequestId,
+        userId: mockUserId,
+        assignedTechnicianId: mockProviderId,
+      });
+      paymentRepository.findOne.mockResolvedValue(mockPayment);
+
+      const result = await service.getPaymentByServiceRequest(
+        mockRequestId,
+        mockProviderId,
+      );
+
+      expect(result).toEqual(mockPayment);
+    });
+
+    it('should throw NotFoundException when service request does not exist', async () => {
+      serviceRequestRepository.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.getPaymentByServiceRequest(mockRequestId, mockUserId),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw ForbiddenException when user is neither owner nor technician', async () => {
+      serviceRequestRepository.findOne.mockResolvedValue({
+        id: mockRequestId,
+        userId: 'other-user',
+        assignedTechnicianId: 'other-tech',
+      });
+
+      await expect(
+        service.getPaymentByServiceRequest(mockRequestId, mockUserId),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should return null when no payment exists for the service request', async () => {
+      serviceRequestRepository.findOne.mockResolvedValue({
+        id: mockRequestId,
+        userId: mockUserId,
+        assignedTechnicianId: null,
+      });
+      paymentRepository.findOne.mockResolvedValue(null);
+
+      const result = await service.getPaymentByServiceRequest(
+        mockRequestId,
+        mockUserId,
+      );
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('processEpaycoWebhook', () => {
+    // sha256('test-customer-id^test-private-key^ref-12345^txn-001^100000^COP^NEQUI^<response>')
+    const SIG_COMPLETED =
+      'a98e2ec6278005d014358f6a4206907965c284d786d29261ee691ad632b02773';
+    const SIG_FAILED =
+      'a107072535c3e48d236ec870f2c56b54b9892226dcd1b71d0f9111ba331209fd';
+    const SIG_REFUNDED =
+      '20f1bf0f7aa0ad3c2b656415613ad6c9f7df243c03aecf0a1c68f09910625cb0';
+
+    const baseDto = {
+      x_ref_payco: 'ref-12345',
+      x_transaction_id: 'txn-001',
+      x_amount: '100000',
+      x_currency_code: 'COP',
+      x_franchise: 'NEQUI',
+      x_extra1: mockPaymentId,
+    };
+
+    it('should process webhook and mark payment COMPLETED when response is "1"', async () => {
+      const dto = { ...baseDto, x_response: '1', x_signature: SIG_COMPLETED };
+      paymentRepository.findOne.mockResolvedValue({
+        ...mockPayment,
+        status: PaymentStatus.PROCESSING,
+      });
+      paymentRepository.save.mockResolvedValue({
+        ...mockPayment,
+        status: PaymentStatus.COMPLETED,
+        paidAt: new Date(),
+      });
+      gateway.emitPaymentCompleted.mockReturnValue(undefined);
+
+      const result = await service.processEpaycoWebhook(dto as unknown);
+
+      expect(result).toEqual({ received: true });
+      expect(paymentRepository.save).toHaveBeenCalled();
+    });
+
+    it('should reject when signature is invalid (wrong hash)', async () => {
+      const dto = { ...baseDto, x_response: '1', x_signature: 'bad-sig' };
+
+      let threw = false;
+      try {
+        await service.processEpaycoWebhook(dto as unknown);
+      } catch (err) {
+        threw = true;
+        expect(err).toBeInstanceOf(UnauthorizedException);
+      }
+      expect(threw).toBe(true);
+    });
+
+    it('should reject when x_signature field is absent', async () => {
+      const dto = { ...baseDto, x_response: '1' };
+
+      let threw = false;
+      try {
+        await service.processEpaycoWebhook(dto as unknown);
+      } catch (err) {
+        threw = true;
+        expect(err).toBeInstanceOf(UnauthorizedException);
+      }
+      expect(threw).toBe(true);
+    });
+
+    it('should return received:true when no payment found for the reference', async () => {
+      const dto = {
+        ...baseDto,
+        x_response: '1',
+        x_signature: SIG_COMPLETED,
+        x_extra1: undefined,
+      };
+      paymentRepository.findOne.mockResolvedValue(null);
+
+      const result = await service.processEpaycoWebhook(dto as unknown);
+
+      expect(result).toEqual({ received: true });
+    });
+
+    it('should return received:true when state transition is not allowed', async () => {
+      const dto = { ...baseDto, x_response: '1', x_signature: SIG_COMPLETED };
+      paymentRepository.findOne.mockResolvedValue({
+        ...mockPayment,
+        status: PaymentStatus.COMPLETED,
+      });
+
+      const result = await service.processEpaycoWebhook(dto as unknown);
+
+      expect(result).toEqual({ received: true });
+      expect(paymentRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('should mark payment FAILED when response is "2"', async () => {
+      const dto = { ...baseDto, x_response: '2', x_signature: SIG_FAILED };
+      const failedPayment = {
+        ...mockPayment,
+        status: PaymentStatus.PROCESSING,
+      };
+      paymentRepository.findOne.mockResolvedValue(failedPayment);
+      paymentRepository.save.mockResolvedValue({
+        ...failedPayment,
+        status: PaymentStatus.FAILED,
+      });
+      gateway.emitPaymentCompleted.mockReturnValue(undefined);
+
+      const result = await service.processEpaycoWebhook(dto as unknown);
+
+      expect(result).toEqual({ received: true });
+    });
+
+    it('should mark payment REFUNDED when response is "6"', async () => {
+      const dto = { ...baseDto, x_response: '6', x_signature: SIG_REFUNDED };
+      const completedPayment = {
+        ...mockPayment,
+        status: PaymentStatus.COMPLETED,
+      };
+      paymentRepository.findOne.mockResolvedValue(completedPayment);
+      paymentRepository.save.mockResolvedValue({
+        ...completedPayment,
+        status: PaymentStatus.REFUNDED,
+        refundedAt: new Date(),
+      });
+      gateway.emitPaymentCompleted.mockReturnValue(undefined);
+
+      const result = await service.processEpaycoWebhook(dto as unknown);
+
+      expect(result).toEqual({ received: true });
+    });
+  });
+
+  describe('createPayment — additional edge cases', () => {
+    it('should throw UnprocessableEntityException when service is not COMPLETED', async () => {
+      serviceRequestRepository.findOne.mockResolvedValue({
+        ...mockServiceRequest,
+        status: ServiceRequestStatus.REQUESTED,
+      });
+
+      const dto: CreatePaymentDto = {
+        serviceRequestId: mockRequestId,
+        paymentMethod: PaymentMethodType.NEQUI,
+        grossAmount: 100,
+        commissionRate: 0.1,
+      };
+
+      await expect(service.createPayment(mockUserId, dto)).rejects.toThrow(
+        UnprocessableEntityException,
+      );
+    });
+
+    it('should throw BadRequestException when no payment method is provided', async () => {
+      userRepository.findOne.mockResolvedValue(mockUser);
+      serviceRequestRepository.findOne.mockResolvedValue(mockServiceRequest);
+      paymentRepository.findOne.mockResolvedValue(null);
+
+      const dto = {
+        serviceRequestId: mockRequestId,
+        grossAmount: 100,
+        commissionRate: 0.1,
+      } as unknown as CreatePaymentDto;
+
+      await expect(service.createPayment(mockUserId, dto)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should return existing payment when it is already COMPLETED (idempotent)', async () => {
+      serviceRequestRepository.findOne.mockResolvedValue(mockServiceRequest);
+      paymentRepository.findOne
+        .mockResolvedValueOnce({
+          ...mockPayment,
+          status: PaymentStatus.COMPLETED,
+        })
+        .mockResolvedValue(mockPayment);
+      paymentRepository.findOneOrFail = jest
+        .fn()
+        .mockResolvedValue(mockPayment);
+
+      const dto: CreatePaymentDto = {
+        serviceRequestId: mockRequestId,
+        paymentMethod: PaymentMethodType.NEQUI,
+        grossAmount: 100,
+        commissionRate: 0.1,
+      };
+
+      const result = await service.createPayment(mockUserId, dto);
+
+      expect(result).toBeDefined();
+      expect(paymentRepository.save).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('updatePaymentStatus — transition validation', () => {
+    it('should throw UnprocessableEntityException for disallowed transition', async () => {
+      const completedPayment = {
+        ...mockPayment,
+        status: PaymentStatus.COMPLETED,
+        userId: mockUserId,
+      };
+      paymentRepository.findOne.mockResolvedValue(completedPayment);
+
+      const dto: UpdatePaymentStatusDto = {
+        status: PaymentStatus.PENDING,
+      };
+
+      await expect(
+        service.updatePaymentStatus(mockUserId, mockPaymentId, dto),
+      ).rejects.toThrow(UnprocessableEntityException);
+    });
+
+    it('should emit payment event when status becomes CANCELLED', async () => {
+      const pendingPayment = {
+        ...mockPayment,
+        status: PaymentStatus.PENDING,
+        userId: mockUserId,
+      };
+      paymentRepository.findOne.mockResolvedValue(pendingPayment);
+      paymentRepository.save.mockResolvedValue({
+        ...pendingPayment,
+        status: PaymentStatus.CANCELLED,
+      });
+      gateway.emitPaymentCompleted.mockReturnValue(undefined);
+
+      const dto: UpdatePaymentStatusDto = {
+        status: PaymentStatus.CANCELLED,
+      };
+
+      await service.updatePaymentStatus(mockUserId, mockPaymentId, dto);
+
+      expect(gateway.emitPaymentCompleted).toHaveBeenCalled();
     });
   });
 });

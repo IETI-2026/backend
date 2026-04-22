@@ -130,11 +130,20 @@ export class GeocodingService {
     return { tenant: result.tenantCandidate ?? 'public' };
   }
 
+  private readonly tenantAliases: Record<string, string> = {
+    'bogota-d-c': 'bogota',
+    'cartagena-de-indias': 'cartagena',
+    'san-jose-de-cucuta': 'cucuta',
+    'san-juan-de-pasto': 'pasto',
+    'santa-marta-d-t-c-h': 'santa-marta',
+  };
+
   private deriveTenantCandidate(
     components: GoogleAddressComponent[],
   ): string | null {
     const tenantSource = this.findFirstComponent(components, [
       'locality',
+      'administrative_area_level_2',
       'administrative_area_level_1',
       'country',
     ]);
@@ -143,16 +152,19 @@ export class GeocodingService {
       return null;
     }
 
-    return this.slugify(tenantSource.long_name);
+    const slug = this.slugify(tenantSource.long_name);
+    return this.tenantAliases[slug] ?? slug;
   }
 
   private findFirstComponent(
     components: GoogleAddressComponent[],
     types: string[],
   ): GoogleAddressComponent | undefined {
-    return components.find((component) =>
-      component.types.some((type) => types.includes(type)),
-    );
+    for (const type of types) {
+      const match = components.find((c) => c.types.includes(type));
+      if (match) return match;
+    }
+    return undefined;
   }
 
   private slugify(value: string): string {

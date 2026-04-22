@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   InternalServerErrorException,
   NotFoundException,
@@ -610,6 +611,278 @@ describe('ServiceRequestsService', () => {
       await expect(
         service.chooseTechnician(REQUEST_ID, USER_ID, chooseDto),
       ).rejects.toThrow(ConflictException);
+    });
+  });
+
+  describe('markComplete', () => {
+    const onTheWayRequest = {
+      id: REQUEST_ID,
+      userId: USER_ID,
+      assignedTechnicianId: TECH_ID,
+      status: ServiceRequestStatus.ON_THE_WAY,
+      clientMarkedComplete: false,
+      technicianMarkedComplete: false,
+      requestedSkills: ['plomeria'],
+      urgency: UrgencyLevel.media,
+      displacementDistanceKm: null,
+      startedAt: null,
+    };
+
+    it('should mark client completion (partial) and return updated request', async () => {
+      requestRepo.findOne
+        .mockResolvedValueOnce(onTheWayRequest)
+        .mockResolvedValue({
+          ...onTheWayRequest,
+          clientMarkedComplete: true,
+          technicianResponses: [],
+          user: { fullName: 'Client' },
+          assignedTechnician: null,
+        });
+      requestRepo.update.mockResolvedValue({});
+      eventRepo.create.mockReturnValue({});
+      eventRepo.save.mockResolvedValue({});
+
+      const result = await service.markComplete(REQUEST_ID, USER_ID, {
+        role: 'client',
+      });
+
+      expect(requestRepo.update).toHaveBeenCalledWith(
+        REQUEST_ID,
+        expect.objectContaining({ clientMarkedComplete: true }),
+      );
+      expect(result.id).toBe(REQUEST_ID);
+    });
+
+    it('should throw NotFoundException when request does not exist', async () => {
+      requestRepo.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.markComplete('nonexistent', USER_ID, { role: 'client' }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw BadRequestException when request is in REQUESTED status (not actionable)', async () => {
+      requestRepo.findOne.mockResolvedValueOnce({
+        ...onTheWayRequest,
+        status: ServiceRequestStatus.REQUESTED,
+      });
+
+      await expect(
+        service.markComplete(REQUEST_ID, USER_ID, { role: 'client' }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw BadRequestException when client userId does not match request owner', async () => {
+      requestRepo.findOne.mockResolvedValueOnce({
+        ...onTheWayRequest,
+        userId: 'different-user',
+      });
+
+      await expect(
+        service.markComplete(REQUEST_ID, USER_ID, { role: 'client' }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw BadRequestException when technician userId does not match assigned technician', async () => {
+      requestRepo.findOne.mockResolvedValueOnce({
+        ...onTheWayRequest,
+        assignedTechnicianId: 'different-tech',
+      });
+
+      await expect(
+        service.markComplete(REQUEST_ID, TECH_ID, { role: 'technician' }),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('updateUserLocation', () => {
+    it('should update location in tenant and public repos when no active request', async () => {
+      userRepo.update.mockResolvedValue({});
+      requestRepo.findOne.mockResolvedValue(null);
+
+      await service.updateUserLocation(USER_ID, 4.711, -74.0721);
+
+      expect(userRepo.update).toHaveBeenCalled();
+      expect(requestRepo.findOne).toHaveBeenCalled();
+    });
+
+    it('should emit location_updated and not crash when there is an active ASSIGNED request', async () => {
+      userRepo.update.mockResolvedValue({});
+      requestRepo.findOne.mockResolvedValue({
+        id: REQUEST_ID,
+        userId: USER_ID,
+        assignedTechnicianId: TECH_ID,
+        status: ServiceRequestStatus.ASSIGNED,
+        latitude: 4.711,
+        longitude: -74.0721,
+      });
+
+      await service.updateUserLocation(USER_ID, 4.711, -74.0721);
+
+      expect(userRepo.update).toHaveBeenCalled();
+    });
+
+    it('should check proximity and emit IN_PROGRESS when tech is within 100m on ON_THE_WAY', async () => {
+      userRepo.update.mockResolvedValue({});
+      requestRepo.findOne.mockResolvedValueOnce({
+        id: REQUEST_ID,
+        userId: USER_ID,
+        assignedTechnicianId: TECH_ID,
+        status: ServiceRequestStatus.ON_THE_WAY,
+        latitude: 4.711,
+        longitude: -74.0721,
+      });
+      userRepo.findOne
+        .mockResolvedValueOnce({
+          id: USER_ID,
+          currentLatitude: 4.711,
+          currentLongitude: -74.0721,
+        })
+        .mockResolvedValueOnce({
+          id: TECH_ID,
+          currentLatitude: 4.71101,
+          currentLongitude: -74.07201,
+        });
+      requestRepo.update.mockResolvedValue({});
+      eventRepo.create.mockReturnValue({});
+      eventRepo.save.mockResolvedValue({});
+
+      await service.updateUserLocation(TECH_ID, 4.71101, -74.07201);
+
+      expect(requestRepo.update).toHaveBeenCalledWith(
+        REQUEST_ID,
+        expect.objectContaining({ status: ServiceRequestStatus.IN_PROGRESS }),
+      );
+    });
+  });
+
+  describe('rateService', () => {
+    const completedRequest = {
+      id: REQUEST_ID,
+      userId: USER_ID,
+      assignedTechnicianId: TECH_ID,
+      status: ServiceRequestStatus.COMPLETED,
+      isRated: false,
+      requestedSkills: ['plomeria'],
+      urgency: UrgencyLevel.media,
+      technicianResponses: [],
+      assignedTechnician: { fullName: 'Tech Name' },
+      user: { fullName: 'Client Name' },
+      latitude: 4.711,
+      longitude: -74.0721,
+      addressText: 'Test address',
+      serviceCity: 'bogota',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const rateDto = {
+      serviceRating: 5,
+      technicianRating: 4,
+      comment: 'Great!',
+    };
+
+    it('should throw NotFoundException when request not found', async () => {
+      requestRepo.findOne.mockResolvedValue(null);
+
+      await expect(service.rateService(REQUEST_ID, rateDto)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('should throw BadRequestException when request is not completed', async () => {
+      requestRepo.findOne.mockResolvedValue({
+        ...completedRequest,
+        status: ServiceRequestStatus.REQUESTED,
+      });
+
+      await expect(service.rateService(REQUEST_ID, rateDto)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should throw ConflictException when service is already rated', async () => {
+      requestRepo.findOne.mockResolvedValue({
+        ...completedRequest,
+        isRated: true,
+      });
+
+      await expect(service.rateService(REQUEST_ID, rateDto)).rejects.toThrow(
+        ConflictException,
+      );
+    });
+
+    it('should throw BadRequestException when no technician is assigned', async () => {
+      requestRepo.findOne.mockResolvedValue({
+        ...completedRequest,
+        assignedTechnicianId: null,
+      });
+
+      await expect(service.rateService(REQUEST_ID, rateDto)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should rate a completed service and update provider average rating', async () => {
+      requestRepo.findOne.mockResolvedValue(completedRequest);
+      requestRepo.update.mockResolvedValue({});
+      requestRepo.findOneOrFail.mockResolvedValue({
+        ...completedRequest,
+        isRated: true,
+      });
+      providerProfileRepo.findOne.mockResolvedValue({
+        userId: TECH_ID,
+        averageRating: 4.0,
+        totalRatings: 10,
+      });
+      providerProfileRepo.update.mockResolvedValue({});
+
+      const result = await service.rateService(REQUEST_ID, rateDto);
+
+      expect(requestRepo.update).toHaveBeenCalledWith(
+        REQUEST_ID,
+        expect.objectContaining({ isRated: true, serviceRating: 5 }),
+      );
+      expect(result).toBeDefined();
+    });
+
+    it('should handle missing provider profile gracefully without throwing', async () => {
+      requestRepo.findOne.mockResolvedValue(completedRequest);
+      requestRepo.update.mockResolvedValue({});
+      requestRepo.findOneOrFail.mockResolvedValue({
+        ...completedRequest,
+        isRated: true,
+      });
+      providerProfileRepo.findOne.mockResolvedValue(null);
+
+      const result = await service.rateService(REQUEST_ID, rateDto);
+
+      expect(result).toBeDefined();
+      expect(providerProfileRepo.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('findById', () => {
+    it('should return the service request by id', async () => {
+      requestRepo.findOne.mockResolvedValue({
+        ...mockServiceRequest,
+        assignedTechnicianId: null,
+        technicianResponses: [],
+        user: { fullName: 'Client Name' },
+        assignedTechnician: null,
+      });
+
+      const result = await service.findById(REQUEST_ID);
+
+      expect(result.id).toBe(REQUEST_ID);
+    });
+
+    it('should throw NotFoundException when request does not exist', async () => {
+      requestRepo.findOne.mockResolvedValue(null);
+
+      await expect(service.findById('nonexistent')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

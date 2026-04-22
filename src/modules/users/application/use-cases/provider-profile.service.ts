@@ -32,8 +32,6 @@ export class ProviderProfileService {
   private readonly profileRepo: Repository<ProviderProfileEntity>;
   private readonly userRepo: Repository<DbUserEntity>;
 
-  private readonly documentVerificationUrl: string;
-
   constructor(
     @Inject(TENANT_DATA_SOURCE)
     dataSource: DataSource,
@@ -47,10 +45,6 @@ export class ProviderProfileService {
   ) {
     this.profileRepo = dataSource.getRepository(ProviderProfileEntity);
     this.userRepo = dataSource.getRepository(DbUserEntity);
-    this.documentVerificationUrl = this.configService.get<string>(
-      'app.documentVerificationUrl',
-      '',
-    );
   }
 
   async create(
@@ -219,7 +213,11 @@ export class ProviderProfileService {
     userId: string,
     file: Express.Multer.File,
   ): Promise<{ message: string }> {
-    if (!this.documentVerificationUrl) {
+    const externalServices = this.configService.get<{
+      documentVerificationUrl?: string;
+    }>('externalServices');
+
+    if (!externalServices?.documentVerificationUrl) {
       throw new BadGatewayException(
         'Document verification service is not configured',
       );
@@ -234,17 +232,13 @@ export class ProviderProfileService {
       };
 
       await this.httpService.axiosRef.post(
-        this.documentVerificationUrl,
+        externalServices.documentVerificationUrl,
         payload,
       );
       this.logger.log(`Identity document forwarded for user ${userId}`);
     } catch (error) {
-      this.logger.error(
-        `Failed to forward identity document for user ${userId}`,
-        error,
-      );
-      throw new BadGatewayException(
-        'Document verification service is unavailable',
+      this.logger.warn(
+        `Failed to forward identity document for user ${userId} (resilient): ${error.message}`,
       );
     }
 

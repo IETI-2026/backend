@@ -103,7 +103,7 @@ describe('GeocodingService', () => {
       expect(result.tenantCandidate).toBe('bogota');
     });
 
-    it('should slugify the tenant name (strip accents, lowercase, hyphenate)', async () => {
+    it('should normalize aliased tenant names to canonical tenant slugs', async () => {
       mockConfigService.get.mockReturnValue('test-api-key');
       const responseWithAccent = {
         ...successGeoResponse,
@@ -129,7 +129,7 @@ describe('GeocodingService', () => {
         lng: -74.0721,
       });
 
-      expect(result.tenantCandidate).toBe('bogota-d-c');
+      expect(result.tenantCandidate).toBe('bogota');
     });
 
     it('should return tenantCandidate as null when no recognisable address component is found', async () => {

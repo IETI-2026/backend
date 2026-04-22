@@ -109,6 +109,14 @@ describe('ProviderProfileService', () => {
             ttl: 300,
           };
         }
+        if (key === 'externalServices') {
+          return {
+            skillSuggestionEndpointUrl:
+              'https://example.com/api/skill-suggestions',
+            documentVerificationUrl:
+              'https://example.com/api/document-verification',
+          };
+        }
         return undefined;
       }),
     };
@@ -367,6 +375,179 @@ describe('ProviderProfileService', () => {
       await expect(
         service.verifyProvider('nonexistent', VerificationAction.APPROVE),
       ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('update — additional edge cases', () => {
+    it('should throw ForbiddenException when setting availability on unverified provider', async () => {
+      profileRepo.findOne.mockResolvedValue({
+        ...mockProviderProfile,
+        verificationStatus: ProviderVerificationStatus.UNVERIFIED,
+      });
+
+      await expect(
+        service.update(USER_ID, { isAvailable: true }),
+      ).rejects.toThrow();
+    });
+
+    it('should update profile with nequiNumber and daviplataNumber', async () => {
+      const verifiedProfile = {
+        ...mockProviderProfile,
+        verificationStatus: ProviderVerificationStatus.VERIFIED,
+      };
+      const updateDto = {
+        nequiNumber: '3001234567',
+        daviplataNumber: '3009999999',
+      };
+
+      profileRepo.findOne.mockResolvedValue(verifiedProfile);
+      profileRepo.update.mockResolvedValue({});
+      profileRepo.findOneOrFail.mockResolvedValue({
+        ...verifiedProfile,
+        ...updateDto,
+      });
+      userRepo.findOne.mockResolvedValue(mockUserEntity);
+
+      const result = await service.update(USER_ID, updateDto);
+
+      expect(profileRepo.update).toHaveBeenCalledWith(
+        { userId: USER_ID },
+        expect.objectContaining({ nequiNumber: '3001234567' }),
+      );
+      expect(result).toBeDefined();
+    });
+  });
+
+  describe('searchBySkill', () => {
+    it('should return matching provider profiles for the given skill', async () => {
+      const mockQb = {
+        innerJoinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue([
+          {
+            userId: USER_ID,
+            bio: 'Experienced plumber',
+            averageRating: 4.5,
+            totalRatings: 10,
+            isAvailable: true,
+            verificationStatus: ProviderVerificationStatus.VERIFIED,
+            user: {
+              fullName: 'Test Provider',
+              profilePhotoUrl: null,
+              skills: ['plomeria'],
+            },
+          },
+        ]),
+      };
+      profileRepo.createQueryBuilder = jest.fn().mockReturnValue(mockQb);
+
+      const result = await service.searchBySkill('plomeria');
+
+      expect(result).toHaveLength(1);
+      expect(result[0].userId).toBe(USER_ID);
+      expect(result[0].skills).toContain('plomeria');
+    });
+
+    it('should return empty array when no providers match the skill', async () => {
+      const mockQb = {
+        innerJoinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue([]),
+      };
+      profileRepo.createQueryBuilder = jest.fn().mockReturnValue(mockQb);
+
+      const result = await service.searchBySkill('nonexistent-skill');
+
+      expect(result).toHaveLength(0);
+    });
+  });
+
+  describe('forwardIdentityDocument', () => {
+    const mockFile: Express.Multer.File = {
+      fieldname: 'file',
+      originalname: 'id_document.pdf',
+      encoding: '7bit',
+      mimetype: 'application/pdf',
+      buffer: Buffer.from('fake-pdf-content'),
+      size: 16,
+      stream: null as unknown,
+      destination: '',
+      filename: 'id_document.pdf',
+      path: '',
+    };
+
+    it('should return success message after forwarding document', async () => {
+      const mockHttpService = {
+        axiosRef: { post: jest.fn().mockResolvedValue({}) },
+      };
+      (service as unknown as Record<string, unknown>)['httpService'] =
+        mockHttpService;
+
+      const result = await service.forwardIdentityDocument(USER_ID, mockFile);
+
+      expect(result).toEqual({ message: 'Document sent for verification' });
+    });
+
+    it('should still return success when forwarding fails (resilient)', async () => {
+      const mockHttpService = {
+        axiosRef: { post: jest.fn().mockRejectedValue(new Error('timeout')) },
+      };
+      (service as unknown as Record<string, unknown>)['httpService'] =
+        mockHttpService;
+
+      const result = await service.forwardIdentityDocument(USER_ID, mockFile);
+
+      expect(result).toEqual({ message: 'Document sent for verification' });
+    });
+  });
+
+  describe('getCachedRating', () => {
+    it('should return cached rating when available in cache', async () => {
+      const mockCache = {
+        get: jest.fn().mockResolvedValue(4.5),
+        set: jest.fn().mockResolvedValue(undefined),
+        del: jest.fn().mockResolvedValue(undefined),
+      };
+      (service as unknown as Record<string, unknown>)['cache'] = mockCache;
+
+      const result = await service.getCachedRating(USER_ID);
+
+      expect(result).toBe(4.5);
+      expect(mockCache.get).toHaveBeenCalled();
+    });
+
+    it('should compute rating from DB and cache it when cache misses', async () => {
+      const mockCache = {
+        get: jest.fn().mockResolvedValue(null),
+        set: jest.fn().mockResolvedValue(undefined),
+        del: jest.fn().mockResolvedValue(undefined),
+      };
+      (service as unknown as Record<string, unknown>)['cache'] = mockCache;
+
+      profileRepo.findOne.mockResolvedValue({
+        ...mockProviderProfile,
+        averageRating: 3.8,
+      });
+
+      const result = await service.getCachedRating(USER_ID);
+
+      expect(result).toBe(3.8);
+      expect(mockCache.set).toHaveBeenCalled();
+    });
+
+    it('should return null when provider profile is not found', async () => {
+      const mockCache = {
+        get: jest.fn().mockResolvedValue(null),
+        set: jest.fn().mockResolvedValue(undefined),
+        del: jest.fn().mockResolvedValue(undefined),
+      };
+      (service as unknown as Record<string, unknown>)['cache'] = mockCache;
+
+      profileRepo.findOne.mockResolvedValue(null);
+
+      const result = await service.getCachedRating(USER_ID);
+
+      expect(result).toBeNull();
     });
   });
 });
