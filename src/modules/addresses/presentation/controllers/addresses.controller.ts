@@ -10,6 +10,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -45,8 +46,9 @@ export class AddressesController {
   findAll(
     @CurrentUser() user: JwtPayloadEntity,
   ): Promise<AddressResponseDto[]> {
+    if (!user.sub) throw new UnauthorizedException();
     this.logger.log(`GET /addresses - userId=${user.sub}`);
-    return this.addressesService.findByUser(user.sub!);
+    return this.addressesService.findByUser(user.sub);
   }
 
   @Post()
@@ -56,8 +58,9 @@ export class AddressesController {
     @CurrentUser() user: JwtPayloadEntity,
     @Body() dto: CreateAddressDto,
   ): Promise<AddressResponseDto> {
+    if (!user.sub) throw new UnauthorizedException();
     this.logger.log(`POST /addresses - userId=${user.sub}`);
-    return this.addressesService.create(user.sub!, dto);
+    return this.addressesService.create(user.sub, dto);
   }
 
   @Patch(':id/default')
@@ -67,8 +70,9 @@ export class AddressesController {
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: JwtPayloadEntity,
   ): Promise<AddressResponseDto> {
+    if (!user.sub) throw new UnauthorizedException();
     this.logger.log(`PATCH /addresses/${id}/default - userId=${user.sub}`);
-    return this.addressesService.setDefault(id, user.sub!);
+    return this.addressesService.setDefault(id, user.sub);
   }
 
   @Delete(':id')
@@ -78,7 +82,8 @@ export class AddressesController {
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: JwtPayloadEntity,
   ): Promise<void> {
+    if (!user.sub) throw new UnauthorizedException();
     this.logger.log(`DELETE /addresses/${id} - userId=${user.sub}`);
-    return this.addressesService.remove(id, user.sub!);
+    return this.addressesService.remove(id, user.sub);
   }
 }

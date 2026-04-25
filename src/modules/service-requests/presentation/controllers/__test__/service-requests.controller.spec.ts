@@ -8,8 +8,13 @@ import {
   ServiceRequestStatus,
   UrgencyLevel,
 } from '../../../../../database/enums';
+import { JwtPayloadEntity } from '../../../../auth/domain/entities';
 import { JwtAuthGuard } from '../../../../auth/infrastructure/guards/jwt-auth.guard';
-import { ServiceRequestsService } from '../../../application';
+import {
+  ChooseTechnicianDto,
+  CreateServiceRequestDto,
+  ServiceRequestsService,
+} from '../../../application';
 import { ServiceRequestsController } from '../service-requests.controller';
 
 const mockServiceRequest = {
@@ -160,8 +165,8 @@ describe('ServiceRequestsController', () => {
       mockServiceRequestsService.create.mockResolvedValue(mockServiceRequest);
 
       const result = await controller.create(
-        { sub: 'user-uuid-001' } as any,
-        createDto as any,
+        { sub: 'user-uuid-001' } as JwtPayloadEntity,
+        createDto as unknown as CreateServiceRequestDto,
       );
 
       expect(mockServiceRequestsService.create).toHaveBeenCalledWith(
@@ -176,9 +181,12 @@ describe('ServiceRequestsController', () => {
         new NotFoundException('User not found'),
       );
 
-      await expect(controller.create(createDto as unknown)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        controller.create(
+          { sub: 'user-uuid-001' } as JwtPayloadEntity,
+          createDto as unknown as CreateServiceRequestDto,
+        ),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('should propagate BadRequestException for invalid input', async () => {
@@ -186,9 +194,12 @@ describe('ServiceRequestsController', () => {
         new BadRequestException('Validation failed'),
       );
 
-      await expect(controller.create({} as unknown)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        controller.create(
+          { sub: 'user-uuid-001' } as JwtPayloadEntity,
+          {} as unknown as CreateServiceRequestDto,
+        ),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -240,7 +251,7 @@ describe('ServiceRequestsController', () => {
       mockServiceRequestsService.accept.mockResolvedValue(accepted);
 
       const result = await controller.accept(
-        { sub: 'tech-uuid-001' } as any,
+        { sub: 'tech-uuid-001' } as JwtPayloadEntity,
         'req-uuid-001',
       );
 
@@ -332,9 +343,9 @@ describe('ServiceRequestsController', () => {
       mockServiceRequestsService.chooseTechnician.mockResolvedValue(assigned);
 
       const result = await controller.chooseTechnician(
-        { sub: 'user-uuid-001' } as any,
+        { sub: 'user-uuid-001' } as JwtPayloadEntity,
         'req-uuid-001',
-        { technicianUserId: 'tech-uuid-001' } as any,
+        { technicianUserId: 'tech-uuid-001' } as unknown as ChooseTechnicianDto,
       );
 
       expect(mockServiceRequestsService.chooseTechnician).toHaveBeenCalledWith(

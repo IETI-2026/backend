@@ -480,7 +480,7 @@ describe('ProviderProfileService', () => {
       const mockHttpService = {
         axiosRef: { post: jest.fn().mockResolvedValue({}) },
       };
-      (service as unknown as Record<string, unknown>)['httpService'] =
+      (service as unknown as Record<string, unknown>).httpService =
         mockHttpService;
 
       const result = await service.forwardIdentityDocument(USER_ID, mockFile);
@@ -492,7 +492,7 @@ describe('ProviderProfileService', () => {
       const mockHttpService = {
         axiosRef: { post: jest.fn().mockRejectedValue(new Error('timeout')) },
       };
-      (service as unknown as Record<string, unknown>)['httpService'] =
+      (service as unknown as Record<string, unknown>).httpService =
         mockHttpService;
 
       const result = await service.forwardIdentityDocument(USER_ID, mockFile);
@@ -508,7 +508,7 @@ describe('ProviderProfileService', () => {
         set: jest.fn().mockResolvedValue(undefined),
         del: jest.fn().mockResolvedValue(undefined),
       };
-      (service as unknown as Record<string, unknown>)['cache'] = mockCache;
+      (service as unknown as Record<string, unknown>).cache = mockCache;
 
       const result = await service.getCachedRating(USER_ID);
 
@@ -522,7 +522,7 @@ describe('ProviderProfileService', () => {
         set: jest.fn().mockResolvedValue(undefined),
         del: jest.fn().mockResolvedValue(undefined),
       };
-      (service as unknown as Record<string, unknown>)['cache'] = mockCache;
+      (service as unknown as Record<string, unknown>).cache = mockCache;
 
       profileRepo.findOne.mockResolvedValue({
         ...mockProviderProfile,
@@ -541,7 +541,7 @@ describe('ProviderProfileService', () => {
         set: jest.fn().mockResolvedValue(undefined),
         del: jest.fn().mockResolvedValue(undefined),
       };
-      (service as unknown as Record<string, unknown>)['cache'] = mockCache;
+      (service as unknown as Record<string, unknown>).cache = mockCache;
 
       profileRepo.findOne.mockResolvedValue(null);
 
