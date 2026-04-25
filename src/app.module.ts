@@ -8,6 +8,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import * as Joi from 'joi';
 import { DatabaseModule } from '@/database/database.module';
 import { HealthController } from './common/health.controller';
+import { AddressesModule } from './modules/addresses';
 import { AuthModule } from './modules/auth';
 import { GeocodingModule } from './modules/geocoding';
 import { MailModule } from './modules/mail';
@@ -45,6 +46,7 @@ import { TenantMiddleware, TenantModule } from './tenant';
     ServiceRequestsModule,
     PaymentsModule,
     SkillSuggestionsModule,
+    AddressesModule,
   ],
   controllers: [HealthController],
   providers: [
