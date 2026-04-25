@@ -751,7 +751,7 @@ describe('AuthService', () => {
       const mockClient = {
         verifyIdToken: jest.fn().mockRejectedValue(new Error('invalid token')),
       };
-      (service as unknown as Record<string, unknown>)['googleOAuthClient'] =
+      (service as unknown as Record<string, unknown>).googleOAuthClient =
         mockClient;
 
       await expect(service.loginWithGoogleIdToken('bad-token')).rejects.toThrow(
@@ -761,7 +761,7 @@ describe('AuthService', () => {
 
     it('should throw UnauthorizedException when payload is missing sub', async () => {
       const mockClient = buildMockGoogleClient({ sub: undefined });
-      (service as unknown as Record<string, unknown>)['googleOAuthClient'] =
+      (service as unknown as Record<string, unknown>).googleOAuthClient =
         mockClient;
 
       await expect(
@@ -771,7 +771,7 @@ describe('AuthService', () => {
 
     it('should throw UnauthorizedException when email is not verified', async () => {
       const mockClient = buildMockGoogleClient({ email_verified: false });
-      (service as unknown as Record<string, unknown>)['googleOAuthClient'] =
+      (service as unknown as Record<string, unknown>).googleOAuthClient =
         mockClient;
 
       await expect(
@@ -781,7 +781,7 @@ describe('AuthService', () => {
 
     it('should throw UnauthorizedException when issuer is invalid', async () => {
       const mockClient = buildMockGoogleClient({ iss: 'evil.com' });
-      (service as unknown as Record<string, unknown>)['googleOAuthClient'] =
+      (service as unknown as Record<string, unknown>).googleOAuthClient =
         mockClient;
 
       await expect(
@@ -791,7 +791,7 @@ describe('AuthService', () => {
 
     it('should succeed and return auth response for a valid token (new user)', async () => {
       const mockClient = buildMockGoogleClient();
-      (service as unknown as Record<string, unknown>)['googleOAuthClient'] =
+      (service as unknown as Record<string, unknown>).googleOAuthClient =
         mockClient;
 
       mockAuthRepository.findOAuthAccount.mockResolvedValue(null);

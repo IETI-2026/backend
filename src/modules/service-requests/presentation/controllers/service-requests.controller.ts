@@ -9,6 +9,7 @@ import {
   Patch,
   Post,
   Query,
+  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -176,8 +177,9 @@ export class ServiceRequestsController {
     this.logger.log(
       `POST /service-requests - Creating service request user=${user.sub}`,
     );
+    if (!user.sub) throw new UnauthorizedException();
     return await this.serviceRequestsService.create(
-      user.sub!,
+      user.sub,
       createServiceRequestDto,
     );
   }
@@ -242,7 +244,8 @@ export class ServiceRequestsController {
     this.logger.log(
       `PATCH /service-requests/${id}/accept - Accepting request user=${user.sub}`,
     );
-    return await this.serviceRequestsService.accept(id, user.sub!, {});
+    if (!user.sub) throw new UnauthorizedException();
+    return await this.serviceRequestsService.accept(id, user.sub, {});
   }
 
   @Patch(':id/reject')
@@ -313,9 +316,10 @@ export class ServiceRequestsController {
     this.logger.log(
       `PATCH /service-requests/${id}/mark-complete - Marking complete user=${user.sub}`,
     );
+    if (!user.sub) throw new UnauthorizedException();
     return await this.serviceRequestsService.markComplete(
       id,
-      user.sub!,
+      user.sub,
       markCompleteDto,
     );
   }
@@ -343,8 +347,9 @@ export class ServiceRequestsController {
     this.logger.log(
       `PATCH /service-requests/${id}/update-location - Updating location user=${user.sub}`,
     );
+    if (!user.sub) throw new UnauthorizedException();
     await this.serviceRequestsService.updateUserLocation(
-      user.sub!,
+      user.sub,
       updateLocationDto.latitude,
       updateLocationDto.longitude,
     );
@@ -436,9 +441,10 @@ export class ServiceRequestsController {
     this.logger.log(
       `PATCH /service-requests/${id}/choose-technician - Choosing technician user=${user.sub}`,
     );
+    if (!user.sub) throw new UnauthorizedException();
     return await this.serviceRequestsService.chooseTechnician(
       id,
-      user.sub!,
+      user.sub,
       chooseTechnicianDto,
     );
   }
