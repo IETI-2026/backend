@@ -22,6 +22,10 @@ import { AUTH_REPOSITORY } from '../../../auth/domain/repositories';
 import type { IAuthRepository } from '../../../auth/domain/repositories/auth.repository';
 import type { CreateProviderProfileDto } from '../dtos/create-provider-profile.dto';
 import { ProviderProfileResponseDto } from '../dtos/provider-profile-response.dto';
+import {
+  ProviderReviewQueueItemDto,
+  ProviderReviewQueueResponseDto,
+} from '../dtos/provider-review-queue.dto';
 import { ProviderSearchResultDto } from '../dtos/provider-search-result.dto';
 import type { UpdateProviderProfileDto } from '../dtos/update-provider-profile.dto';
 import { VerificationAction } from '../dtos/verify-provider.dto';
@@ -182,6 +186,67 @@ export class ProviderProfileService {
       `Provider ${providerUserId} verification: ${action} → ${statusMap[action]}`,
     );
     return this.mapToResponse(updated, profile.user?.skills ?? []);
+  }
+
+  async getProviderReviewQueue(
+    page: number,
+    limit: number,
+    status?: string,
+  ): Promise<ProviderReviewQueueResponseDto> {
+    const statusMap: Record<string, ProviderVerificationStatus[]> = {
+      PENDING_REVIEW: [
+        ProviderVerificationStatus.UNVERIFIED,
+        ProviderVerificationStatus.UNDER_REVIEW,
+      ],
+      APPROVED: [ProviderVerificationStatus.VERIFIED],
+      REJECTED: [
+        ProviderVerificationStatus.REJECTED,
+        ProviderVerificationStatus.SUSPENDED,
+      ],
+    };
+
+    const qb = this.profileRepo
+      .createQueryBuilder('p')
+      .innerJoinAndSelect('p.user', 'u')
+      .skip(page * limit)
+      .take(limit)
+      .orderBy('p.createdAt', 'DESC');
+
+    if (status && status !== 'ALL' && statusMap[status]) {
+      qb.where('p.verificationStatus IN (:...statuses)', {
+        statuses: statusMap[status],
+      });
+    }
+
+    const [profiles, total] = await qb.getManyAndCount();
+
+    const items = profiles.map((p) => {
+      const item = new ProviderReviewQueueItemDto();
+      item.documentId = p.id;
+      item.providerUserId = p.userId;
+      item.providerProfileId = p.id;
+      item.providerFullName = p.user?.fullName ?? p.userId;
+      item.providerDocumentId = p.user?.documentId ?? '';
+      item.documentType = 'IDENTITY_DOCUMENT';
+      item.documentStatus =
+        p.verificationStatus === ProviderVerificationStatus.VERIFIED
+          ? 'APPROVED'
+          : p.verificationStatus === ProviderVerificationStatus.REJECTED ||
+              p.verificationStatus === ProviderVerificationStatus.SUSPENDED
+            ? 'REJECTED'
+            : 'PENDING_REVIEW';
+      item.providerVerificationStatus = p.verificationStatus;
+      item.createdAt = p.createdAt.toISOString();
+      return item;
+    });
+
+    return {
+      items,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit) || 0,
+    };
   }
 
   async searchBySkill(skill: string): Promise<ProviderSearchResultDto[]> {

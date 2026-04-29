@@ -2,6 +2,7 @@ export * from './create-provider-profile.dto';
 export * from './create-user.dto';
 export * from './get-users-query.dto';
 export * from './provider-profile-response.dto';
+export * from './provider-review-queue.dto';
 export * from './provider-search-result.dto';
 export * from './update-profile.dto';
 export * from './update-provider-profile.dto';

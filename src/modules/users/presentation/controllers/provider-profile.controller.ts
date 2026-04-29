@@ -39,6 +39,7 @@ import { JwtAuthGuard, RolesGuard } from '../../../auth/infrastructure/guards';
 import {
   CreateProviderProfileDto,
   ProviderProfileResponseDto,
+  ProviderReviewQueueResponseDto,
   ProviderSearchResultDto,
   UpdateProviderProfileDto,
   VerifyProviderDto,
@@ -173,6 +174,36 @@ export class ProviderProfileController {
   ): Promise<ProviderSearchResultDto[]> {
     this.logger.log(`GET /users/providers/search?skill=${skill}`);
     return this.providerProfileService.searchBySkill(skill);
+  }
+
+  @Get('admin/provider-review-queue')
+  @HttpCode(HttpStatus.OK)
+  @Roles(RoleName.ADMIN, RoleName.MODERATOR)
+  @ApiOperation({
+    summary: 'Bandeja de revisión de proveedores (Admin/Moderador)',
+  })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 0 })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 20 })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: ['PENDING_REVIEW', 'APPROVED', 'REJECTED', 'ALL'],
+  })
+  @ApiOkResponse({ type: ProviderReviewQueueResponseDto })
+  @ApiForbiddenResponse({ description: 'Requiere rol Admin o Moderador' })
+  async getProviderReviewQueue(
+    @Query('page') page = 0,
+    @Query('limit') limit = 20,
+    @Query('status') status?: string,
+  ): Promise<ProviderReviewQueueResponseDto> {
+    this.logger.log(
+      `GET /users/admin/provider-review-queue page=${page} limit=${limit} status=${status ?? 'ALL'}`,
+    );
+    return this.providerProfileService.getProviderReviewQueue(
+      Number(page),
+      Number(limit),
+      status,
+    );
   }
 
   @Get(':id/provider-profile')
