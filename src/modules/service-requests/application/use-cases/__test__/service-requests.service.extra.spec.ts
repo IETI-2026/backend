@@ -107,7 +107,7 @@ describe('ServiceRequestsService (extra coverage)', () => {
   let eventRepo: ReturnType<typeof buildMockRepo>;
   let userRepo: ReturnType<typeof buildMockRepo>;
   let providerProfileRepo: ReturnType<typeof buildMockRepo>;
-  let blobStorageService: { uploadBuffer: jest.Mock };
+  let blobStorageService: { uploadBuffer: jest.Mock; toSasUrl: jest.Mock };
   let gateway: {
     emitNewServiceRequest: jest.Mock;
     emitTechnicianAccepted: jest.Mock;
@@ -127,7 +127,10 @@ describe('ServiceRequestsService (extra coverage)', () => {
     eventRepo = buildMockRepo();
     userRepo = buildMockRepo();
     providerProfileRepo = buildMockRepo();
-    blobStorageService = { uploadBuffer: jest.fn() };
+    blobStorageService = {
+      uploadBuffer: jest.fn(),
+      toSasUrl: jest.fn((url: string | null) => url),
+    };
     gateway = {
       emitNewServiceRequest: jest.fn(),
       emitTechnicianAccepted: jest.fn(),

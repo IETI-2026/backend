@@ -158,6 +158,12 @@ export class ServiceRequestResponseDto {
   clientName!: string | null;
 
   @ApiPropertyOptional({
+    description: 'URL con SAS token de la foto de perfil del cliente',
+    nullable: true,
+  })
+  clientPhotoUrl!: string | null;
+
+  @ApiPropertyOptional({
     description: 'Calificación promedio del técnico asignado',
     example: 4.8,
     nullable: true,

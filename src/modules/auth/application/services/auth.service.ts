@@ -12,6 +12,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { OAuth2Client } from 'google-auth-library';
+import { BlobStorageService } from '@/common/services/blob-storage.service';
 import { hashToken } from '@/common/utils/hash.util';
 import { RoleName } from '@/database/enums';
 import {
@@ -70,6 +71,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly mailService: MailService,
+    private readonly blobStorageService: BlobStorageService,
   ) {}
 
   async signUp(signUpDto: SignUpDto): Promise<AuthResponseDto> {
@@ -514,7 +516,8 @@ export class AuthService {
         id: user.id,
         email: user.email || '',
         fullName: user.fullName,
-        profilePhotoUrl: user.profilePhotoUrl || undefined,
+        profilePhotoUrl:
+          this.blobStorageService.toSasUrl(user.profilePhotoUrl) || undefined,
         roles: roles as RoleName[],
       },
     };
@@ -558,7 +561,7 @@ export class AuthService {
       email: user.email,
       fullName: user.fullName,
       phoneNumber: user.phoneNumber,
-      profilePhotoUrl: user.profilePhotoUrl,
+      profilePhotoUrl: this.blobStorageService.toSasUrl(user.profilePhotoUrl),
       emailVerified: user.emailVerified,
       phoneVerified: user.phoneVerified,
       status: user.status,
