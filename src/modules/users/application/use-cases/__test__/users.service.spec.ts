@@ -42,9 +42,10 @@ describe('UsersService', () => {
   };
 
   const mockBlobStorageService: jest.Mocked<
-    Pick<BlobStorageService, 'uploadFile'>
+    Pick<BlobStorageService, 'uploadFile' | 'toSasUrl'>
   > = {
     uploadFile: jest.fn(),
+    toSasUrl: jest.fn().mockReturnValue(null),
   };
 
   const mockTenantDataSourceService: jest.Mocked<
