@@ -12,6 +12,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import type { Cache } from 'cache-manager';
 import { DataSource, Repository } from 'typeorm';
+import { BlobStorageService } from '@/common/services/blob-storage.service';
 import {
   UserEntity as DbUserEntity,
   ProviderProfileEntity,
@@ -46,6 +47,7 @@ export class ProviderProfileService {
     private readonly cache: Cache,
     private readonly configService: ConfigService,
     private readonly tenantContext: TenantContext,
+    private readonly blobStorageService: BlobStorageService,
   ) {
     this.profileRepo = dataSource.getRepository(ProviderProfileEntity);
     this.userRepo = dataSource.getRepository(DbUserEntity);
@@ -263,7 +265,9 @@ export class ProviderProfileService {
       const dto = new ProviderSearchResultDto();
       dto.userId = p.userId;
       dto.fullName = p.user.fullName;
-      dto.profilePhotoUrl = p.user.profilePhotoUrl;
+      dto.profilePhotoUrl = this.blobStorageService.toSasUrl(
+        p.user.profilePhotoUrl,
+      );
       dto.bio = p.bio;
       dto.skills = p.user.skills;
       dto.averageRating = p.averageRating;

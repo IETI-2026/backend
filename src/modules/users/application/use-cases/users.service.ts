@@ -266,7 +266,9 @@ export class UsersService {
     response.phoneNumber = user.phoneNumber;
     response.fullName = user.fullName;
     response.documentId = user.documentId;
-    response.profilePhotoUrl = user.profilePhotoUrl;
+    response.profilePhotoUrl = this.blobStorageService.toSasUrl(
+      user.profilePhotoUrl,
+    );
     response.skills = user.skills;
     response.currentLatitude = user.currentLatitude;
     response.currentLongitude = user.currentLongitude;

@@ -258,7 +258,9 @@ export class ServiceRequestsService {
       email: response.technicianUser.email,
       phoneNumber: response.technicianUser.phoneNumber,
       skills: response.technicianUser.skills,
-      profilePhotoUrl: response.technicianUser.profilePhotoUrl,
+      profilePhotoUrl: this.blobStorageService.toSasUrl(
+        response.technicianUser.profilePhotoUrl,
+      ),
       currentLatitude: response.technicianUser.currentLatitude,
       currentLongitude: response.technicianUser.currentLongitude,
       averageRating: ratingMap[response.technicianUser.id] ?? null,
@@ -389,7 +391,9 @@ export class ServiceRequestsService {
       email: technician.email,
       phoneNumber: technician.phoneNumber,
       skills: technician.skills,
-      profilePhotoUrl: technician.profilePhotoUrl,
+      profilePhotoUrl: this.blobStorageService.toSasUrl(
+        technician.profilePhotoUrl,
+      ),
       currentLatitude: technician.currentLatitude,
       currentLongitude: technician.currentLongitude,
       averageRating: null,
@@ -684,7 +688,12 @@ export class ServiceRequestsService {
 
     // Return cached URL if receipt was already generated
     if (request.receiptUrl) {
-      return { url: request.receiptUrl, buffer: Buffer.alloc(0) };
+      return {
+        url:
+          this.blobStorageService.toSasUrl(request.receiptUrl) ??
+          request.receiptUrl,
+        buffer: Buffer.alloc(0),
+      };
     }
 
     const publicUserRepo = await this.getPublicUserRepo();
@@ -790,7 +799,10 @@ export class ServiceRequestsService {
 
     await this.requestRepo.update(serviceRequestId, { receiptUrl: url });
 
-    return { url, buffer: pdfBuffer };
+    return {
+      url: this.blobStorageService.toSasUrl(url) ?? url,
+      buffer: pdfBuffer,
+    };
   }
 
   async updateUserLocation(
@@ -1214,7 +1226,7 @@ export class ServiceRequestsService {
       finalPrice?: string | null;
       receiptUrl?: string | null;
       isRated?: boolean;
-      user?: { fullName: string } | null;
+      user?: { fullName: string; profilePhotoUrl?: string | null } | null;
       assignedTechnician?: {
         fullName: string;
         profilePhotoUrl?: string | null;
@@ -1249,13 +1261,19 @@ export class ServiceRequestsService {
     response.displacementDistanceKm = request.displacementDistanceKm ?? null;
     response.finalPrice = request.finalPrice ?? null;
     response.technicianName = request.assignedTechnician?.fullName ?? null;
-    response.technicianPhotoUrl =
-      request.assignedTechnician?.profilePhotoUrl ?? null;
-    response.receiptUrl = request.receiptUrl ?? null;
+    response.technicianPhotoUrl = this.blobStorageService.toSasUrl(
+      request.assignedTechnician?.profilePhotoUrl ?? null,
+    );
+    response.receiptUrl = this.blobStorageService.toSasUrl(
+      request.receiptUrl ?? null,
+    );
     response.isRated = request.isRated ?? false;
     response.categoryName =
       request.requestedSkills.length > 0 ? request.requestedSkills[0] : null;
     response.clientName = request.user?.fullName ?? null;
+    response.clientPhotoUrl = this.blobStorageService.toSasUrl(
+      request.user?.profilePhotoUrl ?? null,
+    );
     response.technicianRating = technicianRating ?? null;
     response.technicianResponses = request.technicianResponses.map((item) => ({
       technicianUserId: item.technicianUserId,

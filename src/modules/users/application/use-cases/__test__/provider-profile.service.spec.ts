@@ -6,6 +6,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ProviderProfileEntity, UserEntity } from '@/database/entities';
 import { ProviderVerificationStatus, RoleName } from '@/database/enums';
 import { TENANT_DATA_SOURCE, TenantContext } from '@/tenant';
+import { BlobStorageService } from '../../../../../common/services/blob-storage.service';
 import type { IAuthRepository } from '../../../../auth/domain/repositories';
 import { AUTH_REPOSITORY } from '../../../../auth/domain/repositories';
 import { VerificationAction } from '../../dtos/verify-provider.dto';
@@ -125,6 +126,19 @@ describe('ProviderProfileService', () => {
       getTenantId: jest.fn().mockReturnValue('public'),
     };
 
+    const mockBlobStorageService = {
+      uploadFile: jest.fn().mockResolvedValue('https://example.com/photo.jpg'),
+      uploadBuffer: jest
+        .fn()
+        .mockResolvedValue('https://example.com/photo.jpg'),
+      generateSasUrl: jest
+        .fn()
+        .mockReturnValue('https://example.com/photo.jpg?sas=token'),
+      toSasUrl: jest
+        .fn()
+        .mockReturnValue('https://example.com/photo.jpg?sas=token'),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ProviderProfileService,
@@ -137,6 +151,7 @@ describe('ProviderProfileService', () => {
         { provide: CACHE_MANAGER, useValue: mockCache },
         { provide: ConfigService, useValue: mockConfigService },
         { provide: TenantContext, useValue: mockTenantContext },
+        { provide: BlobStorageService, useValue: mockBlobStorageService },
       ],
     }).compile();
 

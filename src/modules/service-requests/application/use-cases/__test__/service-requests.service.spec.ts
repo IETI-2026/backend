@@ -169,6 +169,7 @@ describe('ServiceRequestsService', () => {
           useValue: {
             uploadFile: jest.fn(),
             uploadBuffer: jest.fn(),
+            toSasUrl: jest.fn((url: string | null) => url),
           },
         },
       ],

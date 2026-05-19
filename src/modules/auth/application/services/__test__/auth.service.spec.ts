@@ -8,6 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import * as bcrypt from 'bcrypt';
+import { BlobStorageService } from '@/common/services/blob-storage.service';
 import { RoleName } from '../../../../../database/enums';
 import {
   AUTH_REPOSITORY,
@@ -92,6 +93,17 @@ describe('AuthService', () => {
     sendOtpEmail: jest.fn().mockResolvedValue(undefined),
   };
 
+  const mockBlobStorageService = {
+    uploadFile: jest.fn().mockResolvedValue('https://example.com/photo.jpg'),
+    uploadBuffer: jest.fn().mockResolvedValue('https://example.com/photo.jpg'),
+    generateSasUrl: jest
+      .fn()
+      .mockReturnValue('https://example.com/photo.jpg?sas=token'),
+    toSasUrl: jest
+      .fn()
+      .mockReturnValue('https://example.com/photo.jpg?sas=token'),
+  };
+
   // ─── module setup ──────────────────────────────────────────────────────────
 
   beforeEach(async () => {
@@ -102,6 +114,7 @@ describe('AuthService', () => {
         { provide: JwtService, useValue: mockJwtService },
         { provide: ConfigService, useValue: mockConfigService },
         { provide: MailService, useValue: mockMailService },
+        { provide: BlobStorageService, useValue: mockBlobStorageService },
       ],
     }).compile();
 

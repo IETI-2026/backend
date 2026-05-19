@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import {
@@ -13,7 +14,10 @@ import { JwtAuthGuard } from '../../../../auth/infrastructure/guards/jwt-auth.gu
 import {
   ChooseTechnicianDto,
   CreateServiceRequestDto,
+  MarkCompleteDto,
+  RateServiceRequestDto,
   ServiceRequestsService,
+  UpdateLocationDto,
 } from '../../../application';
 import { ServiceRequestsController } from '../service-requests.controller';
 
@@ -37,11 +41,16 @@ const mockAcceptedTechnician = {
 const mockServiceRequestsService = {
   findAll: jest.fn(),
   findAcceptedTechnicians: jest.fn(),
+  findById: jest.fn(),
   create: jest.fn(),
   findAvailableForTechnician: jest.fn(),
   accept: jest.fn(),
   reject: jest.fn(),
   chooseTechnician: jest.fn(),
+  markComplete: jest.fn(),
+  updateUserLocation: jest.fn(),
+  generateServiceSummaryPdf: jest.fn(),
+  rateService: jest.fn(),
 };
 
 const allowAllGuard = { canActivate: () => true };
@@ -384,6 +393,222 @@ describe('ServiceRequestsController', () => {
       await expect(
         controller.chooseTechnician('bad-id', chooseDto as unknown),
       ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('findById', () => {
+    it('should return a single service request by ID', async () => {
+      mockServiceRequestsService.findById.mockResolvedValue(mockServiceRequest);
+
+      const result = await controller.findById('req-uuid-001');
+
+      expect(mockServiceRequestsService.findById).toHaveBeenCalledWith(
+        'req-uuid-001',
+      );
+      expect(result).toBe(mockServiceRequest);
+    });
+
+    it('should propagate NotFoundException for an unknown ID', async () => {
+      mockServiceRequestsService.findById.mockRejectedValue(
+        new NotFoundException('Request not found'),
+      );
+
+      await expect(controller.findById('bad-id')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+
+  describe('markComplete', () => {
+    const markDto: MarkCompleteDto = { role: 'client' };
+
+    it('should mark the service complete and return the updated request', async () => {
+      mockServiceRequestsService.markComplete.mockResolvedValue(
+        mockServiceRequest,
+      );
+
+      const result = await controller.markComplete(
+        { sub: 'user-uuid-001' } as JwtPayloadEntity,
+        'req-uuid-001',
+        markDto,
+      );
+
+      expect(mockServiceRequestsService.markComplete).toHaveBeenCalledWith(
+        'req-uuid-001',
+        'user-uuid-001',
+        markDto,
+      );
+      expect(result).toBe(mockServiceRequest);
+    });
+
+    it('should throw UnauthorizedException when user has no sub', async () => {
+      await expect(
+        controller.markComplete(
+          {} as JwtPayloadEntity,
+          'req-uuid-001',
+          markDto,
+        ),
+      ).rejects.toThrow(UnauthorizedException);
+      expect(mockServiceRequestsService.markComplete).not.toHaveBeenCalled();
+    });
+
+    it('should propagate NotFoundException when the request does not exist', async () => {
+      mockServiceRequestsService.markComplete.mockRejectedValue(
+        new NotFoundException('Request not found'),
+      );
+
+      await expect(
+        controller.markComplete(
+          { sub: 'user-uuid-001' } as JwtPayloadEntity,
+          'bad-id',
+          markDto,
+        ),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('updateLocation', () => {
+    const locationDto: UpdateLocationDto = {
+      latitude: 4.711,
+      longitude: -74.072,
+    };
+
+    it('should update the user location and return a success message', async () => {
+      mockServiceRequestsService.updateUserLocation.mockResolvedValue(
+        undefined,
+      );
+
+      const result = await controller.updateLocation(
+        { sub: 'user-uuid-001' } as JwtPayloadEntity,
+        'req-uuid-001',
+        locationDto,
+      );
+
+      expect(
+        mockServiceRequestsService.updateUserLocation,
+      ).toHaveBeenCalledWith(
+        'user-uuid-001',
+        locationDto.latitude,
+        locationDto.longitude,
+      );
+      expect(result).toEqual({ message: 'Location updated' });
+    });
+
+    it('should throw UnauthorizedException when user has no sub', async () => {
+      await expect(
+        controller.updateLocation(
+          {} as JwtPayloadEntity,
+          'req-uuid-001',
+          locationDto,
+        ),
+      ).rejects.toThrow(UnauthorizedException);
+      expect(
+        mockServiceRequestsService.updateUserLocation,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('should propagate service errors', async () => {
+      mockServiceRequestsService.updateUserLocation.mockRejectedValue(
+        new Error('Location service error'),
+      );
+
+      await expect(
+        controller.updateLocation(
+          { sub: 'user-uuid-001' } as JwtPayloadEntity,
+          'req-uuid-001',
+          locationDto,
+        ),
+      ).rejects.toThrow('Location service error');
+    });
+  });
+
+  describe('getReceipt', () => {
+    it('should return the receipt URL for a completed service', async () => {
+      const receiptUrl = 'https://blob.example.com/receipt.pdf';
+      mockServiceRequestsService.generateServiceSummaryPdf.mockResolvedValue({
+        url: receiptUrl,
+        buffer: Buffer.alloc(0),
+      });
+
+      const result = await controller.getReceipt('req-uuid-001');
+
+      expect(
+        mockServiceRequestsService.generateServiceSummaryPdf,
+      ).toHaveBeenCalledWith('req-uuid-001');
+      expect(result).toEqual({ url: receiptUrl });
+    });
+
+    it('should propagate NotFoundException when the request does not exist', async () => {
+      mockServiceRequestsService.generateServiceSummaryPdf.mockRejectedValue(
+        new NotFoundException('Request not found'),
+      );
+
+      await expect(controller.getReceipt('bad-id')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('should propagate BadRequestException when the service is not completed', async () => {
+      mockServiceRequestsService.generateServiceSummaryPdf.mockRejectedValue(
+        new BadRequestException(
+          'Service summary can only be generated for completed services',
+        ),
+      );
+
+      await expect(controller.getReceipt('req-uuid-001')).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+  });
+
+  describe('rate', () => {
+    const rateDto: RateServiceRequestDto = {
+      serviceRating: 5,
+      technicianRating: 4,
+      comment: 'Excellent service',
+    };
+
+    it('should rate the service and return the updated request', async () => {
+      const rated = { ...mockServiceRequest, isRated: true };
+      mockServiceRequestsService.rateService.mockResolvedValue(rated);
+
+      const result = await controller.rate('req-uuid-001', rateDto);
+
+      expect(mockServiceRequestsService.rateService).toHaveBeenCalledWith(
+        'req-uuid-001',
+        rateDto,
+      );
+      expect(result).toBe(rated);
+    });
+
+    it('should propagate NotFoundException when the request does not exist', async () => {
+      mockServiceRequestsService.rateService.mockRejectedValue(
+        new NotFoundException('Request not found'),
+      );
+
+      await expect(controller.rate('bad-id', rateDto)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('should propagate BadRequestException when the service is not completed', async () => {
+      mockServiceRequestsService.rateService.mockRejectedValue(
+        new BadRequestException('Service is not completed'),
+      );
+
+      await expect(controller.rate('req-uuid-001', rateDto)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should propagate ConflictException when service is already rated', async () => {
+      mockServiceRequestsService.rateService.mockRejectedValue(
+        new ConflictException('Service already rated'),
+      );
+
+      await expect(controller.rate('req-uuid-001', rateDto)).rejects.toThrow(
+        ConflictException,
+      );
     });
   });
 });
