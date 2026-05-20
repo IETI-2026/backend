@@ -25,7 +25,7 @@ import { ServiceRequestsGateway } from '../../../presentation/gateways/service-r
 import { ServiceRequestsService } from '../service-requests.service';
 
 jest.mock('pdfkit', () => {
-  const { EventEmitter } = require('events');
+  const { EventEmitter } = require('node:events');
   return jest.fn().mockImplementation(() => {
     const doc = new EventEmitter();
     doc.y = 100;

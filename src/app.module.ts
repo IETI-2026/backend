@@ -10,6 +10,7 @@ import { DatabaseModule } from '@/database/database.module';
 import { HealthController } from './common/health.controller';
 import { AddressesModule } from './modules/addresses';
 import { AuthModule } from './modules/auth';
+import { ChatModule } from './modules/chat/chat.module';
 import { GeocodingModule } from './modules/geocoding';
 import { MailModule } from './modules/mail';
 import { PaymentsModule } from './modules/payments';
@@ -43,6 +44,7 @@ import { TenantMiddleware, TenantModule } from './tenant';
     GeocodingModule,
     AuthModule,
     UsersModule,
+    ChatModule,
     ServiceRequestsModule,
     PaymentsModule,
     SkillSuggestionsModule,
