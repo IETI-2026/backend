@@ -7,6 +7,7 @@ import {
   HttpStatus,
   Logger,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
   UseGuards,
@@ -16,6 +17,7 @@ import {
   ApiCreatedResponse,
   ApiOkResponse,
   ApiOperation,
+  ApiParam,
   ApiTags,
 } from '@nestjs/swagger';
 import { JwtPayloadEntity } from '../../auth/domain/entities';
@@ -41,7 +43,10 @@ export class ChatController {
   @Get(':serviceRequestId/messages')
   @ApiOperation({ summary: 'Obtener historial de mensajes de una solicitud' })
   @ApiOkResponse({ type: [ChatMessageResponseDto] })
-  getMessages(@Param('serviceRequestId') serviceRequestId: string) {
+  @ApiParam({ name: 'serviceRequestId', format: 'uuid' })
+  getMessages(
+    @Param('serviceRequestId', ParseUUIDPipe) serviceRequestId: string,
+  ) {
     this.logger.log(`GET /chat/${serviceRequestId}/messages`);
     return this.chatService.getMessages(serviceRequestId);
   }
@@ -50,8 +55,9 @@ export class ChatController {
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Enviar mensaje de chat' })
   @ApiCreatedResponse({ type: ChatMessageResponseDto })
+  @ApiParam({ name: 'serviceRequestId', format: 'uuid' })
   async sendMessage(
-    @Param('serviceRequestId') serviceRequestId: string,
+    @Param('serviceRequestId', ParseUUIDPipe) serviceRequestId: string,
     @Body() dto: SendMessageDto,
     @CurrentUser() user: JwtPayloadEntity,
   ) {
@@ -79,8 +85,9 @@ export class ChatController {
   @Patch(':serviceRequestId/messages/read')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Marcar mensajes como leídos' })
+  @ApiParam({ name: 'serviceRequestId', format: 'uuid' })
   async markAsRead(
-    @Param('serviceRequestId') serviceRequestId: string,
+    @Param('serviceRequestId', ParseUUIDPipe) serviceRequestId: string,
     @CurrentUser() user: JwtPayloadEntity,
   ) {
     if (!user.sub) {
