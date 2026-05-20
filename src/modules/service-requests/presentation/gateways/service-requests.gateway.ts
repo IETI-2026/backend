@@ -1,4 +1,6 @@
+import { ChatMessageEntity } from '@database/entities';
 import { Logger, UseGuards } from '@nestjs/common';
+import { InjectDataSource } from '@nestjs/typeorm';
 import {
   ConnectedSocket,
   MessageBody,
@@ -9,6 +11,7 @@ import {
   WebSocketServer,
 } from '@nestjs/websockets';
 import type { Server, Socket } from 'socket.io';
+import type { DataSource } from 'typeorm';
 import { WsJwtGuard } from '@/common/guards/ws-jwt.guard';
 import type { AcceptedTechnicianUserDto } from '../../application/dtos/accepted-technician-user.dto';
 import type { ServiceRequestResponseDto } from '../../application/dtos/service-request-response.dto';
@@ -32,6 +35,11 @@ export class ServiceRequestsGateway
 
   @WebSocketServer()
   server!: Server;
+
+  constructor(
+    @InjectDataSource()
+    private readonly defaultDs: DataSource,
+  ) {}
 
   handleConnection(client: Socket) {
     this.logger.log(`Client attempting connection: ${client.id}`);
@@ -74,6 +82,53 @@ export class ServiceRequestsGateway
       `Technician ${data.technicianId} joined rooms ${technicianRoom}, ${tenantRoom}`,
     );
     return { success: true };
+  }
+
+  @SubscribeMessage('send_chat_message')
+  async handleSendChatMessage(
+    @MessageBody() data: { serviceRequestId: string; content: string },
+    @ConnectedSocket() client: Socket,
+  ): Promise<{ success: boolean }> {
+    const senderId = client.data.user?.sub as string | undefined;
+    if (!senderId) {
+      client.emit('error', { message: 'Unauthorized' });
+      return { success: false };
+    }
+    const repo = this.defaultDs.getRepository(ChatMessageEntity);
+    const msg = repo.create({
+      serviceRequestId: data.serviceRequestId,
+      senderId,
+      content: data.content,
+    });
+    const saved = await repo.save(msg);
+    const room = `request_${data.serviceRequestId}`;
+    this.server.to(room).emit('new_chat_message', {
+      id: saved.id,
+      serviceRequestId: saved.serviceRequestId,
+      senderId: saved.senderId,
+      content: saved.content,
+      isRead: saved.isRead,
+      sentAt: saved.sentAt,
+    });
+    this.logger.log(`Chat message sent to room ${room} by ${senderId}`);
+    return { success: true };
+  }
+
+  emitChatMessage(
+    serviceRequestId: string,
+    message: {
+      id: string;
+      senderId: string;
+      content: string;
+      isRead: boolean;
+      sentAt: Date;
+    },
+  ): void {
+    const room = `request_${serviceRequestId}`;
+    this.server.to(room).emit('new_chat_message', {
+      serviceRequestId,
+      ...message,
+    });
   }
 
   private roomSize(room: string): number {

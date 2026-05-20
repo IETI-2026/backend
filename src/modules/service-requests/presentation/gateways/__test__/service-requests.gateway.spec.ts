@@ -2,8 +2,16 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import type { Server, Socket } from 'socket.io';
+import { DataSource } from 'typeorm';
 import { WsJwtGuard } from '@/common/guards/ws-jwt.guard';
 import { ServiceRequestsGateway } from '../service-requests.gateway';
+
+function buildMockRepo() {
+  return {
+    create: jest.fn(),
+    save: jest.fn(),
+  };
+}
 
 function buildMockServer() {
   const rooms = new Map<string, Set<string>>();
@@ -34,14 +42,23 @@ function buildMockClient(
 describe('ServiceRequestsGateway', () => {
   let gateway: ServiceRequestsGateway;
   let mockServer: ReturnType<typeof buildMockServer>;
+  let mockRepo: ReturnType<typeof buildMockRepo>;
 
   beforeEach(async () => {
+    mockRepo = buildMockRepo();
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ServiceRequestsGateway,
         WsJwtGuard,
         { provide: JwtService, useValue: { verify: jest.fn() } },
         { provide: ConfigService, useValue: { get: jest.fn() } },
+        {
+          provide: DataSource,
+          useValue: {
+            getRepository: jest.fn().mockReturnValue(mockRepo),
+          },
+        },
       ],
     }).compile();
 
@@ -224,6 +241,76 @@ describe('ServiceRequestsGateway', () => {
       expect(mockToChain.emit).toHaveBeenCalledWith('payment_completed', {
         serviceRequestId: 'req-uuid-001',
         ...paymentData,
+      });
+    });
+  });
+
+  describe('handleSendChatMessage', () => {
+    it('should return failure when client has no authenticated user', async () => {
+      const client = buildMockClient('socket-chat-001');
+      const data = { serviceRequestId: 'req-001', content: 'Hola' };
+
+      const result = await gateway.handleSendChatMessage(data, client);
+
+      expect(client.emit).toHaveBeenCalledWith('error', {
+        message: 'Unauthorized',
+      });
+      expect(result).toEqual({ success: false });
+    });
+
+    it('should save message and broadcast to room when authenticated', async () => {
+      const savedMsg = {
+        id: 'msg-001',
+        serviceRequestId: 'req-001',
+        senderId: 'user-001',
+        content: 'Hola',
+        isRead: false,
+        sentAt: new Date(),
+      };
+      mockRepo.create.mockReturnValue(savedMsg);
+      mockRepo.save.mockResolvedValue(savedMsg);
+
+      const mockToChain = { emit: jest.fn() };
+      mockServer.to.mockReturnValue(mockToChain as unknown);
+
+      const client = buildMockClient('socket-chat-002', { sub: 'user-001' });
+      const data = { serviceRequestId: 'req-001', content: 'Hola' };
+
+      const result = await gateway.handleSendChatMessage(data, client);
+
+      expect(mockRepo.create).toHaveBeenCalledWith({
+        serviceRequestId: 'req-001',
+        senderId: 'user-001',
+        content: 'Hola',
+      });
+      expect(mockRepo.save).toHaveBeenCalled();
+      expect(mockServer.to).toHaveBeenCalledWith('request_req-001');
+      expect(mockToChain.emit).toHaveBeenCalledWith(
+        'new_chat_message',
+        expect.objectContaining({ id: 'msg-001', senderId: 'user-001' }),
+      );
+      expect(result).toEqual({ success: true });
+    });
+  });
+
+  describe('emitChatMessage', () => {
+    it('should emit new_chat_message to the request room', () => {
+      const mockToChain = { emit: jest.fn() };
+      mockServer.to.mockReturnValue(mockToChain as unknown);
+
+      const message = {
+        id: 'msg-001',
+        senderId: 'user-001',
+        content: 'Hola',
+        isRead: false,
+        sentAt: new Date(),
+      };
+      gateway.emitChatMessage('req-001', message);
+
+      expect(mockServer.to).toHaveBeenCalledWith('request_req-001');
+      expect(mockToChain.emit).toHaveBeenCalledWith('new_chat_message', {
+        serviceRequestId: 'req-001',
+        ...message,
       });
     });
   });

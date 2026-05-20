@@ -43,8 +43,8 @@ export class BlobStorageService {
         }),
     );
 
-    const accountName = parts['AccountName'];
-    const accountKey = parts['AccountKey'];
+    const accountName = parts.AccountName;
+    const accountKey = parts.AccountKey;
 
     if (!accountName || !accountKey) {
       throw new Error(
