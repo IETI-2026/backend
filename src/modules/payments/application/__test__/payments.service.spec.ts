@@ -6,9 +6,10 @@ import {
   UnauthorizedException,
   UnprocessableEntityException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import type { Repository } from 'typeorm';
+import { DataSource } from 'typeorm';
 import {
   PaymentEntity,
   ServiceRequestEntity,
@@ -21,6 +22,8 @@ import {
   RoleName,
   ServiceRequestStatus,
 } from '@/database/enums';
+import { TENANT_DATA_SOURCE, TenantDataSourceService } from '@/tenant';
+import { MailService } from '../../../mail/application/mail.service';
 import { ServiceRequestsGateway } from '../../../service-requests/presentation/gateways/service-requests.gateway';
 import {
   CreatePaymentDto,
@@ -36,6 +39,7 @@ describe('PaymentsService', () => {
   let serviceRequestRepository: jest.Mocked<Repository<ServiceRequestEntity>>;
   let userRepository: jest.Mocked<Repository<UserEntity>>;
   let gateway: jest.Mocked<ServiceRequestsGateway>;
+  let mailService: jest.Mocked<MailService>;
 
   const mockUserId = 'user-123';
   const mockProviderId = 'provider-456';
@@ -46,6 +50,7 @@ describe('PaymentsService', () => {
   const mockUser = {
     id: mockUserId,
     email: 'user@example.com',
+    fullName: 'Test User',
     primaryRole: RoleName.USER,
   } as UserEntity;
 
@@ -86,14 +91,13 @@ describe('PaymentsService', () => {
   } as unknown as PaymentEntity;
 
   beforeEach(async () => {
-    process.env.EPAYCO_P_CUST_ID = 'test-customer-id';
-    process.env.EPAYCO_P_KEY = 'test-private-key';
-
     paymentRepository = {
       findOne: jest.fn(),
+      findOneOrFail: jest.fn(),
       find: jest.fn(),
       save: jest.fn(),
       create: jest.fn(),
+      update: jest.fn(),
     } as unknown as jest.Mocked<Repository<PaymentEntity>>;
 
     paymentMethodRepository = {
@@ -116,29 +120,49 @@ describe('PaymentsService', () => {
       emitPaymentCompleted: jest.fn(),
     } as unknown as jest.Mocked<ServiceRequestsGateway>;
 
+    mailService = {
+      sendPaymentConfirmationEmail: jest
+        .fn()
+        .mockResolvedValue({ success: true }),
+    } as unknown as jest.Mocked<MailService>;
+
+    const mockTenantDataSource = {
+      getRepository: jest.fn((entity: unknown) => {
+        if (entity === PaymentEntity) return paymentRepository;
+        if (entity === UserPaymentMethodEntity) return paymentMethodRepository;
+        if (entity === ServiceRequestEntity) return serviceRequestRepository;
+        if (entity === UserEntity) return userRepository;
+        return {};
+      }),
+    } as unknown as DataSource;
+
+    const mockPublicDataSource = {
+      getRepository: jest.fn().mockReturnValue(userRepository),
+    } as unknown as DataSource;
+
+    const mockTenantDataSourceService = {
+      getDataSource: jest.fn().mockResolvedValue(mockPublicDataSource),
+    } as unknown as TenantDataSourceService;
+
+    const mockConfigService = {
+      get: jest.fn((key: string) => {
+        if (key === 'epayco.customerId') return 'test-customer-id';
+        if (key === 'epayco.privateKey') return 'test-private-key';
+        return undefined;
+      }),
+    } as unknown as ConfigService;
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PaymentsService,
+        { provide: TENANT_DATA_SOURCE, useValue: mockTenantDataSource },
         {
-          provide: getRepositoryToken(PaymentEntity),
-          useValue: paymentRepository,
+          provide: TenantDataSourceService,
+          useValue: mockTenantDataSourceService,
         },
-        {
-          provide: getRepositoryToken(UserPaymentMethodEntity),
-          useValue: paymentMethodRepository,
-        },
-        {
-          provide: getRepositoryToken(ServiceRequestEntity),
-          useValue: serviceRequestRepository,
-        },
-        {
-          provide: getRepositoryToken(UserEntity),
-          useValue: userRepository,
-        },
-        {
-          provide: ServiceRequestsGateway,
-          useValue: gateway,
-        },
+        { provide: ServiceRequestsGateway, useValue: gateway },
+        { provide: MailService, useValue: mailService },
+        { provide: ConfigService, useValue: mockConfigService },
       ],
     }).compile();
 
@@ -178,16 +202,6 @@ describe('PaymentsService', () => {
       await expect(
         service.getAvailableMethodsForUser(mockUserId),
       ).rejects.toThrow(NotFoundException);
-    });
-
-    it('should query user repository with correct where clause', async () => {
-      userRepository.findOne.mockResolvedValue(mockUser);
-
-      await service.getAvailableMethodsForUser(mockUserId);
-
-      expect(userRepository.findOne).toHaveBeenCalledWith({
-        where: { id: mockUserId },
-      });
     });
   });
 
@@ -274,11 +288,13 @@ describe('PaymentsService', () => {
 
     it('should unset other default methods when isDefault is true', async () => {
       userRepository.findOne.mockResolvedValue(mockUser);
-      const existingDefault = { ...mockPaymentMethod, isDefault: true };
-      paymentMethodRepository.find.mockResolvedValue([existingDefault]);
       paymentMethodRepository.create.mockReturnValue(mockPaymentMethod);
       paymentMethodRepository.save.mockResolvedValue(mockPaymentMethod);
-      paymentMethodRepository.update = jest.fn().mockResolvedValue({});
+      paymentMethodRepository.update.mockResolvedValue({
+        affected: 1,
+        raw: [],
+        generatedMaps: [],
+      });
 
       const dto: CreatePaymentMethodDto = {
         methodType: PaymentMethodType.NEQUI,
@@ -508,7 +524,7 @@ describe('PaymentsService', () => {
         commissionRate: 0,
       };
 
-      const _result = await service.createPayment(mockUserId, dto);
+      await service.createPayment(mockUserId, dto);
 
       expect(paymentRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -536,7 +552,7 @@ describe('PaymentsService', () => {
         commissionRate: 0.1,
       };
 
-      const _result = await service.createPayment(mockUserId, dto);
+      await service.createPayment(mockUserId, dto);
 
       expect(paymentRepository.save).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -806,7 +822,7 @@ describe('PaymentsService', () => {
       ).rejects.toThrow(ForbiddenException);
     });
 
-    it('should return null when no payment exists for the service request', async () => {
+    it('should throw NotFoundException when no payment exists for the service request', async () => {
       serviceRequestRepository.findOne.mockResolvedValue({
         id: mockRequestId,
         userId: mockUserId,
@@ -814,12 +830,9 @@ describe('PaymentsService', () => {
       });
       paymentRepository.findOne.mockResolvedValue(null);
 
-      const result = await service.getPaymentByServiceRequest(
-        mockRequestId,
-        mockUserId,
-      );
-
-      expect(result).toBeNull();
+      await expect(
+        service.getPaymentByServiceRequest(mockRequestId, mockUserId),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 

@@ -4,6 +4,7 @@ import {
   Delete,
   ForbiddenException,
   Get,
+  Header,
   HttpCode,
   HttpStatus,
   Logger,
@@ -11,6 +12,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -26,6 +28,7 @@ import {
   ApiUnauthorizedResponse,
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
+import type { Request } from 'express';
 import { PaymentEntity, UserPaymentMethodEntity } from '@/database/entities';
 import { RoleName } from '@/database/enums';
 import { JwtPayloadEntity } from '../../auth/domain/entities';
@@ -194,7 +197,7 @@ export class PaymentsController {
   async getPaymentByServiceRequest(
     @CurrentUser() user: JwtPayloadEntity,
     @Param('serviceRequestId', ParseUUIDPipe) serviceRequestId: string,
-  ): Promise<PaymentEntity | null> {
+  ): Promise<PaymentEntity> {
     this.logger.log(
       `GET /payments/service-request/${serviceRequestId} - user=${user.sub}`,
     );
@@ -258,6 +261,40 @@ export class PaymentsController {
       this.getUserId(user),
       paymentId,
       dto,
+    );
+  }
+
+  // ──────────────────────────── ePayco Checkout ────────────────────────────
+
+  /**
+   * Retorna una página HTML con el formulario de checkout de ePayco.
+   * El cliente abre esta URL en un navegador o WebView para completar el pago.
+   */
+  @Get(':paymentId/epayco-checkout')
+  @Roles(RoleName.USER, RoleName.PROVIDER, RoleName.ADMIN, RoleName.MODERATOR)
+  @Header('Content-Type', 'text/html; charset=utf-8')
+  @ApiOperation({
+    summary: 'Obtener página de checkout ePayco para un pago',
+    description:
+      'Devuelve HTML con el formulario de ePayco listo para abrir en navegador/WebView. ' +
+      'Solo aplica para pagos con método EPAYCO en estado PROCESSING.',
+  })
+  @ApiOkResponse({ description: 'HTML de checkout de ePayco' })
+  @ApiNotFoundResponse({ description: 'Pago no encontrado' })
+  @ApiParam({ name: 'paymentId', format: 'uuid' })
+  async getEpaycoCheckout(
+    @CurrentUser() user: JwtPayloadEntity,
+    @Param('paymentId', ParseUUIDPipe) paymentId: string,
+    @Req() req: Request,
+  ): Promise<string> {
+    this.logger.log(
+      `GET /payments/${paymentId}/epayco-checkout - user=${user.sub}`,
+    );
+    const backendUrl = `${req.protocol}://${req.get('host')}/api`;
+    return this.paymentsService.getEpaycoCheckoutHtml(
+      paymentId,
+      this.getUserId(user),
+      backendUrl,
     );
   }
 
