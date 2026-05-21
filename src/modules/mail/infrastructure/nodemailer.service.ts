@@ -3,13 +3,6 @@ import { ConfigService } from '@nestjs/config';
 import { MailerService } from '@nestjs-modules/mailer';
 import { MailErrorType, MailSendResult, SendMailOptions } from '../domain';
 
-const resolveMailError = (
-  error: unknown,
-): { type: MailErrorType; userMessage: string } =>
-  error instanceof Error
-    ? classifyNodemailerError(error)
-    : { type: 'UNKNOWN_ERROR' as MailErrorType, userMessage: String(error) };
-
 const classifyNodemailerError = (
   error: Error,
 ): { type: MailErrorType; userMessage: string } => {
@@ -172,11 +165,19 @@ export class NodemailerService {
         messageId: result?.messageId,
       };
     } catch (error) {
-      const errorInfo = resolveMailError(error);
+      const errorInfo =
+        error instanceof Error
+          ? classifyNodemailerError(error)
+          : {
+              type: 'UNKNOWN_ERROR' as MailErrorType,
+              userMessage: String(error),
+            };
+
       this.logger.error(
         `Error ${errorInfo.type} al enviar correo a ${options.to}: ${error instanceof Error ? error.message : String(error)}`,
         error instanceof Error ? error.stack : '',
       );
+
       return {
         success: false,
         errorType: errorInfo.type,
@@ -185,6 +186,10 @@ export class NodemailerService {
     }
   }
 
+  /**
+   * Verifica la conexión con el servidor SMTP
+   * Útil para diagnósticos al iniciar la aplicación
+   */
   async verifyConnection(): Promise<boolean> {
     try {
       const mailerWithTransporter = this.mailerService as unknown as {
@@ -200,11 +205,19 @@ export class NodemailerService {
       this.logger.log('✓ Conexión SMTP verificada exitosamente');
       return true;
     } catch (error) {
-      const errorInfo = resolveMailError(error);
+      const errorInfo =
+        error instanceof Error
+          ? classifyNodemailerError(error)
+          : {
+              type: 'UNKNOWN_ERROR' as MailErrorType,
+              userMessage: String(error),
+            };
+
       this.logger.error(
         `✗ Error verificando conexión SMTP (${errorInfo.type}): ${error instanceof Error ? error.message : String(error)}`,
         error instanceof Error ? error.stack : '',
       );
+
       return false;
     }
   }
