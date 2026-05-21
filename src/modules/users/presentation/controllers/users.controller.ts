@@ -68,12 +68,6 @@ export class UsersController {
 
   constructor(private readonly usersService: UsersService) {}
 
-  private assertSub(currentUser: JwtPayloadEntity): string {
-    if (!currentUser.sub)
-      throw new UnauthorizedException('User ID not available');
-    return currentUser.sub;
-  }
-
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @Roles(RoleName.ADMIN, RoleName.MODERATOR)
@@ -185,11 +179,12 @@ export class UsersController {
   async getMe(
     @CurrentUser() currentUser: JwtPayloadEntity,
   ): Promise<UserResponseDto> {
-    const sub = this.assertSub(currentUser);
+    if (!currentUser.sub)
+      throw new UnauthorizedException('User ID not available');
     this.logger.log(
       `GET /users/me - Fetching own profile by ${currentUser.email}`,
     );
-    return await this.usersService.findOne(sub);
+    return await this.usersService.findOne(currentUser.sub);
   }
 
   @Patch('me')
@@ -216,11 +211,15 @@ export class UsersController {
     @CurrentUser() currentUser: JwtPayloadEntity,
     @Body() updateProfileDto: UpdateProfileDto,
   ): Promise<UserResponseDto> {
-    const sub = this.assertSub(currentUser);
     this.logger.log(
       `PATCH /users/me - Updating own profile by ${currentUser.email}`,
     );
-    return await this.usersService.updateProfile(sub, updateProfileDto);
+    if (!currentUser.sub)
+      throw new UnauthorizedException('User ID not available');
+    return await this.usersService.updateProfile(
+      currentUser.sub,
+      updateProfileDto,
+    );
   }
 
   @Patch('me/location')
@@ -230,8 +229,13 @@ export class UsersController {
     @CurrentUser() currentUser: JwtPayloadEntity,
     @Body() dto: UpdateUserLocationDto,
   ): Promise<void> {
-    const sub = this.assertSub(currentUser);
-    await this.usersService.updateLocation(sub, dto.latitude, dto.longitude);
+    if (!currentUser.sub)
+      throw new UnauthorizedException('User ID not available');
+    await this.usersService.updateLocation(
+      currentUser.sub,
+      dto.latitude,
+      dto.longitude,
+    );
   }
 
   @Patch('me/profile-photo')
@@ -266,7 +270,8 @@ export class UsersController {
     @CurrentUser() currentUser: JwtPayloadEntity,
     @UploadedFile() file: Express.Multer.File,
   ): Promise<UserResponseDto> {
-    const sub = this.assertSub(currentUser);
+    if (!currentUser.sub)
+      throw new UnauthorizedException('User ID not available');
 
     if (!file) throw new BadRequestException('File is required');
 
@@ -278,7 +283,7 @@ export class UsersController {
     this.logger.log(
       `PATCH /users/me/profile-photo - Uploading profile photo for ${currentUser.email}`,
     );
-    return await this.usersService.uploadProfilePhoto(sub, file);
+    return await this.usersService.uploadProfilePhoto(currentUser.sub, file);
   }
 
   @Get('email/:email')
