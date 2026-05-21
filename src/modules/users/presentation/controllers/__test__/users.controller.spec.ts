@@ -11,8 +11,6 @@ import { JwtAuthGuard } from '../../../../auth/infrastructure/guards/jwt-auth.gu
 import { RolesGuard } from '../../../../auth/infrastructure/guards/roles.guard';
 import { UsersController } from '../users.controller';
 
-// ─── shared fixtures ──────────────────────────────────────────────────────────
-
 const mockUserResponse = {
   id: 'user-uuid-001',
   email: 'admin@example.com',
@@ -68,8 +66,6 @@ describe('UsersController', () => {
     expect(controller).toBeDefined();
   });
 
-  // ─── create ──────────────────────────────────────────────────────────────────
-
   describe('create', () => {
     const createDto = {
       email: 'new@example.com',
@@ -96,8 +92,6 @@ describe('UsersController', () => {
       ).rejects.toThrow(ConflictException);
     });
   });
-
-  // ─── findAll ──────────────────────────────────────────────────────────────────
 
   describe('findAll', () => {
     it('should return paginated list of users', async () => {
@@ -141,8 +135,6 @@ describe('UsersController', () => {
     });
   });
 
-  // ─── getMe ────────────────────────────────────────────────────────────────────
-
   describe('getMe', () => {
     it('should return the current user profile', async () => {
       mockUsersService.findOne.mockResolvedValue(mockUserResponse);
@@ -173,8 +165,6 @@ describe('UsersController', () => {
       );
     });
   });
-
-  // ─── updateMe ─────────────────────────────────────────────────────────────────
 
   describe('updateMe', () => {
     const updateDto = { fullName: 'Updated Name' };
@@ -218,8 +208,6 @@ describe('UsersController', () => {
     });
   });
 
-  // ─── findByEmail ──────────────────────────────────────────────────────────────
-
   describe('findByEmail', () => {
     it('should return the user matching the given email', async () => {
       mockUsersService.findByEmail.mockResolvedValue(mockUserResponse);
@@ -246,8 +234,6 @@ describe('UsersController', () => {
     });
   });
 
-  // ─── findOne ──────────────────────────────────────────────────────────────────
-
   describe('findOne', () => {
     it('should return the user matching the given ID', async () => {
       mockUsersService.findOne.mockResolvedValue(mockUserResponse);
@@ -268,8 +254,6 @@ describe('UsersController', () => {
       ).rejects.toThrow(NotFoundException);
     });
   });
-
-  // ─── update ───────────────────────────────────────────────────────────────────
 
   describe('update', () => {
     const updateDto = { fullName: 'Updated Name' };
@@ -302,8 +286,6 @@ describe('UsersController', () => {
     });
   });
 
-  // ─── remove (soft delete) ─────────────────────────────────────────────────────
-
   describe('remove', () => {
     it('should call usersService.remove with the correct ID', async () => {
       mockUsersService.remove.mockResolvedValue(undefined);
@@ -324,8 +306,6 @@ describe('UsersController', () => {
       );
     });
   });
-
-  // ─── hardDelete ───────────────────────────────────────────────────────────────
 
   describe('hardDelete', () => {
     it('should permanently delete the user', async () => {

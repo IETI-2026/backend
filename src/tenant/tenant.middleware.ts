@@ -49,13 +49,11 @@ export class TenantMiddleware implements NestMiddleware {
       return 'public';
     }
 
-    // Solo se resuelve por header X-Tenant-ID
     const headerTenant = req.header('X-Tenant-ID');
     if (headerTenant) {
       return this.normalizeTenant(headerTenant);
     }
 
-    // Fallback al tenant público
     return 'public';
   }
 
@@ -77,7 +75,6 @@ export class TenantMiddleware implements NestMiddleware {
   private normalizePath(rawPath: string): string {
     const path = rawPath.split('?')[0].toLowerCase();
 
-    // Las rutas reales del app usan /api como prefijo global.
     if (path === '/api') {
       return '/';
     }

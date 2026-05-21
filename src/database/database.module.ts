@@ -2,7 +2,7 @@ import { Global, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ALL_ENTITIES } from './entities';
-import { RolesSeed } from './seeds';
+import { AdminUserSeed, RolesSeed, ServiceCategorySeed } from './seeds';
 
 @Global()
 @Module({
@@ -22,7 +22,7 @@ import { RolesSeed } from './seeds';
     }),
     TypeOrmModule.forFeature(ALL_ENTITIES),
   ],
-  providers: [RolesSeed],
+  providers: [RolesSeed, ServiceCategorySeed, AdminUserSeed],
   exports: [TypeOrmModule],
 })
 export class DatabaseModule {}

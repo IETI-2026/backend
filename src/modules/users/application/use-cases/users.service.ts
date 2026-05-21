@@ -7,6 +7,9 @@ import {
 } from '@nestjs/common';
 import type { IUserRepository } from '@users/domain';
 import { USER_REPOSITORY, UserStatus } from '@users/domain';
+import { UserEntity as DbUserEntity } from '@/database/entities';
+import { TenantDataSourceService } from '@/tenant';
+import { BlobStorageService } from '../../../../common/services/blob-storage.service';
 import type {
   CreateUserDto,
   GetUsersQueryDto,
@@ -22,6 +25,8 @@ export class UsersService {
   constructor(
     @Inject(USER_REPOSITORY)
     private readonly userRepository: IUserRepository,
+    private readonly blobStorageService: BlobStorageService,
+    private readonly tenantDataSourceService: TenantDataSourceService,
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<UserResponseDto> {
@@ -79,11 +84,17 @@ export class UsersService {
     const { page = 0, limit = 10, status } = query;
     const skip = page * limit;
 
+    this.logger.debug(
+      `Fetching users page=${page} limit=${limit} status=${status ?? 'all'}`,
+    );
+
     const { users, total } = await this.userRepository.findAll({
       skip,
       take: limit,
       status,
     });
+
+    this.logger.debug(`Found ${total} users (returned ${users.length})`);
 
     return {
       users: users.map((user) => this.mapToResponse(user)),
@@ -94,9 +105,12 @@ export class UsersService {
   }
 
   async findOne(id: string): Promise<UserResponseDto> {
+    this.logger.debug(`Finding user by ID: ${id}`);
+
     const user = await this.userRepository.findById(id);
 
     if (!user) {
+      this.logger.warn(`User not found with ID: ${id}`);
       throw new NotFoundException(`User with ID ${id} not found`);
     }
 
@@ -104,9 +118,12 @@ export class UsersService {
   }
 
   async findByEmail(email: string): Promise<UserResponseDto> {
+    this.logger.debug(`Finding user by email: ${email}`);
+
     const user = await this.userRepository.findByEmail(email);
 
     if (!user) {
+      this.logger.warn(`User not found with email: ${email}`);
       throw new NotFoundException(`User with email ${email} not found`);
     }
 
@@ -118,6 +135,22 @@ export class UsersService {
     updateProfileDto: UpdateProfileDto,
   ): Promise<UserResponseDto> {
     return this.update(userId, updateProfileDto);
+  }
+
+  async uploadProfilePhoto(
+    userId: string,
+    file: Express.Multer.File,
+  ): Promise<UserResponseDto> {
+    this.logger.log(`Uploading profile photo for user: ${userId}`);
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new NotFoundException(`User with ID ${userId} not found`);
+    }
+    const photoUrl = await this.blobStorageService.uploadFile(
+      file,
+      user.email ?? undefined,
+    );
+    return this.updateProfile(userId, { profilePhotoUrl: photoUrl });
   }
 
   async update(
@@ -136,13 +169,11 @@ export class UsersService {
       };
     }
 
-    // Verificar que el usuario existe
     const existingUser = await this.userRepository.findById(id);
     if (!existingUser) {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
 
-    // Validar unicidad de email si se está actualizando
     if (updateUserDto.email && updateUserDto.email !== existingUser.email) {
       const userWithEmail = await this.userRepository.findByEmail(
         updateUserDto.email,
@@ -152,7 +183,6 @@ export class UsersService {
       }
     }
 
-    // Validar unicidad de teléfono si se está actualizando
     if (
       updateUserDto.phoneNumber &&
       updateUserDto.phoneNumber !== existingUser.phoneNumber
@@ -195,6 +225,22 @@ export class UsersService {
     this.logger.log(`User hard deleted successfully with ID: ${id}`);
   }
 
+  async updateLocation(
+    userId: string,
+    latitude: number,
+    longitude: number,
+  ): Promise<void> {
+    this.logger.log(`Updating location for user: ${userId}`);
+    const locationData = {
+      currentLatitude: latitude,
+      currentLongitude: longitude,
+      lastLocationUpdate: new Date(),
+    };
+    await this.userRepository.update(userId, locationData);
+    const publicDs = await this.tenantDataSourceService.getDataSource('public');
+    await publicDs.getRepository(DbUserEntity).update(userId, locationData);
+  }
+
   private mapToResponse(user: {
     id: string;
     email: string | null;
@@ -209,6 +255,7 @@ export class UsersService {
     status: UserStatus;
     emailVerified: boolean;
     phoneVerified: boolean;
+    servicesCount: number;
     createdAt: Date;
     updatedAt: Date;
     lastLoginAt: Date | null;
@@ -219,7 +266,9 @@ export class UsersService {
     response.phoneNumber = user.phoneNumber;
     response.fullName = user.fullName;
     response.documentId = user.documentId;
-    response.profilePhotoUrl = user.profilePhotoUrl;
+    response.profilePhotoUrl = this.blobStorageService.toSasUrl(
+      user.profilePhotoUrl,
+    );
     response.skills = user.skills;
     response.currentLatitude = user.currentLatitude;
     response.currentLongitude = user.currentLongitude;
@@ -227,6 +276,7 @@ export class UsersService {
     response.status = user.status;
     response.emailVerified = user.emailVerified;
     response.phoneVerified = user.phoneVerified;
+    response.servicesCount = user.servicesCount ?? 0;
     response.createdAt = user.createdAt;
     response.updatedAt = user.updatedAt;
     response.lastLoginAt = user.lastLoginAt;

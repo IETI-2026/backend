@@ -1,11 +1,38 @@
+// Application Insights MUST be initialized before any other imports
+// so the SDK can instrument HTTP, database, and dependency calls automatically
+import * as appInsights from 'applicationinsights';
+
+// NestJS ConfigModule loads .env during app init, which is too late for App Insights.
+// We load it manually here so process.env is populated before setup() is called.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+require('dotenv').config();
+
+const aiConnectionString = process.env.APPLICATIONINSIGHTS_CONNECTION_STRING;
+if (aiConnectionString) {
+  appInsights
+    .setup(aiConnectionString)
+    .setAutoDependencyCorrelation(true)
+    .setAutoCollectRequests(true)
+    .setAutoCollectDependencies(true)
+    .setAutoCollectExceptions(true)
+    .setAutoCollectPerformance(true, true)
+    .setAutoCollectConsole(true, true)
+    .setAutoCollectPreAggregatedMetrics(true)
+    .setSendLiveMetrics(false)
+    .start();
+}
+
 import { AllExceptionsFilter } from '@common/filters';
 import { LoggingInterceptor } from '@common/interceptors';
+import { AppInsightsLogger } from '@common/logger';
 import type { LogLevel } from '@nestjs/common';
-import { Logger, ValidationPipe } from '@nestjs/common';
+import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import { IoAdapter } from '@nestjs/platform-socket.io';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import compression from 'compression';
+import type { NextFunction, Request, Response } from 'express';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 
@@ -20,16 +47,37 @@ async function bootstrap() {
   const nodeEnv = process.env.NODE_ENV || 'development';
   const isProduction = nodeEnv === 'production';
 
+  const appLogger = new AppInsightsLogger('Bootstrap', {
+    logLevels: getLogLevels(nodeEnv),
+  });
+
   const app = await NestFactory.create(AppModule, {
-    logger: getLogLevels(nodeEnv),
+    logger: appLogger,
   });
 
   const configService = app.get(ConfigService);
-  const logger = new Logger('Bootstrap');
 
   app.enableShutdownHooks();
 
-  app.use(helmet());
+  app.useWebSocketAdapter(new IoAdapter(app));
+
+  if (isProduction) {
+    app.use((req: Request, res: Response, next: NextFunction) => {
+      if (req.headers['x-forwarded-proto'] !== 'https') {
+        return res.redirect(301, `https://${req.headers.host}${req.url}`);
+      }
+      next();
+    });
+  }
+
+  app.use(
+    helmet({
+      hsts: {
+        maxAge: 31536000,
+        includeSubDomains: true,
+      },
+    }),
+  );
   app.use(compression());
 
   const allowedOrigins = configService.get<string>('app.corsOrigins');
@@ -88,15 +136,23 @@ async function bootstrap() {
       customSiteTitle: 'Cameyo API Docs',
     });
 
-    logger.log(
+    appLogger.log(
       `API Documentation: http://localhost:${configService.get<number>('app.port') || 3000}/api/docs`,
     );
   }
 
-  const port = configService.get<number>('app.port') || 3000;
-  await app.listen(port);
+  if (aiConnectionString) {
+    appLogger.log('Azure Application Insights telemetry enabled');
+  } else {
+    appLogger.warn(
+      'APPLICATIONINSIGHTS_CONNECTION_STRING not set — telemetry disabled',
+    );
+  }
 
-  logger.log(`Application running on port ${port} [${nodeEnv}]`);
+  const port = configService.get<number>('app.port') || 3000;
+  await app.listen(port, '0.0.0.0');
+
+  appLogger.log(`Application running on port ${port} [${nodeEnv}]`);
 }
 
 bootstrap();

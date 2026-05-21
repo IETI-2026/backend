@@ -14,6 +14,7 @@ export interface UserEntity {
   status: UserStatus;
   emailVerified: boolean;
   phoneVerified: boolean;
+  servicesCount: number;
   createdAt: Date;
   updatedAt: Date;
   lastLoginAt: Date | null;

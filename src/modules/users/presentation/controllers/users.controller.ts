@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -11,12 +12,17 @@ import {
   Post,
   Query,
   UnauthorizedException,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
+  ApiBody,
   ApiConflictResponse,
+  ApiConsumes,
   ApiCreatedResponse,
   ApiForbiddenResponse,
   ApiNoContentResponse,
@@ -36,15 +42,27 @@ import {
   UserResponseDto,
   UsersService,
 } from '@users/application';
+import { Type } from 'class-transformer';
+import { IsNumber } from 'class-validator';
 import { RoleName } from '@/database/enums';
 import { JwtPayloadEntity } from '../../../auth/domain/entities';
 import { CurrentUser, Roles } from '../../../auth/infrastructure/decorators';
 import { JwtAuthGuard, RolesGuard } from '../../../auth/infrastructure/guards';
 
+class UpdateUserLocationDto {
+  @IsNumber()
+  @Type(() => Number)
+  latitude!: number;
+
+  @IsNumber()
+  @Type(() => Number)
+  longitude!: number;
+}
+
 @ApiTags('users')
 @Controller('users')
-@UseGuards(JwtAuthGuard, RolesGuard) // 🔒 Proteger todo el controlador
-@ApiBearerAuth() // 📝 Documentar que requiere autenticación
+@UseGuards(JwtAuthGuard, RolesGuard)
+@ApiBearerAuth()
 export class UsersController {
   private readonly logger = new Logger(UsersController.name);
 
@@ -52,7 +70,7 @@ export class UsersController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  @Roles(RoleName.ADMIN, RoleName.MODERATOR) // 🔐 Solo admins pueden crear usuarios
+  @Roles(RoleName.ADMIN, RoleName.MODERATOR)
   @ApiOperation({
     summary: 'Crear nuevo usuario',
     description:
@@ -84,7 +102,7 @@ export class UsersController {
 
   @Get()
   @HttpCode(HttpStatus.OK)
-  @Roles(RoleName.ADMIN, RoleName.MODERATOR) // 🔐 Solo admins pueden listar todos los usuarios
+  @Roles(RoleName.ADMIN, RoleName.MODERATOR)
   @ApiOperation({
     summary: 'Listar usuarios',
     description:
@@ -204,9 +222,73 @@ export class UsersController {
     );
   }
 
+  @Patch('me/location')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Actualizar ubicación del usuario autenticado' })
+  async updateMyLocation(
+    @CurrentUser() currentUser: JwtPayloadEntity,
+    @Body() dto: UpdateUserLocationDto,
+  ): Promise<void> {
+    if (!currentUser.sub)
+      throw new UnauthorizedException('User ID not available');
+    await this.usersService.updateLocation(
+      currentUser.sub,
+      dto.latitude,
+      dto.longitude,
+    );
+  }
+
+  @Patch('me/profile-photo')
+  @HttpCode(HttpStatus.OK)
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary: 'Subir foto de perfil',
+    description:
+      'Sube una imagen de perfil (JPG, JPEG o PNG) al blob storage y actualiza la URL en el perfil del usuario autenticado',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', format: 'binary' },
+      },
+      required: ['file'],
+    },
+  })
+  @ApiOkResponse({
+    description: 'Foto de perfil actualizada exitosamente',
+    type: 'UserResponseDto',
+  })
+  @ApiBadRequestResponse({
+    description: 'Archivo no válido (solo JPG, JPEG o PNG)',
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Token de acceso inválido o expirado',
+  })
+  async uploadProfilePhoto(
+    @CurrentUser() currentUser: JwtPayloadEntity,
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<UserResponseDto> {
+    if (!currentUser.sub)
+      throw new UnauthorizedException('User ID not available');
+
+    if (!file) throw new BadRequestException('File is required');
+
+    const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+    if (!allowedMimeTypes.includes(file.mimetype)) {
+      throw new BadRequestException('Only JPG, JPEG and PNG files are allowed');
+    }
+
+    this.logger.log(
+      `PATCH /users/me/profile-photo - Uploading profile photo for ${currentUser.email}`,
+    );
+    return await this.usersService.uploadProfilePhoto(currentUser.sub, file);
+  }
+
   @Get('email/:email')
   @HttpCode(HttpStatus.OK)
-  @Roles(RoleName.ADMIN, RoleName.MODERATOR) // 🔐 Solo admins
+  @Roles(RoleName.ADMIN, RoleName.MODERATOR)
   @ApiOperation({
     summary: 'Buscar usuario por email',
     description:
@@ -243,7 +325,7 @@ export class UsersController {
 
   @Get(':id')
   @HttpCode(HttpStatus.OK)
-  @Roles(RoleName.ADMIN, RoleName.MODERATOR) // 🔐 Solo admins o el propio usuario
+  @Roles(RoleName.ADMIN, RoleName.MODERATOR)
   @ApiOperation({
     summary: 'Obtener usuario por ID',
     description:
@@ -280,7 +362,7 @@ export class UsersController {
 
   @Patch(':id')
   @HttpCode(HttpStatus.OK)
-  @Roles(RoleName.ADMIN, RoleName.MODERATOR) // 🔐 Solo admins o el propio usuario
+  @Roles(RoleName.ADMIN, RoleName.MODERATOR)
   @ApiOperation({
     summary: 'Actualizar usuario',
     description:
@@ -324,7 +406,7 @@ export class UsersController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @Roles(RoleName.ADMIN) // 🔐 Solo admins pueden eliminar
+  @Roles(RoleName.ADMIN)
   @ApiOperation({
     summary: 'Eliminar usuario (soft delete)',
     description:
@@ -360,7 +442,7 @@ export class UsersController {
 
   @Delete(':id/hard')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @Roles(RoleName.ADMIN) // 🔐 Solo admins pueden hacer hard delete
+  @Roles(RoleName.ADMIN)
   @ApiOperation({
     summary: 'Eliminar usuario permanentemente (hard delete)',
     description:

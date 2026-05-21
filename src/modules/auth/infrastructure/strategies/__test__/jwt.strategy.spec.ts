@@ -1,12 +1,12 @@
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
+import { TenantContext } from '@/tenant';
 import { RoleName } from '../../../../../database/enums';
 import { AuthService } from '../../../application/services/auth.service';
 import { JwtPayloadEntity } from '../../../domain/entities';
 import { JwtStrategy } from '../jwt.strategy';
-
-// ─── shared fixtures ──────────────────────────────────────────────────────────
 
 const mockValidatedPayload: JwtPayloadEntity = {
   sub: 'user-uuid-001',
@@ -22,6 +22,15 @@ const mockConfigService = {
   get: jest.fn().mockReturnValue('test-jwt-secret-that-is-long-enough'),
 };
 
+const mockCacheManager = {
+  get: jest.fn().mockResolvedValue(null),
+  set: jest.fn().mockResolvedValue(undefined),
+};
+
+const mockTenantContext = {
+  getTenantId: jest.fn().mockReturnValue('public'),
+};
+
 describe('JwtStrategy', () => {
   let strategy: JwtStrategy;
 
@@ -31,6 +40,8 @@ describe('JwtStrategy', () => {
         JwtStrategy,
         { provide: AuthService, useValue: mockAuthService },
         { provide: ConfigService, useValue: mockConfigService },
+        { provide: CACHE_MANAGER, useValue: mockCacheManager },
+        { provide: TenantContext, useValue: mockTenantContext },
       ],
     }).compile();
 
@@ -41,8 +52,6 @@ describe('JwtStrategy', () => {
   it('should be defined', () => {
     expect(strategy).toBeDefined();
   });
-
-  // ─── validate ────────────────────────────────────────────────────────────────
 
   describe('validate', () => {
     const incomingPayload: JwtPayloadEntity = {
@@ -102,8 +111,6 @@ describe('JwtStrategy', () => {
     });
   });
 
-  // ─── constructor (config guard) ───────────────────────────────────────────────
-
   describe('constructor', () => {
     it('should throw an error when JWT secret is not configured', () => {
       const configWithoutSecret = {
@@ -111,7 +118,6 @@ describe('JwtStrategy', () => {
       };
 
       expect(() => {
-        // Instantiate directly so we can test the constructor path
         new JwtStrategy(
           configWithoutSecret as unknown as ConfigService,
           mockAuthService as unknown as AuthService,

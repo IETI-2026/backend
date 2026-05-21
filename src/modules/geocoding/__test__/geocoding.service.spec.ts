@@ -1,4 +1,5 @@
 import { HttpService } from '@nestjs/axios';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import {
   BadRequestException,
   InternalServerErrorException,
@@ -7,8 +8,6 @@ import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { of } from 'rxjs';
 import { GeocodingService } from '../geocoding.service';
-
-// ─── helpers ─────────────────────────────────────────────────────────────────
 
 function makeAxiosResponse(data: unknown) {
   return of({ data } as unknown);
@@ -22,7 +21,10 @@ const mockConfigService = {
   get: jest.fn(),
 };
 
-// ─── shared fixtures ──────────────────────────────────────────────────────────
+const mockCacheManager = {
+  get: jest.fn().mockResolvedValue(null),
+  set: jest.fn().mockResolvedValue(undefined),
+};
 
 const bogotaComponents = [
   {
@@ -63,6 +65,7 @@ describe('GeocodingService', () => {
         GeocodingService,
         { provide: HttpService, useValue: mockHttpService },
         { provide: ConfigService, useValue: mockConfigService },
+        { provide: CACHE_MANAGER, useValue: mockCacheManager },
       ],
     }).compile();
 
@@ -73,8 +76,6 @@ describe('GeocodingService', () => {
   it('should be defined', () => {
     expect(service).toBeDefined();
   });
-
-  // ─── reverseGeocode ───────────────────────────────────────────────────────────
 
   describe('reverseGeocode', () => {
     it('should return formatted address and tenantCandidate on success', async () => {
@@ -102,7 +103,7 @@ describe('GeocodingService', () => {
       expect(result.tenantCandidate).toBe('bogota');
     });
 
-    it('should slugify the tenant name (strip accents, lowercase, hyphenate)', async () => {
+    it('should normalize aliased tenant names to canonical tenant slugs', async () => {
       mockConfigService.get.mockReturnValue('test-api-key');
       const responseWithAccent = {
         ...successGeoResponse,
@@ -128,7 +129,7 @@ describe('GeocodingService', () => {
         lng: -74.0721,
       });
 
-      expect(result.tenantCandidate).toBe('bogota-d-c');
+      expect(result.tenantCandidate).toBe('bogota');
     });
 
     it('should return tenantCandidate as null when no recognisable address component is found', async () => {
@@ -265,8 +266,6 @@ describe('GeocodingService', () => {
       expect(result.tenantCandidate).toBe('colombia');
     });
   });
-
-  // ─── resolveTenant ────────────────────────────────────────────────────────────
 
   describe('resolveTenant', () => {
     it('should return the slugified locality as tenant', async () => {

@@ -4,8 +4,6 @@ import { UserStatus } from '@users/domain';
 import { TENANT_DATA_SOURCE } from '@/tenant';
 import { UserTypeOrmRepository } from '../user-typeorm.repository';
 
-// ─── shared fixtures ──────────────────────────────────────────────────────────
-
 const now = new Date('2026-01-01T00:00:00.000Z');
 
 const dbUserFixture = {
@@ -30,7 +28,6 @@ const dbUserFixture = {
   deletedAt: null,
 };
 
-// Mock user.mapper so we control what toDomain returns without needing DB entities
 jest.mock('../../adapters/user.mapper', () => ({
   toCreateData: jest.fn((data: unknown) => data),
   toUpdateData: jest.fn((data: unknown) => data),
@@ -78,7 +75,6 @@ jest.mock('../../adapters/user.mapper', () => ({
 describe('UserTypeOrmRepository', () => {
   let repository: UserTypeOrmRepository;
 
-  // Typed mock for the TypeORM repository methods we call
   const mockTypeOrmRepo = {
     create: jest.fn(),
     save: jest.fn(),
@@ -107,15 +103,12 @@ describe('UserTypeOrmRepository', () => {
 
     repository = module.get<UserTypeOrmRepository>(UserTypeOrmRepository);
     jest.clearAllMocks();
-    // Re-wire the mock after clearAllMocks resets call counts but preserves implementations
     mockDataSource.getRepository.mockReturnValue(mockTypeOrmRepo);
   });
 
   it('should be defined', () => {
     expect(repository).toBeDefined();
   });
-
-  // ─── create ──────────────────────────────────────────────────────────────────
 
   describe('create', () => {
     it('should create and return a domain user entity', async () => {
@@ -143,8 +136,6 @@ describe('UserTypeOrmRepository', () => {
     });
   });
 
-  // ─── findById ────────────────────────────────────────────────────────────────
-
   describe('findById', () => {
     it('should return a domain user when found', async () => {
       mockTypeOrmRepo.findOne.mockResolvedValue(dbUserFixture);
@@ -167,8 +158,6 @@ describe('UserTypeOrmRepository', () => {
     });
   });
 
-  // ─── findByEmail ─────────────────────────────────────────────────────────────
-
   describe('findByEmail', () => {
     it('should return a domain user when email matches', async () => {
       mockTypeOrmRepo.findOne.mockResolvedValue(dbUserFixture);
@@ -189,8 +178,6 @@ describe('UserTypeOrmRepository', () => {
       expect(result).toBeNull();
     });
   });
-
-  // ─── findByPhoneNumber ────────────────────────────────────────────────────────
 
   describe('findByPhoneNumber', () => {
     it('should return a domain user when phone matches', async () => {
@@ -213,8 +200,6 @@ describe('UserTypeOrmRepository', () => {
     });
   });
 
-  // ─── findByDocumentId ────────────────────────────────────────────────────────
-
   describe('findByDocumentId', () => {
     it('should return a domain user when documentId matches', async () => {
       const withDoc = { ...dbUserFixture, documentId: 'DOC-123' };
@@ -236,8 +221,6 @@ describe('UserTypeOrmRepository', () => {
       expect(result).toBeNull();
     });
   });
-
-  // ─── findAll ─────────────────────────────────────────────────────────────────
 
   describe('findAll', () => {
     it('should return paginated users with no status filter', async () => {
@@ -289,8 +272,6 @@ describe('UserTypeOrmRepository', () => {
     });
   });
 
-  // ─── update ──────────────────────────────────────────────────────────────────
-
   describe('update', () => {
     it('should update and return the updated user', async () => {
       mockTypeOrmRepo.update.mockResolvedValue({ affected: 1 });
@@ -322,8 +303,6 @@ describe('UserTypeOrmRepository', () => {
     });
   });
 
-  // ─── delete ──────────────────────────────────────────────────────────────────
-
   describe('delete', () => {
     it('should hard delete the user', async () => {
       mockTypeOrmRepo.delete.mockResolvedValue({ affected: 1 });
@@ -341,8 +320,6 @@ describe('UserTypeOrmRepository', () => {
       );
     });
   });
-
-  // ─── softDelete ───────────────────────────────────────────────────────────────
 
   describe('softDelete', () => {
     it('should soft-delete the user and return the updated entity', async () => {
@@ -370,8 +347,6 @@ describe('UserTypeOrmRepository', () => {
       );
     });
   });
-
-  // ─── exists ──────────────────────────────────────────────────────────────────
 
   describe('exists', () => {
     it('should return true when user exists', async () => {

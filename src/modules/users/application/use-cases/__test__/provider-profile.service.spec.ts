@@ -1,14 +1,16 @@
+import { HttpService } from '@nestjs/axios';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { ConflictException, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ProviderProfileEntity, UserEntity } from '@/database/entities';
 import { ProviderVerificationStatus, RoleName } from '@/database/enums';
-import { TENANT_DATA_SOURCE } from '@/tenant/tenant-datasource.provider';
+import { TENANT_DATA_SOURCE, TenantContext } from '@/tenant';
+import { BlobStorageService } from '../../../../../common/services/blob-storage.service';
 import type { IAuthRepository } from '../../../../auth/domain/repositories';
 import { AUTH_REPOSITORY } from '../../../../auth/domain/repositories';
 import { VerificationAction } from '../../dtos/verify-provider.dto';
 import { ProviderProfileService } from '../provider-profile.service';
-
-// ─── helpers ──────────────────────────────────────────────────────────────────
 
 function buildMockRepo() {
   return {
@@ -19,8 +21,6 @@ function buildMockRepo() {
     update: jest.fn(),
   };
 }
-
-// ─── fixtures ─────────────────────────────────────────────────────────────────
 
 const USER_ID = 'user-uuid-001';
 const PROFILE_ID = 'profile-uuid-001';
@@ -37,7 +37,7 @@ const mockProviderProfile = {
   isAvailable: false,
   currentLatitude: null,
   currentLongitude: null,
-  coverageRadiusKm: 10,
+
   nequiNumber: null,
   daviplataNumber: null,
   createdAt: new Date('2024-01-01'),
@@ -46,8 +46,6 @@ const mockProviderProfile = {
 };
 
 const mockUserEntity = { id: USER_ID, skills: ['plomeria'] };
-
-// ─── suite ────────────────────────────────────────────────────────────────────
 
 describe('ProviderProfileService', () => {
   let service: ProviderProfileService;
@@ -95,11 +93,65 @@ describe('ProviderProfileService', () => {
       ),
     };
 
+    const mockCache = {
+      get: jest.fn().mockResolvedValue(null),
+      set: jest.fn().mockResolvedValue(undefined),
+      del: jest.fn().mockResolvedValue(undefined),
+    };
+
+    const mockConfigService = {
+      get: jest.fn((key: string) => {
+        if (key === 'cache') {
+          return {
+            ttls: {
+              provider_rating: 3600 * 4,
+              user_profile: 1800,
+            },
+            ttl: 300,
+          };
+        }
+        if (key === 'externalServices') {
+          return {
+            skillSuggestionEndpointUrl:
+              'https://example.com/api/skill-suggestions',
+            documentVerificationUrl:
+              'https://example.com/api/document-verification',
+          };
+        }
+        return undefined;
+      }),
+    };
+
+    const mockTenantContext = {
+      getTenantId: jest.fn().mockReturnValue('public'),
+    };
+
+    const mockBlobStorageService = {
+      uploadFile: jest.fn().mockResolvedValue('https://example.com/photo.jpg'),
+      uploadBuffer: jest
+        .fn()
+        .mockResolvedValue('https://example.com/photo.jpg'),
+      generateSasUrl: jest
+        .fn()
+        .mockReturnValue('https://example.com/photo.jpg?sas=token'),
+      toSasUrl: jest
+        .fn()
+        .mockReturnValue('https://example.com/photo.jpg?sas=token'),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ProviderProfileService,
         { provide: TENANT_DATA_SOURCE, useValue: mockDataSource },
         { provide: AUTH_REPOSITORY, useValue: mockAuthRepository },
+        {
+          provide: HttpService,
+          useValue: { axiosRef: { post: jest.fn() } },
+        },
+        { provide: CACHE_MANAGER, useValue: mockCache },
+        { provide: ConfigService, useValue: mockConfigService },
+        { provide: TenantContext, useValue: mockTenantContext },
+        { provide: BlobStorageService, useValue: mockBlobStorageService },
       ],
     }).compile();
 
@@ -113,12 +165,10 @@ describe('ProviderProfileService', () => {
     expect(service).toBeDefined();
   });
 
-  // ─── create ─────────────────────────────────────────────────────────────
-
   describe('create', () => {
     const createDto = {
       bio: 'Experienced plumber',
-      coverageRadiusKm: 15,
+
       isAvailable: true,
       skills: ['plomeria', 'gas'],
     };
@@ -165,8 +215,6 @@ describe('ProviderProfileService', () => {
     });
   });
 
-  // ─── findByUserId ────────────────────────────────────────────────────────
-
   describe('findByUserId', () => {
     it('should return the provider profile for an existing user', async () => {
       profileRepo.findOne.mockResolvedValue(mockProviderProfile);
@@ -199,18 +247,20 @@ describe('ProviderProfileService', () => {
     });
   });
 
-  // ─── update ──────────────────────────────────────────────────────────────
-
   describe('update', () => {
     it('should update profile fields and return the updated profile', async () => {
       const updateDto = { bio: 'Updated bio', isAvailable: true };
-      const updatedProfile = {
+      const verifiedProfile = {
         ...mockProviderProfile,
+        verificationStatus: ProviderVerificationStatus.VERIFIED,
+      };
+      const updatedProfile = {
+        ...verifiedProfile,
         bio: 'Updated bio',
         isAvailable: true,
       };
 
-      profileRepo.findOne.mockResolvedValue(mockProviderProfile);
+      profileRepo.findOne.mockResolvedValue(verifiedProfile);
       profileRepo.update.mockResolvedValue({});
       profileRepo.findOneOrFail.mockResolvedValue(updatedProfile);
       userRepo.findOne.mockResolvedValue(mockUserEntity);
@@ -266,8 +316,6 @@ describe('ProviderProfileService', () => {
       ).rejects.toThrow(NotFoundException);
     });
   });
-
-  // ─── verifyProvider ──────────────────────────────────────────────────────
 
   describe('verifyProvider', () => {
     it('should set verification status to VERIFIED when action is APPROVE', async () => {
@@ -342,6 +390,179 @@ describe('ProviderProfileService', () => {
       await expect(
         service.verifyProvider('nonexistent', VerificationAction.APPROVE),
       ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('update — additional edge cases', () => {
+    it('should throw ForbiddenException when setting availability on unverified provider', async () => {
+      profileRepo.findOne.mockResolvedValue({
+        ...mockProviderProfile,
+        verificationStatus: ProviderVerificationStatus.UNVERIFIED,
+      });
+
+      await expect(
+        service.update(USER_ID, { isAvailable: true }),
+      ).rejects.toThrow();
+    });
+
+    it('should update profile with nequiNumber and daviplataNumber', async () => {
+      const verifiedProfile = {
+        ...mockProviderProfile,
+        verificationStatus: ProviderVerificationStatus.VERIFIED,
+      };
+      const updateDto = {
+        nequiNumber: '3001234567',
+        daviplataNumber: '3009999999',
+      };
+
+      profileRepo.findOne.mockResolvedValue(verifiedProfile);
+      profileRepo.update.mockResolvedValue({});
+      profileRepo.findOneOrFail.mockResolvedValue({
+        ...verifiedProfile,
+        ...updateDto,
+      });
+      userRepo.findOne.mockResolvedValue(mockUserEntity);
+
+      const result = await service.update(USER_ID, updateDto);
+
+      expect(profileRepo.update).toHaveBeenCalledWith(
+        { userId: USER_ID },
+        expect.objectContaining({ nequiNumber: '3001234567' }),
+      );
+      expect(result).toBeDefined();
+    });
+  });
+
+  describe('searchBySkill', () => {
+    it('should return matching provider profiles for the given skill', async () => {
+      const mockQb = {
+        innerJoinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue([
+          {
+            userId: USER_ID,
+            bio: 'Experienced plumber',
+            averageRating: 4.5,
+            totalRatings: 10,
+            isAvailable: true,
+            verificationStatus: ProviderVerificationStatus.VERIFIED,
+            user: {
+              fullName: 'Test Provider',
+              profilePhotoUrl: null,
+              skills: ['plomeria'],
+            },
+          },
+        ]),
+      };
+      profileRepo.createQueryBuilder = jest.fn().mockReturnValue(mockQb);
+
+      const result = await service.searchBySkill('plomeria');
+
+      expect(result).toHaveLength(1);
+      expect(result[0].userId).toBe(USER_ID);
+      expect(result[0].skills).toContain('plomeria');
+    });
+
+    it('should return empty array when no providers match the skill', async () => {
+      const mockQb = {
+        innerJoinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue([]),
+      };
+      profileRepo.createQueryBuilder = jest.fn().mockReturnValue(mockQb);
+
+      const result = await service.searchBySkill('nonexistent-skill');
+
+      expect(result).toHaveLength(0);
+    });
+  });
+
+  describe('forwardIdentityDocument', () => {
+    const mockFile: Express.Multer.File = {
+      fieldname: 'file',
+      originalname: 'id_document.pdf',
+      encoding: '7bit',
+      mimetype: 'application/pdf',
+      buffer: Buffer.from('fake-pdf-content'),
+      size: 16,
+      stream: null as unknown,
+      destination: '',
+      filename: 'id_document.pdf',
+      path: '',
+    };
+
+    it('should return success message after forwarding document', async () => {
+      const mockHttpService = {
+        axiosRef: { post: jest.fn().mockResolvedValue({}) },
+      };
+      (service as unknown as Record<string, unknown>).httpService =
+        mockHttpService;
+
+      const result = await service.forwardIdentityDocument(USER_ID, mockFile);
+
+      expect(result).toEqual({ message: 'Document sent for verification' });
+    });
+
+    it('should still return success when forwarding fails (resilient)', async () => {
+      const mockHttpService = {
+        axiosRef: { post: jest.fn().mockRejectedValue(new Error('timeout')) },
+      };
+      (service as unknown as Record<string, unknown>).httpService =
+        mockHttpService;
+
+      const result = await service.forwardIdentityDocument(USER_ID, mockFile);
+
+      expect(result).toEqual({ message: 'Document sent for verification' });
+    });
+  });
+
+  describe('getCachedRating', () => {
+    it('should return cached rating when available in cache', async () => {
+      const mockCache = {
+        get: jest.fn().mockResolvedValue(4.5),
+        set: jest.fn().mockResolvedValue(undefined),
+        del: jest.fn().mockResolvedValue(undefined),
+      };
+      (service as unknown as Record<string, unknown>).cache = mockCache;
+
+      const result = await service.getCachedRating(USER_ID);
+
+      expect(result).toBe(4.5);
+      expect(mockCache.get).toHaveBeenCalled();
+    });
+
+    it('should compute rating from DB and cache it when cache misses', async () => {
+      const mockCache = {
+        get: jest.fn().mockResolvedValue(null),
+        set: jest.fn().mockResolvedValue(undefined),
+        del: jest.fn().mockResolvedValue(undefined),
+      };
+      (service as unknown as Record<string, unknown>).cache = mockCache;
+
+      profileRepo.findOne.mockResolvedValue({
+        ...mockProviderProfile,
+        averageRating: 3.8,
+      });
+
+      const result = await service.getCachedRating(USER_ID);
+
+      expect(result).toBe(3.8);
+      expect(mockCache.set).toHaveBeenCalled();
+    });
+
+    it('should return null when provider profile is not found', async () => {
+      const mockCache = {
+        get: jest.fn().mockResolvedValue(null),
+        set: jest.fn().mockResolvedValue(undefined),
+        del: jest.fn().mockResolvedValue(undefined),
+      };
+      (service as unknown as Record<string, unknown>).cache = mockCache;
+
+      profileRepo.findOne.mockResolvedValue(null);
+
+      const result = await service.getCachedRating(USER_ID);
+
+      expect(result).toBeNull();
     });
   });
 });

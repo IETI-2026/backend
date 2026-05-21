@@ -9,6 +9,7 @@ import {
   Patch,
   Post,
   Query,
+  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -24,21 +25,26 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../../auth/infrastructure/guards/jwt-auth.guard';
+import { RoleName } from '../../../../database/enums';
+import { JwtPayloadEntity } from '../../../auth/domain/entities';
+import { CurrentUser, Roles } from '../../../auth/infrastructure/decorators';
+import { JwtAuthGuard, RolesGuard } from '../../../auth/infrastructure/guards';
 import {
   AcceptedTechnicianUserDto,
-  AcceptServiceRequestDto,
   ChooseTechnicianDto,
   CreateServiceRequestDto,
   GetServiceRequestsQueryDto,
+  MarkCompleteDto,
+  RateServiceRequestDto,
   RejectServiceRequestDto,
   ServiceRequestResponseDto,
   ServiceRequestsService,
+  UpdateLocationDto,
 } from '../../application';
 
 @ApiTags('service-requests')
 @Controller('service-requests')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
 @ApiUnauthorizedResponse({ description: 'Token de acceso inválido o expirado' })
 export class ServiceRequestsController {
@@ -98,6 +104,28 @@ export class ServiceRequestsController {
     return await this.serviceRequestsService.findAll(query);
   }
 
+  @Get(':id')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Obtener solicitud por ID',
+    description:
+      'Retorna una solicitud de servicio con todos sus detalles incluyendo resumen del servicio',
+  })
+  @ApiParam({
+    name: 'id',
+    type: 'string',
+    description: 'ID de la solicitud de servicio',
+  })
+  @ApiOkResponse({
+    description: 'Solicitud obtenida exitosamente',
+    type: ServiceRequestResponseDto,
+  })
+  @ApiNotFoundResponse({ description: 'Solicitud no encontrada' })
+  async findById(@Param('id') id: string): Promise<ServiceRequestResponseDto> {
+    this.logger.log(`GET /service-requests/${id} - Getting request by ID`);
+    return await this.serviceRequestsService.findById(id);
+  }
+
   @Get(':id/accepted-technicians')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -129,6 +157,7 @@ export class ServiceRequestsController {
   }
 
   @Post()
+  @Roles(RoleName.USER)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Crear solicitud de servicio',
@@ -142,10 +171,17 @@ export class ServiceRequestsController {
   @ApiBadRequestResponse({ description: 'Datos de entrada inválidos' })
   @ApiNotFoundResponse({ description: 'Usuario cliente no encontrado' })
   async create(
+    @CurrentUser() user: JwtPayloadEntity,
     @Body() createServiceRequestDto: CreateServiceRequestDto,
   ): Promise<ServiceRequestResponseDto> {
-    this.logger.log('POST /service-requests - Creating service request');
-    return await this.serviceRequestsService.create(createServiceRequestDto);
+    this.logger.log(
+      `POST /service-requests - Creating service request user=${user.sub}`,
+    );
+    if (!user.sub) throw new UnauthorizedException();
+    return await this.serviceRequestsService.create(
+      user.sub,
+      createServiceRequestDto,
+    );
   }
 
   @Get('available/:technicianUserId')
@@ -179,6 +215,7 @@ export class ServiceRequestsController {
   }
 
   @Patch(':id/accept')
+  @Roles(RoleName.PROVIDER)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Aceptar solicitud de servicio',
@@ -201,17 +238,18 @@ export class ServiceRequestsController {
     description: 'La solicitud ya no está disponible para responder',
   })
   async accept(
+    @CurrentUser() user: JwtPayloadEntity,
     @Param('id') id: string,
-    @Body() acceptServiceRequestDto: AcceptServiceRequestDto,
   ): Promise<ServiceRequestResponseDto> {
-    this.logger.log(`PATCH /service-requests/${id}/accept - Accepting request`);
-    return await this.serviceRequestsService.accept(
-      id,
-      acceptServiceRequestDto,
+    this.logger.log(
+      `PATCH /service-requests/${id}/accept - Accepting request user=${user.sub}`,
     );
+    if (!user.sub) throw new UnauthorizedException();
+    return await this.serviceRequestsService.accept(id, user.sub, {});
   }
 
   @Patch(':id/reject')
+  @Roles(RoleName.PROVIDER)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Rechazar solicitud de servicio',
@@ -253,7 +291,126 @@ export class ServiceRequestsController {
     );
   }
 
+  @Patch(':id/mark-complete')
+  @Roles(RoleName.USER, RoleName.PROVIDER)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Marcar servicio como finalizado',
+    description:
+      'Permite al cliente o técnico marcar el servicio como finalizado. Cuando ambos lo marquen, el estado cambia a COMPLETED.',
+  })
+  @ApiParam({
+    name: 'id',
+    type: 'string',
+    description: 'ID de la solicitud de servicio',
+  })
+  @ApiOkResponse({
+    description: 'Marcado como finalizado exitosamente',
+    type: ServiceRequestResponseDto,
+  })
+  async markComplete(
+    @CurrentUser() user: JwtPayloadEntity,
+    @Param('id') id: string,
+    @Body() markCompleteDto: MarkCompleteDto,
+  ): Promise<ServiceRequestResponseDto> {
+    this.logger.log(
+      `PATCH /service-requests/${id}/mark-complete - Marking complete user=${user.sub}`,
+    );
+    if (!user.sub) throw new UnauthorizedException();
+    return await this.serviceRequestsService.markComplete(
+      id,
+      user.sub,
+      markCompleteDto,
+    );
+  }
+
+  @Patch(':id/update-location')
+  @Roles(RoleName.PROVIDER)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Actualizar ubicación del usuario en el servicio',
+    description:
+      'Actualiza la ubicación del usuario y emite eventos en tiempo real. Detecta proximidad para cambiar estado a IN_PROGRESS.',
+  })
+  @ApiParam({
+    name: 'id',
+    type: 'string',
+    description:
+      'ID de la solicitud de servicio (usado para el contexto del tenant)',
+  })
+  @ApiOkResponse({ description: 'Ubicación actualizada exitosamente' })
+  async updateLocation(
+    @CurrentUser() user: JwtPayloadEntity,
+    @Param('id') id: string,
+    @Body() updateLocationDto: UpdateLocationDto,
+  ): Promise<{ message: string }> {
+    this.logger.log(
+      `PATCH /service-requests/${id}/update-location - Updating location user=${user.sub}`,
+    );
+    if (!user.sub) throw new UnauthorizedException();
+    await this.serviceRequestsService.updateUserLocation(
+      user.sub,
+      updateLocationDto.latitude,
+      updateLocationDto.longitude,
+    );
+    return { message: 'Location updated' };
+  }
+
+  @Get(':id/receipt')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Obtener URL del recibo PDF del servicio',
+    description:
+      'Retorna la URL del recibo PDF en el blob storage. Si aún no fue generado, lo genera y lo sube automáticamente.',
+  })
+  @ApiParam({
+    name: 'id',
+    type: 'string',
+    description: 'ID de la solicitud de servicio',
+  })
+  @ApiOkResponse({ description: 'URL del recibo retornada exitosamente' })
+  @ApiNotFoundResponse({ description: 'Solicitud no encontrada' })
+  async getReceipt(@Param('id') id: string): Promise<{ url: string }> {
+    this.logger.log(
+      `GET /service-requests/${id}/receipt - Fetching receipt URL`,
+    );
+    const { url } =
+      await this.serviceRequestsService.generateServiceSummaryPdf(id);
+    return { url };
+  }
+
+  @Post(':id/rate')
+  @Roles(RoleName.USER)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Calificar un servicio completado',
+    description:
+      'Permite al cliente calificar el servicio y al técnico de forma independiente. Solo puede calificarse una vez.',
+  })
+  @ApiParam({
+    name: 'id',
+    type: 'string',
+    description: 'ID de la solicitud de servicio',
+  })
+  @ApiOkResponse({
+    description: 'Calificación registrada exitosamente',
+    type: ServiceRequestResponseDto,
+  })
+  @ApiBadRequestResponse({
+    description: 'El servicio no está completado o ya fue calificado',
+  })
+  @ApiConflictResponse({ description: 'El servicio ya fue calificado' })
+  @ApiNotFoundResponse({ description: 'Solicitud no encontrada' })
+  async rate(
+    @Param('id') id: string,
+    @Body() rateDto: RateServiceRequestDto,
+  ): Promise<ServiceRequestResponseDto> {
+    this.logger.log(`POST /service-requests/${id}/rate - Rating service`);
+    return await this.serviceRequestsService.rateService(id, rateDto);
+  }
+
   @Patch(':id/choose-technician')
+  @Roles(RoleName.USER)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Cliente elige técnico',
@@ -277,14 +434,17 @@ export class ServiceRequestsController {
       'El cliente no es dueño de la solicitud, el técnico no aceptó o el estado no permite asignar',
   })
   async chooseTechnician(
+    @CurrentUser() user: JwtPayloadEntity,
     @Param('id') id: string,
     @Body() chooseTechnicianDto: ChooseTechnicianDto,
   ): Promise<ServiceRequestResponseDto> {
     this.logger.log(
-      `PATCH /service-requests/${id}/choose-technician - Choosing technician`,
+      `PATCH /service-requests/${id}/choose-technician - Choosing technician user=${user.sub}`,
     );
+    if (!user.sub) throw new UnauthorizedException();
     return await this.serviceRequestsService.chooseTechnician(
       id,
+      user.sub,
       chooseTechnicianDto,
     );
   }

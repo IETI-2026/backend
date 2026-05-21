@@ -13,11 +13,7 @@ describe('CurrentUser Decorator', () => {
     } as unknown as ExecutionContext;
   };
 
-  // Get the actual decorator factory function from CurrentUser
-  // createParamDecorator returns a decorator that stores the factory function
   const getDecoratorFactory = () => {
-    // The factory function is the one passed to createParamDecorator
-    // We need to invoke CurrentUser's internal factory
     return (_data: unknown, ctx: ExecutionContext) => {
       const request = ctx.switchToHttp().getRequest();
       return request.user;

@@ -1,7 +1,9 @@
+import { MailModule } from '@mail/mail.module';
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
+import { BlobStorageService } from '@/common/services/blob-storage.service';
 import { TenantModule } from '@/tenant';
 import { AuthService } from './application/services/auth.service';
 import { AUTH_REPOSITORY } from './domain/repositories';
@@ -17,6 +19,7 @@ import { AuthController } from './presentation';
 @Module({
   imports: [
     TenantModule,
+    MailModule,
     PassportModule,
     JwtModule.registerAsync({
       useFactory: (configService: ConfigService) => {
@@ -36,6 +39,7 @@ import { AuthController } from './presentation';
   controllers: [AuthController],
   providers: [
     AuthService,
+    BlobStorageService,
     {
       provide: AUTH_REPOSITORY,
       useClass: AuthTypeOrmRepository,
@@ -46,6 +50,6 @@ import { AuthController } from './presentation';
     JwtAuthGuard,
     RolesGuard,
   ],
-  exports: [AuthService, JwtAuthGuard, RolesGuard, AUTH_REPOSITORY],
+  exports: [AuthService, JwtAuthGuard, RolesGuard, AUTH_REPOSITORY, JwtModule],
 })
 export class AuthModule {}

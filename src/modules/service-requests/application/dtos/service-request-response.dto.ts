@@ -80,6 +80,101 @@ export class ServiceRequestResponseDto {
   })
   technicianResponses!: TechnicianResponseDto[];
 
+  @ApiPropertyOptional({
+    description: 'Fecha en que el servicio pasó a IN_PROGRESS',
+    type: 'string',
+    format: 'date-time',
+    nullable: true,
+  })
+  startedAt!: Date | null;
+
+  @ApiProperty({
+    description: 'Indica si el cliente marcó el servicio como finalizado',
+  })
+  clientMarkedComplete!: boolean;
+
+  @ApiProperty({
+    description: 'Indica si el técnico marcó el servicio como finalizado',
+  })
+  technicianMarkedComplete!: boolean;
+
+  @ApiPropertyOptional({
+    description:
+      'Distancia de desplazamiento del técnico en km al momento de ser elegido',
+    example: 3.2,
+    nullable: true,
+  })
+  displacementDistanceKm!: number | null;
+
+  @ApiPropertyOptional({
+    description: 'Precio final del servicio',
+    example: '58000',
+    nullable: true,
+  })
+  finalPrice!: string | null;
+
+  @ApiPropertyOptional({
+    description: 'Fecha en que el servicio fue completado',
+    type: 'string',
+    format: 'date-time',
+    nullable: true,
+  })
+  completedAt!: Date | null;
+
+  @ApiPropertyOptional({
+    description: 'Nombre del técnico asignado',
+    example: 'Carlos Alvarez',
+    nullable: true,
+  })
+  technicianName!: string | null;
+
+  @ApiPropertyOptional({
+    description: 'URL de la foto de perfil del técnico asignado',
+    example: 'https://cdn.example.com/photo.jpg',
+    nullable: true,
+  })
+  technicianPhotoUrl!: string | null;
+
+  @ApiPropertyOptional({
+    description: 'URL del recibo PDF en el blob storage',
+    example:
+      'https://storage.blob.core.windows.net/cameyo-storage/recibo_abc123.pdf',
+    nullable: true,
+  })
+  receiptUrl!: string | null;
+
+  @ApiPropertyOptional({
+    description: 'Nombre de la categoría del servicio',
+    example: 'plomeria',
+    nullable: true,
+  })
+  categoryName!: string | null;
+
+  @ApiPropertyOptional({
+    description: 'Nombre del cliente que realizó la solicitud',
+    example: 'María López',
+    nullable: true,
+  })
+  clientName!: string | null;
+
+  @ApiPropertyOptional({
+    description: 'URL con SAS token de la foto de perfil del cliente',
+    nullable: true,
+  })
+  clientPhotoUrl!: string | null;
+
+  @ApiPropertyOptional({
+    description: 'Calificación promedio del técnico asignado',
+    example: 4.8,
+    nullable: true,
+  })
+  technicianRating!: number | null;
+
+  @ApiProperty({
+    description: 'Indica si el servicio ya fue calificado por el cliente',
+  })
+  isRated!: boolean;
+
   @ApiProperty({
     description: 'Fecha de creación de la solicitud',
     type: 'string',

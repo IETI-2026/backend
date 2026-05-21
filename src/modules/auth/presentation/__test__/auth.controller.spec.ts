@@ -8,8 +8,6 @@ import { JwtAuthGuard } from '../../infrastructure/guards/jwt-auth.guard';
 import { RolesGuard } from '../../infrastructure/guards/roles.guard';
 import { AuthController } from '../auth.controller';
 
-// ─── shared fixtures ──────────────────────────────────────────────────────────
-
 const mockAuthResponse = {
   accessToken: 'mock.access.token',
   refreshToken: 'mock.refresh.token',
@@ -47,7 +45,6 @@ const mockConfigService = {
   get: jest.fn(),
 };
 
-// Override guards so controller logic runs without Passport strategy
 const allowAllGuard = { canActivate: () => true };
 
 describe('AuthController', () => {
@@ -74,8 +71,6 @@ describe('AuthController', () => {
   it('should be defined', () => {
     expect(controller).toBeDefined();
   });
-
-  // ─── signUp ──────────────────────────────────────────────────────────────────
 
   describe('signUp', () => {
     const dto = {
@@ -104,8 +99,6 @@ describe('AuthController', () => {
     });
   });
 
-  // ─── login ───────────────────────────────────────────────────────────────────
-
   describe('login', () => {
     const dto = { email: 'test@example.com', password: 'Secret123!' };
 
@@ -128,8 +121,6 @@ describe('AuthController', () => {
       );
     });
   });
-
-  // ─── refreshToken ─────────────────────────────────────────────────────────────
 
   describe('refreshToken', () => {
     it('should return new tokens for a valid refresh token', async () => {
@@ -170,8 +161,6 @@ describe('AuthController', () => {
     });
   });
 
-  // ─── forgotPassword ───────────────────────────────────────────────────────────
-
   describe('forgotPassword', () => {
     it('should return a generic message regardless of whether email exists', async () => {
       mockAuthService.forgotPassword.mockResolvedValue({
@@ -199,8 +188,6 @@ describe('AuthController', () => {
     });
   });
 
-  // ─── resetPassword ────────────────────────────────────────────────────────────
-
   describe('resetPassword', () => {
     const dto = { token: 'valid-token', newPassword: 'NewPass123!' };
 
@@ -225,8 +212,6 @@ describe('AuthController', () => {
       );
     });
   });
-
-  // ─── changePassword ───────────────────────────────────────────────────────────
 
   describe('changePassword', () => {
     const dto = { currentPassword: 'OldPass123!', newPassword: 'NewPass456!' };
@@ -269,8 +254,6 @@ describe('AuthController', () => {
     });
   });
 
-  // ─── sendOtp ──────────────────────────────────────────────────────────────────
-
   describe('sendOtp', () => {
     it('should return OTP metadata on success', async () => {
       mockAuthService.sendOtp.mockResolvedValue({
@@ -297,8 +280,6 @@ describe('AuthController', () => {
     });
   });
 
-  // ─── verifyOtp ────────────────────────────────────────────────────────────────
-
   describe('verifyOtp', () => {
     const dto = { phone: '+573001234567', code: '123456' };
 
@@ -321,8 +302,6 @@ describe('AuthController', () => {
       );
     });
   });
-
-  // ─── getGoogleAuthUrl ─────────────────────────────────────────────────────────
 
   describe('getGoogleAuthUrl', () => {
     it('should return a properly formatted Google OAuth URL', async () => {
@@ -352,8 +331,6 @@ describe('AuthController', () => {
       );
     });
   });
-
-  // ─── googleCallback ───────────────────────────────────────────────────────────
 
   describe('googleCallback', () => {
     const makeRes = () => ({ redirect: jest.fn() }) as unknown;
@@ -452,7 +429,6 @@ describe('AuthController', () => {
       };
       const res = makeRes();
 
-      // The thrown error is caught inside and redirected to error page
       await controller.googleCallback(req, res);
 
       expect(res.redirect).toHaveBeenCalledWith(
@@ -460,8 +436,6 @@ describe('AuthController', () => {
       );
     });
   });
-
-  // ─── getCurrentUser ───────────────────────────────────────────────────────────
 
   describe('getCurrentUser', () => {
     it('should return the current user profile', async () => {
@@ -498,8 +472,6 @@ describe('AuthController', () => {
       );
     });
   });
-
-  // ─── logout ───────────────────────────────────────────────────────────────────
 
   describe('logout', () => {
     it('should revoke sessions and return success message', async () => {

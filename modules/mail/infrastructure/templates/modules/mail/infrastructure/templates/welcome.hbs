@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{subject}}</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      margin: 0;
+      padding: 0;
+      background-color: #f4f4f4;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #ffffff;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    .header {
+      text-align: center;
+      padding-bottom: 20px;
+      border-bottom: 2px solid #007bff;
+    }
+    .header h1 {
+      color: #007bff;
+      margin: 0;
+      font-size: 24px;
+    }
+    .content {
+      padding: 30px 0;
+    }
+    .button {
+      display: inline-block;
+      padding: 12px 30px;
+      background-color: #007bff;
+      color: white;
+      text-decoration: none;
+      border-radius: 5px;
+      font-weight: bold;
+      margin-top: 15px;
+    }
+    .button:hover {
+      background-color: #0056b3;
+    }
+    .footer {
+      text-align: center;
+      padding-top: 20px;
+      border-top: 1px solid #ddd;
+      font-size: 12px;
+      color: #666;
+    }
+    .warning {
+      background-color: #fff3cd;
+      border: 1px solid #ffc107;
+      border-radius: 5px;
+      padding: 12px;
+      margin-top: 15px;
+      color: #856404;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>¡Bienvenido a CameYo!</h1>
+      <p>Tu plataforma de conexión con técnicos verificados</p>
+    </div>
+
+    <div class="content">
+      <p>Hola <strong>{{userName}}</strong>,</p>
+
+      <p>Gracias por registrarte en CameYo. Estamos emocionados de tenerte como parte de nuestra comunidad.</p>
+
+      <p>Con CameYo podrás:</p>
+      <ul>
+        <li>Conectar con técnicos verificados y certificados</li>
+        <li>Solicitar servicios de calidad en tu municipio</li>
+        <li>Disfrutar de tarifas competitivas y transparentes</li>
+        <li>Llevar un historial de servicios realizados</li>
+      </ul>
+
+      <p>Para completar tu perfil y empezar a usar CameYo, haz clic en el siguiente botón:</p>
+
+      <center>
+        <a href="{{profileUrl}}" class="button">Completar Perfil</a>
+      </center>
+
+      <div class="warning">
+        <strong>⚠️ Seguridad:</strong> Si no creaste esta cuenta, puedes ignorar este correo de forma segura.
+      </div>
+    </div>
+
+    <div class="footer">
+      <p>© {{year}} CameYo. Todos los derechos reservados.</p>
+      <p>Si tienes preguntas, contáctanos a support@camey.co</p>
+    </div>
+  </div>
+</body>
+</html>

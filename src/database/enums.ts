@@ -1,7 +1,3 @@
-// ============================================================
-// Enums de base de datos — reemplazan los generados por @prisma/client
-// ============================================================
-
 export enum UserStatus {
   ACTIVE = 'ACTIVE',
   INACTIVE = 'INACTIVE',

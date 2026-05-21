@@ -3,6 +3,8 @@ import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import type { IUserRepository } from '@users/domain';
 import { USER_REPOSITORY, UserStatus } from '@users/domain';
+import { TenantDataSourceService } from '@/tenant';
+import { BlobStorageService } from '../../../../../common/services/blob-storage.service';
 import type { CreateUserDto, UpdateUserDto } from '../../dtos';
 import { UsersService } from '../users.service';
 
@@ -39,6 +41,19 @@ describe('UsersService', () => {
     exists: jest.fn(),
   };
 
+  const mockBlobStorageService: jest.Mocked<
+    Pick<BlobStorageService, 'uploadFile' | 'toSasUrl'>
+  > = {
+    uploadFile: jest.fn(),
+    toSasUrl: jest.fn().mockReturnValue(null),
+  };
+
+  const mockTenantDataSourceService: jest.Mocked<
+    Pick<TenantDataSourceService, 'getDataSource'>
+  > = {
+    getDataSource: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -47,13 +62,20 @@ describe('UsersService', () => {
           provide: USER_REPOSITORY,
           useValue: mockUserRepository,
         },
+        {
+          provide: BlobStorageService,
+          useValue: mockBlobStorageService,
+        },
+        {
+          provide: TenantDataSourceService,
+          useValue: mockTenantDataSourceService,
+        },
       ],
     }).compile();
 
     service = module.get<UsersService>(UsersService);
     repository = module.get(USER_REPOSITORY);
 
-    // Reset all mocks before each test
     jest.clearAllMocks();
   });
 
@@ -266,6 +288,127 @@ describe('UsersService', () => {
       await expect(service.hardDelete('non-existent')).rejects.toThrow(
         NotFoundException,
       );
+    });
+  });
+
+  describe('uploadProfilePhoto', () => {
+    const mockFile: Express.Multer.File = {
+      fieldname: 'file',
+      originalname: 'photo.jpg',
+      encoding: '7bit',
+      mimetype: 'image/jpeg',
+      buffer: Buffer.from('fake-image'),
+      size: 10,
+      stream: null as unknown,
+      destination: '',
+      filename: 'photo.jpg',
+      path: '',
+    };
+
+    it('should upload photo and return updated user response', async () => {
+      const userId = mockUser.id;
+      const photoUrl = 'https://storage.example.com/photo.jpg';
+
+      repository.findById.mockResolvedValue(mockUser);
+      (mockBlobStorageService.uploadFile as jest.Mock).mockResolvedValue(
+        photoUrl,
+      );
+      repository.update.mockResolvedValue({
+        ...mockUser,
+        profilePhotoUrl: photoUrl,
+      });
+
+      const result = await service.uploadProfilePhoto(userId, mockFile);
+
+      expect(mockBlobStorageService.uploadFile).toHaveBeenCalledWith(
+        mockFile,
+        mockUser.email,
+      );
+      expect(result.id).toBe(userId);
+    });
+
+    it('should throw NotFoundException when user does not exist', async () => {
+      repository.findById.mockResolvedValue(null);
+
+      await expect(
+        service.uploadProfilePhoto('nonexistent', mockFile),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(mockBlobStorageService.uploadFile).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('updateLocation', () => {
+    it('should update location in both tenant and public datasource', async () => {
+      const userId = mockUser.id;
+      const latitude = 4.711;
+      const longitude = -74.0721;
+
+      const mockPublicRepo = {
+        update: jest.fn().mockResolvedValue({}),
+      };
+      const mockPublicDataSource = {
+        getRepository: jest.fn().mockReturnValue(mockPublicRepo),
+      };
+      (
+        mockTenantDataSourceService.getDataSource as jest.Mock
+      ).mockResolvedValue(mockPublicDataSource);
+      repository.update.mockResolvedValue({
+        ...mockUser,
+        currentLatitude: latitude,
+      });
+
+      await service.updateLocation(userId, latitude, longitude);
+
+      expect(repository.update).toHaveBeenCalledWith(
+        userId,
+        expect.objectContaining({
+          currentLatitude: latitude,
+          currentLongitude: longitude,
+        }),
+      );
+      expect(mockPublicRepo.update).toHaveBeenCalledWith(
+        userId,
+        expect.objectContaining({
+          currentLatitude: latitude,
+          currentLongitude: longitude,
+        }),
+      );
+    });
+  });
+
+  describe('update — location fields', () => {
+    it('should add lastLocationUpdate when coordinates are provided', async () => {
+      const userId = mockUser.id;
+      const updateDto = { currentLatitude: 4.711, currentLongitude: -74.0721 };
+
+      repository.findById.mockResolvedValue(mockUser);
+      repository.update.mockResolvedValue({
+        ...mockUser,
+        ...updateDto,
+      });
+
+      await service.update(userId, updateDto);
+
+      expect(repository.update).toHaveBeenCalledWith(
+        userId,
+        expect.objectContaining({
+          currentLatitude: 4.711,
+          lastLocationUpdate: expect.any(Date),
+        }),
+      );
+    });
+
+    it('should throw ConflictException when phone number is already taken by another user', async () => {
+      const userId = mockUser.id;
+      const anotherUser = { ...mockUser, id: 'another-id' };
+
+      repository.findById.mockResolvedValue(mockUser);
+      repository.findByPhoneNumber.mockResolvedValue(anotherUser);
+
+      await expect(
+        service.update(userId, { phoneNumber: '+573009999999' }),
+      ).rejects.toThrow(ConflictException);
     });
   });
 });

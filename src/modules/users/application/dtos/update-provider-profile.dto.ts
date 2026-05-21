@@ -4,9 +4,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
-  Max,
   MaxLength,
-  Min,
 } from 'class-validator';
 
 export class UpdateProviderProfileDto {
@@ -18,17 +16,6 @@ export class UpdateProviderProfileDto {
   @IsString()
   @MaxLength(500)
   bio?: string;
-
-  @ApiPropertyOptional({
-    description: 'Radio de cobertura en kilómetros',
-    minimum: 1,
-    maximum: 100,
-  })
-  @IsOptional()
-  @IsNumber()
-  @Min(1)
-  @Max(100)
-  coverageRadiusKm?: number;
 
   @ApiPropertyOptional({ description: 'Disponible para recibir solicitudes' })
   @IsOptional()

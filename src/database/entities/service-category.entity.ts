@@ -32,6 +32,15 @@ export class ServiceCategoryEntity {
   @Column({ type: 'int', default: 0 })
   sortOrder!: number;
 
+  @Column({ type: 'int', default: 0 })
+  basePrice!: number;
+
+  @Column({ type: 'int', default: 0 })
+  pricePerKm!: number;
+
+  @Column({ type: 'int', default: 0 })
+  pricePerHour!: number;
+
   @CreateDateColumn()
   createdAt!: Date;
 

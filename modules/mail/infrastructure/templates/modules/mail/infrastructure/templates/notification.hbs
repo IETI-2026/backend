@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{subject}}</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      margin: 0;
+      padding: 0;
+      background-color: #f4f4f4;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #ffffff;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    .header {
+      text-align: center;
+      padding-bottom: 20px;
+      border-bottom: 2px solid #17a2b8;
+    }
+    .header h1 {
+      color: #17a2b8;
+      margin: 0;
+      font-size: 24px;
+    }
+    .content {
+      padding: 30px 0;
+    }
+    .button {
+      display: inline-block;
+      padding: 12px 30px;
+      background-color: #17a2b8;
+      color: white;
+      text-decoration: none;
+      border-radius: 5px;
+      font-weight: bold;
+      margin-top: 15px;
+    }
+    .button:hover {
+      background-color: #138496;
+    }
+    .footer {
+      text-align: center;
+      padding-top: 20px;
+      border-top: 1px solid #ddd;
+      font-size: 12px;
+      color: #666;
+    }
+    .info-box {
+      background-color: #d1ecf1;
+      border: 1px solid #bee5eb;
+      border-radius: 5px;
+      padding: 15px;
+      margin-top: 15px;
+      color: #0c5460;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>ℹ️ Notificación</h1>
+      <p>Información importante desde CameYo</p>
+    </div>
+
+    <div class="content">
+      <p>Hola <strong>{{userName}}</strong>,</p>
+
+      <p>{{message}}</p>
+
+      <div class="info-box">
+        <strong>Fecha:</strong> {{notificationDate}} a las {{notificationTime}}
+      </div>
+
+      {{#if actionUrl}}
+      <center>
+        <a href="{{actionUrl}}" class="button">{{actionButtonText}}</a>
+      </center>
+      {{/if}}
+
+      <p style="color: #666; font-size: 12px; margin-top: 20px;">
+        Si tienes preguntas sobre esta notificación, contacta a nuestro equipo de soporte.
+      </p>
+    </div>
+
+    <div class="footer">
+      <p>© {{year}} CameYo. Todos los derechos reservados.</p>
+      <p>Si tienes preguntas, contáctanos a support@camey.co</p>
+    </div>
+  </div>
+</body>
+</html>

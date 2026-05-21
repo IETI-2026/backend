@@ -15,29 +15,10 @@ describe('HealthController', () => {
       expect(result.status).toBe('ok');
     });
 
-    it('should return health status with timestamp in ISO format', () => {
+    it('should only return status property', () => {
       const result = controller.check();
 
-      expect(result).toHaveProperty('timestamp');
-      expect(typeof result.timestamp).toBe('string');
-      // Validate ISO 8601 format
-      expect(new Date(result.timestamp).toISOString()).toBe(result.timestamp);
-    });
-
-    it('should return uptime as a positive number', () => {
-      const result = controller.check();
-
-      expect(result).toHaveProperty('uptime');
-      expect(typeof result.uptime).toBe('number');
-      expect(result.uptime).toBeGreaterThan(0);
-    });
-
-    it('should return all required properties', () => {
-      const result = controller.check();
-
-      expect(Object.keys(result)).toContain('status');
-      expect(Object.keys(result)).toContain('timestamp');
-      expect(Object.keys(result)).toContain('uptime');
+      expect(Object.keys(result)).toEqual(['status']);
     });
 
     it('should return consistent response structure on multiple calls', () => {
@@ -45,10 +26,8 @@ describe('HealthController', () => {
       const result2 = controller.check();
 
       expect(result1).toHaveProperty('status', result2.status);
-      expect(result1).toHaveProperty('uptime');
-      expect(result2).toHaveProperty('uptime');
-      // uptime should increase between calls
-      expect(result2.uptime).toBeGreaterThanOrEqual(result1.uptime);
+      expect(result1.status).toBe('ok');
+      expect(result2.status).toBe('ok');
     });
   });
 });

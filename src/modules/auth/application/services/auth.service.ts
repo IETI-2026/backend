@@ -1,4 +1,5 @@
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomInt } from 'node:crypto';
+import { MailService } from '@mail/application/mail.service';
 import {
   BadRequestException,
   ConflictException,
@@ -11,6 +12,8 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { OAuth2Client } from 'google-auth-library';
+import { BlobStorageService } from '@/common/services/blob-storage.service';
+import { hashToken } from '@/common/utils/hash.util';
 import { RoleName } from '@/database/enums';
 import {
   AUTH_RESPONSE_EXPIRES_IN_SECONDS,
@@ -38,7 +41,6 @@ import {
   VerifyOtpDto,
 } from '../dtos';
 
-// User response type for getCurrentUser method
 export interface UserResponse {
   id: string;
   email: string | null;
@@ -68,6 +70,8 @@ export class AuthService {
     private readonly authRepository: IAuthRepository,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly mailService: MailService,
+    private readonly blobStorageService: BlobStorageService,
   ) {}
 
   async signUp(signUpDto: SignUpDto): Promise<AuthResponseDto> {
@@ -87,6 +91,16 @@ export class AuthService {
       phoneNumber,
       emailVerified: false,
     });
+
+    // Enviar correo de bienvenida (no-blocking)
+    // Si falla, no interrumpe el flujo de autenticación
+    if (email) {
+      void this.mailService.sendWelcomeEmail(
+        email,
+        fullName || 'Usuario',
+        `${this.configService.get('app')?.frontendUrl || 'https://app.camey.co'}/complete-profile`,
+      );
+    }
 
     return this.generateAuthResponse(user.id, user.email || '');
   }
@@ -120,8 +134,9 @@ export class AuthService {
         secret: this.configService.get<string>('jwt.refreshSecret'),
       });
 
-      const storedToken =
-        await this.authRepository.findRefreshToken(refreshToken);
+      const storedToken = await this.authRepository.findRefreshToken(
+        hashToken(refreshToken),
+      );
       if (
         !storedToken ||
         storedToken.isRevoked ||
@@ -230,6 +245,12 @@ export class AuthService {
         fullName,
         emailVerified: true,
       });
+
+      void this.mailService.sendWelcomeEmail(
+        email,
+        fullName,
+        `${this.configService.get('app')?.frontendUrl || 'https://app.camey.co'}/complete-profile`,
+      );
     }
 
     await this.authRepository.updateUser(user.id, {
@@ -240,8 +261,8 @@ export class AuthService {
       userId: user.id,
       provider: 'GOOGLE',
       providerUserId: providerId,
-      accessToken,
-      refreshToken,
+      accessToken: accessToken ? hashToken(accessToken) : undefined,
+      refreshToken: refreshToken ? hashToken(refreshToken) : undefined,
       expiresAt: new Date(Date.now() + 3600 * 1000),
     });
 
@@ -291,13 +312,15 @@ export class AuthService {
     await this.authRepository.createOtpCode({
       userId: user?.id,
       phone: dto.phone,
-      code,
+      code: hashToken(code),
       expiresAt,
     });
 
-    this.logger.warn(
-      `[OTP SIMULADO] Código para ${dto.phone}: ${code} (expira en ${OTP_EXPIRY_MINUTES} min)`,
-    );
+    if (process.env.NODE_ENV !== 'production') {
+      this.logger.warn(
+        `[OTP SIMULADO] Código para ${dto.phone}: ${code} (expira en ${OTP_EXPIRY_MINUTES} min)`,
+      );
+    }
 
     return {
       message: `OTP sent to ${dto.phone}`,
@@ -306,7 +329,10 @@ export class AuthService {
   }
 
   async verifyOtpAndLogin(dto: VerifyOtpDto): Promise<AuthResponseDto> {
-    const otp = await this.authRepository.findValidOtpCode(dto.phone, dto.code);
+    const otp = await this.authRepository.findValidOtpCode(
+      dto.phone,
+      hashToken(dto.code),
+    );
     if (!otp) {
       throw new UnauthorizedException('Invalid or expired OTP code');
     }
@@ -343,7 +369,7 @@ export class AuthService {
   private generateOtpCode(): string {
     const min = 10 ** (OTP_CODE_LENGTH - 1);
     const max = 10 ** OTP_CODE_LENGTH - 1;
-    return String(Math.floor(min + Math.random() * (max - min + 1)));
+    return randomInt(min, max + 1).toString();
   }
 
   async forgotPassword(dto: ForgotPasswordDto): Promise<{ message: string }> {
@@ -361,7 +387,7 @@ export class AuthService {
     );
     await this.authRepository.createPasswordResetToken({
       userId: user.id,
-      token,
+      token: hashToken(token),
       expiresAt,
     });
 
@@ -379,7 +405,7 @@ export class AuthService {
 
   async resetPassword(dto: ResetPasswordDto): Promise<{ message: string }> {
     const record = await this.authRepository.findValidPasswordResetToken(
-      dto.token,
+      hashToken(dto.token),
     );
     if (!record) {
       throw new BadRequestException('Invalid or expired reset token');
@@ -456,7 +482,7 @@ export class AuthService {
     );
     await this.authRepository.createRefreshToken({
       userId,
-      token: refreshToken,
+      token: hashToken(refreshToken),
       expiresAt,
     });
 
@@ -490,7 +516,8 @@ export class AuthService {
         id: user.id,
         email: user.email || '',
         fullName: user.fullName,
-        profilePhotoUrl: user.profilePhotoUrl || undefined,
+        profilePhotoUrl:
+          this.blobStorageService.toSasUrl(user.profilePhotoUrl) || undefined,
         roles: roles as RoleName[],
       },
     };
@@ -534,7 +561,7 @@ export class AuthService {
       email: user.email,
       fullName: user.fullName,
       phoneNumber: user.phoneNumber,
-      profilePhotoUrl: user.profilePhotoUrl,
+      profilePhotoUrl: this.blobStorageService.toSasUrl(user.profilePhotoUrl),
       emailVerified: user.emailVerified,
       phoneVerified: user.phoneVerified,
       status: user.status,

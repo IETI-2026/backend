@@ -78,13 +78,15 @@ export class UserEntity {
   @UpdateDateColumn()
   updatedAt!: Date;
 
+  @Column({ type: 'int', default: 0 })
+  servicesCount!: number;
+
   @Column({ type: 'timestamp', nullable: true })
   lastLoginAt!: Date | null;
 
   @Column({ type: 'timestamp', nullable: true })
   deletedAt!: Date | null;
 
-  // Relations
   @OneToMany(
     () => UserRoleEntity,
     (ur) => ur.user,

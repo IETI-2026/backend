@@ -14,12 +14,20 @@
     "sourceMap": true,
     "outDir": "./dist",
     "baseUrl": "./",
+    "ignoreDeprecations": "5.0",
     "paths": {
       "@/*": ["src/*"],
       "@common/*": ["src/common/*"],
-      "@users/*": ["src/modules/users/*"],
       "@config/*": ["src/config/*"],
-      "@prisma/*": ["src/prisma/*"]
+      "@database/*": ["src/database/*"],
+      "@tenant/*": ["src/tenant/*"],
+      "@modules/*": ["src/modules/*"],
+      "@auth/*": ["src/modules/auth/*"],
+      "@users/*": ["src/modules/users/*"],
+      "@payments/*": ["src/modules/payments/*"],
+      "@service-requests/*": ["src/modules/service-requests/*"],
+      "@geocoding/*": ["src/modules/geocoding/*"],
+      "@mail/*": ["src/modules/mail/*"]
     },
     "incremental": true,
     "skipLibCheck": true,
@@ -27,6 +35,7 @@
     "forceConsistentCasingInFileNames": true,
     "noImplicitAny": false,
     "strictBindCallApply": false,
-    "noFallthroughCasesInSwitch": false
+    "noFallthroughCasesInSwitch": false,
+    "types": ["multer"]
   }
 }

@@ -2,17 +2,24 @@ import {
   BadRequestException,
   ConflictException,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import {
   ServiceRequestStatus,
   UrgencyLevel,
 } from '../../../../../database/enums';
+import { JwtPayloadEntity } from '../../../../auth/domain/entities';
 import { JwtAuthGuard } from '../../../../auth/infrastructure/guards/jwt-auth.guard';
-import { ServiceRequestsService } from '../../../application';
+import {
+  ChooseTechnicianDto,
+  CreateServiceRequestDto,
+  MarkCompleteDto,
+  RateServiceRequestDto,
+  ServiceRequestsService,
+  UpdateLocationDto,
+} from '../../../application';
 import { ServiceRequestsController } from '../service-requests.controller';
-
-// ─── shared fixtures ──────────────────────────────────────────────────────────
 
 const mockServiceRequest = {
   id: 'req-uuid-001',
@@ -34,11 +41,16 @@ const mockAcceptedTechnician = {
 const mockServiceRequestsService = {
   findAll: jest.fn(),
   findAcceptedTechnicians: jest.fn(),
+  findById: jest.fn(),
   create: jest.fn(),
   findAvailableForTechnician: jest.fn(),
   accept: jest.fn(),
   reject: jest.fn(),
   chooseTechnician: jest.fn(),
+  markComplete: jest.fn(),
+  updateUserLocation: jest.fn(),
+  generateServiceSummaryPdf: jest.fn(),
+  rateService: jest.fn(),
 };
 
 const allowAllGuard = { canActivate: () => true };
@@ -69,8 +81,6 @@ describe('ServiceRequestsController', () => {
   it('should be defined', () => {
     expect(controller).toBeDefined();
   });
-
-  // ─── findAll ──────────────────────────────────────────────────────────────────
 
   describe('findAll', () => {
     it('should return a paginated list of service requests', async () => {
@@ -119,8 +129,6 @@ describe('ServiceRequestsController', () => {
     });
   });
 
-  // ─── findAcceptedTechnicians ──────────────────────────────────────────────────
-
   describe('findAcceptedTechnicians', () => {
     it('should return technicians who accepted a request', async () => {
       mockServiceRequestsService.findAcceptedTechnicians.mockResolvedValue([
@@ -155,8 +163,6 @@ describe('ServiceRequestsController', () => {
     });
   });
 
-  // ─── create ───────────────────────────────────────────────────────────────────
-
   describe('create', () => {
     const createDto = {
       userId: 'user-uuid-001',
@@ -167,9 +173,15 @@ describe('ServiceRequestsController', () => {
     it('should create and return a new service request', async () => {
       mockServiceRequestsService.create.mockResolvedValue(mockServiceRequest);
 
-      const result = await controller.create(createDto as unknown);
+      const result = await controller.create(
+        { sub: 'user-uuid-001' } as JwtPayloadEntity,
+        createDto as unknown as CreateServiceRequestDto,
+      );
 
-      expect(mockServiceRequestsService.create).toHaveBeenCalledWith(createDto);
+      expect(mockServiceRequestsService.create).toHaveBeenCalledWith(
+        'user-uuid-001',
+        createDto,
+      );
       expect(result).toBe(mockServiceRequest);
     });
 
@@ -178,9 +190,12 @@ describe('ServiceRequestsController', () => {
         new NotFoundException('User not found'),
       );
 
-      await expect(controller.create(createDto as unknown)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        controller.create(
+          { sub: 'user-uuid-001' } as JwtPayloadEntity,
+          createDto as unknown as CreateServiceRequestDto,
+        ),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('should propagate BadRequestException for invalid input', async () => {
@@ -188,13 +203,14 @@ describe('ServiceRequestsController', () => {
         new BadRequestException('Validation failed'),
       );
 
-      await expect(controller.create({} as unknown)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        controller.create(
+          { sub: 'user-uuid-001' } as JwtPayloadEntity,
+          {} as unknown as CreateServiceRequestDto,
+        ),
+      ).rejects.toThrow(BadRequestException);
     });
   });
-
-  // ─── findAvailableForTechnician ───────────────────────────────────────────────
 
   describe('findAvailableForTechnician', () => {
     it('should return available requests matching the technician skills', async () => {
@@ -233,8 +249,6 @@ describe('ServiceRequestsController', () => {
     });
   });
 
-  // ─── accept ───────────────────────────────────────────────────────────────────
-
   describe('accept', () => {
     const acceptDto = { technicianUserId: 'tech-uuid-001' };
 
@@ -246,13 +260,14 @@ describe('ServiceRequestsController', () => {
       mockServiceRequestsService.accept.mockResolvedValue(accepted);
 
       const result = await controller.accept(
+        { sub: 'tech-uuid-001' } as JwtPayloadEntity,
         'req-uuid-001',
-        acceptDto as unknown,
       );
 
       expect(mockServiceRequestsService.accept).toHaveBeenCalledWith(
         'req-uuid-001',
-        acceptDto,
+        'tech-uuid-001',
+        {},
       );
       expect(result).toBe(accepted);
     });
@@ -277,8 +292,6 @@ describe('ServiceRequestsController', () => {
       ).rejects.toThrow(NotFoundException);
     });
   });
-
-  // ─── reject ───────────────────────────────────────────────────────────────────
 
   describe('reject', () => {
     const rejectDto = {
@@ -325,8 +338,6 @@ describe('ServiceRequestsController', () => {
     });
   });
 
-  // ─── chooseTechnician ─────────────────────────────────────────────────────────
-
   describe('chooseTechnician', () => {
     const chooseDto = {
       userId: 'user-uuid-001',
@@ -341,13 +352,15 @@ describe('ServiceRequestsController', () => {
       mockServiceRequestsService.chooseTechnician.mockResolvedValue(assigned);
 
       const result = await controller.chooseTechnician(
+        { sub: 'user-uuid-001' } as JwtPayloadEntity,
         'req-uuid-001',
-        chooseDto as unknown,
+        { technicianUserId: 'tech-uuid-001' } as unknown as ChooseTechnicianDto,
       );
 
       expect(mockServiceRequestsService.chooseTechnician).toHaveBeenCalledWith(
         'req-uuid-001',
-        chooseDto,
+        'user-uuid-001',
+        { technicianUserId: 'tech-uuid-001' },
       );
       expect(result.status).toBe(ServiceRequestStatus.ASSIGNED);
     });
@@ -380,6 +393,222 @@ describe('ServiceRequestsController', () => {
       await expect(
         controller.chooseTechnician('bad-id', chooseDto as unknown),
       ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('findById', () => {
+    it('should return a single service request by ID', async () => {
+      mockServiceRequestsService.findById.mockResolvedValue(mockServiceRequest);
+
+      const result = await controller.findById('req-uuid-001');
+
+      expect(mockServiceRequestsService.findById).toHaveBeenCalledWith(
+        'req-uuid-001',
+      );
+      expect(result).toBe(mockServiceRequest);
+    });
+
+    it('should propagate NotFoundException for an unknown ID', async () => {
+      mockServiceRequestsService.findById.mockRejectedValue(
+        new NotFoundException('Request not found'),
+      );
+
+      await expect(controller.findById('bad-id')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+
+  describe('markComplete', () => {
+    const markDto: MarkCompleteDto = { role: 'client' };
+
+    it('should mark the service complete and return the updated request', async () => {
+      mockServiceRequestsService.markComplete.mockResolvedValue(
+        mockServiceRequest,
+      );
+
+      const result = await controller.markComplete(
+        { sub: 'user-uuid-001' } as JwtPayloadEntity,
+        'req-uuid-001',
+        markDto,
+      );
+
+      expect(mockServiceRequestsService.markComplete).toHaveBeenCalledWith(
+        'req-uuid-001',
+        'user-uuid-001',
+        markDto,
+      );
+      expect(result).toBe(mockServiceRequest);
+    });
+
+    it('should throw UnauthorizedException when user has no sub', async () => {
+      await expect(
+        controller.markComplete(
+          {} as JwtPayloadEntity,
+          'req-uuid-001',
+          markDto,
+        ),
+      ).rejects.toThrow(UnauthorizedException);
+      expect(mockServiceRequestsService.markComplete).not.toHaveBeenCalled();
+    });
+
+    it('should propagate NotFoundException when the request does not exist', async () => {
+      mockServiceRequestsService.markComplete.mockRejectedValue(
+        new NotFoundException('Request not found'),
+      );
+
+      await expect(
+        controller.markComplete(
+          { sub: 'user-uuid-001' } as JwtPayloadEntity,
+          'bad-id',
+          markDto,
+        ),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('updateLocation', () => {
+    const locationDto: UpdateLocationDto = {
+      latitude: 4.711,
+      longitude: -74.072,
+    };
+
+    it('should update the user location and return a success message', async () => {
+      mockServiceRequestsService.updateUserLocation.mockResolvedValue(
+        undefined,
+      );
+
+      const result = await controller.updateLocation(
+        { sub: 'user-uuid-001' } as JwtPayloadEntity,
+        'req-uuid-001',
+        locationDto,
+      );
+
+      expect(
+        mockServiceRequestsService.updateUserLocation,
+      ).toHaveBeenCalledWith(
+        'user-uuid-001',
+        locationDto.latitude,
+        locationDto.longitude,
+      );
+      expect(result).toEqual({ message: 'Location updated' });
+    });
+
+    it('should throw UnauthorizedException when user has no sub', async () => {
+      await expect(
+        controller.updateLocation(
+          {} as JwtPayloadEntity,
+          'req-uuid-001',
+          locationDto,
+        ),
+      ).rejects.toThrow(UnauthorizedException);
+      expect(
+        mockServiceRequestsService.updateUserLocation,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('should propagate service errors', async () => {
+      mockServiceRequestsService.updateUserLocation.mockRejectedValue(
+        new Error('Location service error'),
+      );
+
+      await expect(
+        controller.updateLocation(
+          { sub: 'user-uuid-001' } as JwtPayloadEntity,
+          'req-uuid-001',
+          locationDto,
+        ),
+      ).rejects.toThrow('Location service error');
+    });
+  });
+
+  describe('getReceipt', () => {
+    it('should return the receipt URL for a completed service', async () => {
+      const receiptUrl = 'https://blob.example.com/receipt.pdf';
+      mockServiceRequestsService.generateServiceSummaryPdf.mockResolvedValue({
+        url: receiptUrl,
+        buffer: Buffer.alloc(0),
+      });
+
+      const result = await controller.getReceipt('req-uuid-001');
+
+      expect(
+        mockServiceRequestsService.generateServiceSummaryPdf,
+      ).toHaveBeenCalledWith('req-uuid-001');
+      expect(result).toEqual({ url: receiptUrl });
+    });
+
+    it('should propagate NotFoundException when the request does not exist', async () => {
+      mockServiceRequestsService.generateServiceSummaryPdf.mockRejectedValue(
+        new NotFoundException('Request not found'),
+      );
+
+      await expect(controller.getReceipt('bad-id')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('should propagate BadRequestException when the service is not completed', async () => {
+      mockServiceRequestsService.generateServiceSummaryPdf.mockRejectedValue(
+        new BadRequestException(
+          'Service summary can only be generated for completed services',
+        ),
+      );
+
+      await expect(controller.getReceipt('req-uuid-001')).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+  });
+
+  describe('rate', () => {
+    const rateDto: RateServiceRequestDto = {
+      serviceRating: 5,
+      technicianRating: 4,
+      comment: 'Excellent service',
+    };
+
+    it('should rate the service and return the updated request', async () => {
+      const rated = { ...mockServiceRequest, isRated: true };
+      mockServiceRequestsService.rateService.mockResolvedValue(rated);
+
+      const result = await controller.rate('req-uuid-001', rateDto);
+
+      expect(mockServiceRequestsService.rateService).toHaveBeenCalledWith(
+        'req-uuid-001',
+        rateDto,
+      );
+      expect(result).toBe(rated);
+    });
+
+    it('should propagate NotFoundException when the request does not exist', async () => {
+      mockServiceRequestsService.rateService.mockRejectedValue(
+        new NotFoundException('Request not found'),
+      );
+
+      await expect(controller.rate('bad-id', rateDto)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('should propagate BadRequestException when the service is not completed', async () => {
+      mockServiceRequestsService.rateService.mockRejectedValue(
+        new BadRequestException('Service is not completed'),
+      );
+
+      await expect(controller.rate('req-uuid-001', rateDto)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should propagate ConflictException when service is already rated', async () => {
+      mockServiceRequestsService.rateService.mockRejectedValue(
+        new ConflictException('Service already rated'),
+      );
+
+      await expect(controller.rate('req-uuid-001', rateDto)).rejects.toThrow(
+        ConflictException,
+      );
     });
   });
 });

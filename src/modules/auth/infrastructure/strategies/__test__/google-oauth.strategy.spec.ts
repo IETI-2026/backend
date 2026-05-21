@@ -2,10 +2,6 @@ import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { GoogleOAuthStrategy } from '../google-oauth.strategy';
 
-// ---------------------------------------------------------------------------
-// Mock passport-google-oauth20 so the PassportStrategy super() call does not
-// attempt real OAuth registration during unit tests.
-// ---------------------------------------------------------------------------
 jest.mock('passport-google-oauth20', () => {
   class MockStrategy {}
   return { Strategy: MockStrategy };
@@ -38,10 +34,6 @@ describe('GoogleOAuthStrategy', () => {
 
     strategy = module.get(GoogleOAuthStrategy);
   });
-
-  // -------------------------------------------------------------------------
-  // validate
-  // -------------------------------------------------------------------------
 
   describe('validate', () => {
     const mockRequest = {} as unknown;

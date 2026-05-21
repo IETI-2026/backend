@@ -1,5 +1,7 @@
 import {
+  BadRequestException,
   ConflictException,
+  ForbiddenException,
   Inject,
   Injectable,
   InternalServerErrorException,
@@ -7,28 +9,40 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { DataSource, Repository } from 'typeorm';
+import PDFDocument from 'pdfkit';
+import { DataSource, In, Repository } from 'typeorm';
+import { BlobStorageService } from '@/common/services/blob-storage.service';
 import {
   UserEntity as DbUserEntity,
+  ProviderProfileEntity,
+  ServiceCategoryEntity,
   ServiceRequestEntity,
   ServiceRequestEventEntity,
   ServiceRequestTechnicianResponseEntity,
 } from '@/database/entities';
 import {
+  ProviderVerificationStatus,
   ServiceRequestStatus,
   TechnicianResponseStatus,
   UrgencyLevel,
 } from '@/database/enums';
-import { TENANT_DATA_SOURCE, TenantDataSourceService } from '@/tenant';
+import {
+  TENANT_DATA_SOURCE,
+  TenantContext,
+  TenantDataSourceService,
+} from '@/tenant';
+import { ServiceRequestsGateway } from '../../presentation/gateways/service-requests.gateway';
 import {
   type AcceptedTechnicianUserDto,
   type AcceptServiceRequestDto,
   type ChooseTechnicianDto,
   type CreateServiceRequestDto,
   type GetServiceRequestsQueryDto,
+  type MarkCompleteDto,
   type RejectServiceRequestDto,
   ServiceRequestResponseDto,
 } from '../dtos';
+import type { RateServiceRequestDto } from '../dtos/rate-service-request.dto';
 
 type AgentClassificationResponse = {
   categoria?: unknown;
@@ -56,12 +70,16 @@ export class ServiceRequestsService {
   private readonly responseRepo: Repository<ServiceRequestTechnicianResponseEntity>;
   private readonly eventRepo: Repository<ServiceRequestEventEntity>;
   private readonly tenantUserRepo: Repository<DbUserEntity>;
+  private readonly serviceCategoryRepo: Repository<ServiceCategoryEntity>;
 
   constructor(
     @Inject(TENANT_DATA_SOURCE)
     dataSource: DataSource,
     private readonly configService: ConfigService,
     private readonly tenantDataSourceService: TenantDataSourceService,
+    private readonly tenantContext: TenantContext,
+    private readonly gateway: ServiceRequestsGateway,
+    private readonly blobStorageService: BlobStorageService,
   ) {
     this.requestRepo = dataSource.getRepository(ServiceRequestEntity);
     this.responseRepo = dataSource.getRepository(
@@ -69,6 +87,7 @@ export class ServiceRequestsService {
     );
     this.eventRepo = dataSource.getRepository(ServiceRequestEventEntity);
     this.tenantUserRepo = dataSource.getRepository(DbUserEntity);
+    this.serviceCategoryRepo = dataSource.getRepository(ServiceCategoryEntity);
   }
 
   private async getPublicUserRepo(): Promise<Repository<DbUserEntity>> {
@@ -77,16 +96,25 @@ export class ServiceRequestsService {
     return publicDataSource.getRepository(DbUserEntity);
   }
 
+  private async getPublicProfileRepo(): Promise<
+    Repository<ProviderProfileEntity>
+  > {
+    const publicDataSource =
+      await this.tenantDataSourceService.getDataSource('public');
+    return publicDataSource.getRepository(ProviderProfileEntity);
+  }
+
   async create(
+    userId: string,
     dto: CreateServiceRequestDto,
   ): Promise<ServiceRequestResponseDto> {
     const publicUserRepo = await this.getPublicUserRepo();
     const user = await publicUserRepo.findOne({
-      where: { id: dto.userId },
+      where: { id: userId },
     });
 
     if (!user) {
-      throw new NotFoundException(`User with ID ${dto.userId} not found`);
+      throw new NotFoundException(`User with ID ${userId} not found`);
     }
 
     await this.ensureTenantUserProjection(user);
@@ -94,7 +122,7 @@ export class ServiceRequestsService {
     const classification = await this.classifyProblemWithAgent(dto.problema);
 
     const entity = this.requestRepo.create({
-      userId: dto.userId,
+      userId,
       rawDescription: dto.problema,
       serviceCity: dto.serviceCity.trim().toLowerCase(),
       requestedSkills: classification.skills,
@@ -110,7 +138,14 @@ export class ServiceRequestsService {
       relations: ['technicianResponses'],
     });
 
-    return this.toResponse(request);
+    const response = this.toResponse(request);
+    const tenantId = this.tenantContext.getTenantId() ?? 'public';
+    this.gateway.emitNewServiceRequest(tenantId, response);
+    return response;
+  }
+
+  async findById(serviceRequestId: string): Promise<ServiceRequestResponseDto> {
+    return this.findByIdOrThrow(serviceRequestId);
   }
 
   async findAll(query: GetServiceRequestsQueryDto): Promise<{
@@ -129,17 +164,50 @@ export class ServiceRequestsService {
     if (query.technicianUserId)
       where.assignedTechnicianId = query.technicianUserId;
     if (serviceCity) where.serviceCity = serviceCity;
+    if (query.isRated !== undefined) where.isRated = query.isRated;
 
     const [requests, total] = await this.requestRepo.findAndCount({
       where,
       skip: page * limit,
       take: limit,
       order: { createdAt: 'DESC' },
-      relations: ['technicianResponses'],
+      relations: ['technicianResponses', 'assignedTechnician', 'user'],
     });
 
+    this.logger.log(
+      `findAll where=${JSON.stringify(where)} tenant=${this.tenantContext.getTenantId()} total=${total}`,
+    );
+
+    const techIds = [
+      ...new Set(
+        requests
+          .filter((r) => r.assignedTechnicianId)
+          .map((r) => r.assignedTechnicianId as string),
+      ),
+    ];
+    const ratingMap: Record<string, number | null> = {};
+    if (techIds.length > 0) {
+      try {
+        const profileRepo = await this.getPublicProfileRepo();
+        const profiles = await profileRepo.find({
+          where: { userId: In(techIds) },
+          select: ['userId', 'averageRating'],
+        });
+        profiles.forEach((p) => {
+          ratingMap[p.userId] = p.averageRating;
+        });
+      } catch (_) {}
+    }
+
     return {
-      requests: requests.map((request) => this.toResponse(request)),
+      requests: requests.map((request) =>
+        this.toResponse(
+          request,
+          request.assignedTechnicianId
+            ? (ratingMap[request.assignedTechnicianId] ?? null)
+            : null,
+        ),
+      ),
       total,
       page,
       limit,
@@ -169,14 +237,33 @@ export class ServiceRequestsService {
       relations: ['technicianUser'],
     });
 
+    const techIds = responses.map((r) => r.technicianUser.id);
+    const ratingMap: Record<string, number | null> = {};
+    if (techIds.length > 0) {
+      try {
+        const profileRepo = await this.getPublicProfileRepo();
+        const profiles = await profileRepo.find({
+          where: { userId: In(techIds) },
+          select: ['userId', 'averageRating'],
+        });
+        profiles.forEach((p) => {
+          ratingMap[p.userId] = p.averageRating;
+        });
+      } catch (_) {}
+    }
+
     return responses.map((response) => ({
       id: response.technicianUser.id,
       fullName: response.technicianUser.fullName,
       email: response.technicianUser.email,
       phoneNumber: response.technicianUser.phoneNumber,
       skills: response.technicianUser.skills,
+      profilePhotoUrl: this.blobStorageService.toSasUrl(
+        response.technicianUser.profilePhotoUrl,
+      ),
       currentLatitude: response.technicianUser.currentLatitude,
       currentLongitude: response.technicianUser.currentLongitude,
+      averageRating: ratingMap[response.technicianUser.id] ?? null,
       respondedAt: response.respondedAt,
     }));
   }
@@ -202,11 +289,10 @@ export class ServiceRequestsService {
     if (normalizedSkills.length === 0) {
       return [];
     }
-
-    // Use query builder for array overlap and NOT EXISTS subquery
     const qb = this.requestRepo
       .createQueryBuilder('sr')
       .leftJoinAndSelect('sr.technicianResponses', 'tr')
+      .leftJoinAndSelect('sr.assignedTechnician', 'at')
       .where('sr.status = :status', { status: ServiceRequestStatus.REQUESTED })
       .andWhere('sr."requestedSkills" && :skills', { skills: normalizedSkills })
       .andWhere(
@@ -226,16 +312,30 @@ export class ServiceRequestsService {
 
   async accept(
     serviceRequestId: string,
-    dto: AcceptServiceRequestDto,
+    technicianUserId: string,
+    _dto: AcceptServiceRequestDto,
   ): Promise<ServiceRequestResponseDto> {
     const publicUserRepo = await this.getPublicUserRepo();
     const technician = await publicUserRepo.findOne({
-      where: { id: dto.technicianUserId },
+      where: { id: technicianUserId },
     });
 
     if (!technician) {
       throw new NotFoundException(
-        `Technician user with ID ${dto.technicianUserId} not found`,
+        `Technician user with ID ${technicianUserId} not found`,
+      );
+    }
+
+    const providerProfile = await publicUserRepo.manager
+      .getRepository(ProviderProfileEntity)
+      .findOne({ where: { userId: technicianUserId } });
+
+    if (
+      !providerProfile ||
+      providerProfile.verificationStatus !== ProviderVerificationStatus.VERIFIED
+    ) {
+      throw new ForbiddenException(
+        'Technician is not verified and cannot accept service requests',
       );
     }
 
@@ -257,10 +357,8 @@ export class ServiceRequestsService {
         `Service request ${serviceRequestId} is not available for acceptance`,
       );
     }
-
-    // Upsert: find existing or create
     let existingResponse = await this.responseRepo.findOne({
-      where: { serviceRequestId, technicianUserId: dto.technicianUserId },
+      where: { serviceRequestId, technicianUserId },
     });
 
     if (existingResponse) {
@@ -271,7 +369,7 @@ export class ServiceRequestsService {
     } else {
       existingResponse = this.responseRepo.create({
         serviceRequestId,
-        technicianUserId: dto.technicianUserId,
+        technicianUserId,
         status: TechnicianResponseStatus.ACCEPTED,
         respondedAt: new Date(),
       });
@@ -282,10 +380,26 @@ export class ServiceRequestsService {
       serviceRequestId,
       previousStatus: ServiceRequestStatus.REQUESTED,
       newStatus: ServiceRequestStatus.REQUESTED,
-      triggeredBy: dto.technicianUserId,
+      triggeredBy: technicianUserId,
       metadata: { action: 'TECHNICIAN_ACCEPTED' },
     });
     await this.eventRepo.save(event);
+
+    const technicianPayload: AcceptedTechnicianUserDto = {
+      id: technician.id,
+      fullName: technician.fullName,
+      email: technician.email,
+      phoneNumber: technician.phoneNumber,
+      skills: technician.skills,
+      profilePhotoUrl: this.blobStorageService.toSasUrl(
+        technician.profilePhotoUrl,
+      ),
+      currentLatitude: technician.currentLatitude,
+      currentLongitude: technician.currentLongitude,
+      averageRating: null,
+      respondedAt: existingResponse.respondedAt,
+    };
+    this.gateway.emitTechnicianAccepted(serviceRequestId, technicianPayload);
 
     return this.findByIdOrThrow(serviceRequestId);
   }
@@ -323,8 +437,6 @@ export class ServiceRequestsService {
         `Service request ${serviceRequestId} cannot be rejected in status ${request.status}`,
       );
     }
-
-    // Upsert: find existing or create
     let existingResponse = await this.responseRepo.findOne({
       where: { serviceRequestId, technicianUserId: dto.technicianUserId },
     });
@@ -362,11 +474,12 @@ export class ServiceRequestsService {
 
   async chooseTechnician(
     serviceRequestId: string,
+    customerUserId: string,
     dto: ChooseTechnicianDto,
   ): Promise<ServiceRequestResponseDto> {
     const request = await this.requestRepo.findOne({
       where: { id: serviceRequestId },
-      select: ['id', 'userId', 'status'],
+      select: ['id', 'userId', 'status', 'latitude', 'longitude'],
     });
 
     if (!request) {
@@ -375,9 +488,9 @@ export class ServiceRequestsService {
       );
     }
 
-    if (request.userId !== dto.customerUserId) {
+    if (request.userId !== customerUserId) {
       throw new ConflictException(
-        `User ${dto.customerUserId} is not the owner of service request ${serviceRequestId}`,
+        `User ${customerUserId} is not the owner of service request ${serviceRequestId}`,
       );
     }
 
@@ -404,17 +517,38 @@ export class ServiceRequestsService {
       );
     }
 
+    const publicUserRepo = await this.getPublicUserRepo();
+    const technician = await publicUserRepo.findOne({
+      where: { id: dto.technicianUserId },
+      select: ['id', 'currentLatitude', 'currentLongitude'],
+    });
+
+    let displacementDistanceKm: number | null = null;
+    if (
+      technician?.currentLatitude != null &&
+      technician?.currentLongitude != null
+    ) {
+      const distanceMeters = this.haversineDistance(
+        request.latitude,
+        request.longitude,
+        technician.currentLatitude ?? 0,
+        technician.currentLongitude ?? 0,
+      );
+      displacementDistanceKm = Math.round((distanceMeters / 1000) * 10) / 10;
+    }
+
     await this.requestRepo.update(serviceRequestId, {
       assignedTechnicianId: dto.technicianUserId,
-      status: ServiceRequestStatus.ASSIGNED,
+      status: ServiceRequestStatus.ON_THE_WAY,
       assignedAt: new Date(),
+      displacementDistanceKm,
     });
 
     const event = this.eventRepo.create({
       serviceRequestId,
       previousStatus: ServiceRequestStatus.REQUESTED,
-      newStatus: ServiceRequestStatus.ASSIGNED,
-      triggeredBy: dto.customerUserId,
+      newStatus: ServiceRequestStatus.ON_THE_WAY,
+      triggeredBy: customerUserId,
       metadata: {
         action: 'CUSTOMER_SELECTED_TECHNICIAN',
         technicianUserId: dto.technicianUserId,
@@ -422,15 +556,18 @@ export class ServiceRequestsService {
     });
     await this.eventRepo.save(event);
 
-    return this.findByIdOrThrow(serviceRequestId);
+    const updated = await this.findByIdOrThrow(serviceRequestId);
+    this.gateway.emitServiceStatusUpdated(serviceRequestId, updated.status);
+    return updated;
   }
 
-  private async findByIdOrThrow(
+  async markComplete(
     serviceRequestId: string,
+    userId: string,
+    dto: MarkCompleteDto,
   ): Promise<ServiceRequestResponseDto> {
     const request = await this.requestRepo.findOne({
       where: { id: serviceRequestId },
-      relations: ['technicianResponses'],
     });
 
     if (!request) {
@@ -439,7 +576,435 @@ export class ServiceRequestsService {
       );
     }
 
-    return this.toResponse(request);
+    if (
+      request.status !== ServiceRequestStatus.ON_THE_WAY &&
+      request.status !== ServiceRequestStatus.IN_PROGRESS
+    ) {
+      throw new BadRequestException(
+        `Service request ${serviceRequestId} cannot be marked complete in status ${request.status}`,
+      );
+    }
+
+    if (dto.role === 'client' && request.userId !== userId) {
+      throw new BadRequestException(
+        `User ${userId} is not the client of this service request`,
+      );
+    }
+
+    if (dto.role === 'technician' && request.assignedTechnicianId !== userId) {
+      throw new BadRequestException(
+        `User ${userId} is not the assigned technician of this service request`,
+      );
+    }
+
+    const bothComplete =
+      (dto.role === 'client' ? true : request.clientMarkedComplete) &&
+      (dto.role === 'technician' ? true : request.technicianMarkedComplete);
+
+    const updatePayload: Record<string, unknown> = {};
+    if (dto.role === 'client') {
+      updatePayload.clientMarkedComplete = true;
+    } else {
+      updatePayload.technicianMarkedComplete = true;
+    }
+    if (bothComplete) {
+      updatePayload.status = ServiceRequestStatus.COMPLETED;
+      const completedAt = new Date();
+      updatePayload.completedAt = completedAt;
+      updatePayload.finalPrice = await this.calculateFinalPrice(
+        request,
+        completedAt,
+      );
+    }
+
+    await this.requestRepo.update(serviceRequestId, updatePayload);
+
+    if (bothComplete && request.assignedTechnicianId) {
+      await this.tenantUserRepo.increment(
+        { id: request.assignedTechnicianId },
+        'servicesCount',
+        1,
+      );
+      const publicUserRepo = await this.getPublicUserRepo();
+      await publicUserRepo.increment(
+        { id: request.assignedTechnicianId },
+        'servicesCount',
+        1,
+      );
+      const updatedTech = await this.tenantUserRepo.findOne({
+        where: { id: request.assignedTechnicianId },
+        select: ['servicesCount'],
+      });
+      this.gateway.emitTechnicianStatsUpdated(
+        request.assignedTechnicianId,
+        updatedTech?.servicesCount ?? 0,
+      );
+    }
+
+    const event = this.eventRepo.create({
+      serviceRequestId,
+      previousStatus: request.status,
+      newStatus: bothComplete ? ServiceRequestStatus.COMPLETED : request.status,
+      triggeredBy: userId,
+      metadata: { action: `${dto.role.toUpperCase()}_MARKED_COMPLETE` },
+    });
+    await this.eventRepo.save(event);
+
+    const updated = await this.findByIdOrThrow(serviceRequestId);
+    this.gateway.emitServiceStatusUpdated(serviceRequestId, updated.status);
+
+    if (bothComplete) {
+      setImmediate(() => {
+        this.generateServiceSummaryPdf(serviceRequestId).catch((err: Error) => {
+          this.logger.error(
+            `Receipt generation failed for ${serviceRequestId}: ${err.message}`,
+          );
+        });
+      });
+    }
+
+    return updated;
+  }
+
+  async generateServiceSummaryPdf(
+    serviceRequestId: string,
+  ): Promise<{ url: string; buffer: Buffer }> {
+    const request = await this.requestRepo.findOne({
+      where: { id: serviceRequestId },
+      relations: ['assignedTechnician'],
+    });
+
+    if (!request) {
+      throw new NotFoundException(
+        `Service request with ID ${serviceRequestId} not found`,
+      );
+    }
+
+    if (request.status !== ServiceRequestStatus.COMPLETED) {
+      throw new BadRequestException(
+        'Service summary can only be generated for completed services',
+      );
+    }
+
+    // Return cached URL if receipt was already generated
+    if (request.receiptUrl) {
+      return {
+        url:
+          this.blobStorageService.toSasUrl(request.receiptUrl) ??
+          request.receiptUrl,
+        buffer: Buffer.alloc(0),
+      };
+    }
+
+    const publicUserRepo = await this.getPublicUserRepo();
+    const clientUser = await publicUserRepo.findOne({
+      where: { id: request.userId },
+      select: ['id', 'email'],
+    });
+
+    const technicianName = request.assignedTechnician?.fullName ?? 'N/A';
+    const categoryName =
+      request.requestedSkills.length > 0 ? request.requestedSkills[0] : 'N/A';
+    const urgency = request.urgency ?? 'media';
+    const finalPrice = request.finalPrice ? Number(request.finalPrice) : 0;
+    const displacementKm = request.displacementDistanceKm ?? 0;
+
+    let durationText = 'N/A';
+    if (request.startedAt && request.completedAt) {
+      const diffMs =
+        request.completedAt.getTime() - request.startedAt.getTime();
+      const totalMinutes = Math.round(diffMs / 60000);
+      const hours = Math.floor(totalMinutes / 60);
+      const minutes = totalMinutes % 60;
+      durationText = hours > 0 ? `${hours}h ${minutes}min` : `${minutes}min`;
+    }
+
+    const completedDate = request.completedAt
+      ? request.completedAt.toLocaleDateString('es-CO', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+        })
+      : 'N/A';
+
+    const pdfBuffer = await new Promise<Buffer>((resolve, reject) => {
+      const doc = new PDFDocument({ size: 'A4', margin: 50 });
+      const chunks: Uint8Array[] = [];
+      doc.on('data', (chunk: Uint8Array) => chunks.push(chunk));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', reject);
+
+      doc
+        .fontSize(20)
+        .font('Helvetica-Bold')
+        .text('Servicio Completado', { align: 'center' });
+      doc
+        .fontSize(12)
+        .font('Helvetica')
+        .text(completedDate, { align: 'center' });
+      doc.moveDown(1.5);
+
+      doc.fontSize(14).font('Helvetica-Bold').text('Tecnico asignado');
+      doc.fontSize(12).font('Helvetica').text(technicianName);
+      doc.moveDown(1);
+
+      doc.fontSize(14).font('Helvetica-Bold').text('Detalles del servicio');
+      doc.moveDown(0.5);
+
+      const detailsLeft = 50;
+      const detailsRight = 350;
+      const details = [
+        ['Categoria', categoryName],
+        ['Urgencia', urgency],
+        ['Duracion', durationText],
+        ['Distancia', `${displacementKm} km`],
+      ];
+      for (const [label, value] of details) {
+        const y = doc.y;
+        doc.fontSize(12).font('Helvetica').text(label, detailsLeft, y);
+        doc
+          .fontSize(12)
+          .font('Helvetica-Bold')
+          .text(value, detailsRight, y, { align: 'right' });
+        doc.moveDown(0.3);
+      }
+
+      doc.moveDown(1);
+      doc.moveTo(50, doc.y).lineTo(545, doc.y).strokeColor('#cccccc').stroke();
+      doc.moveDown(0.5);
+
+      doc.fontSize(16).font('Helvetica-Bold').text('Total');
+      doc
+        .fontSize(22)
+        .font('Helvetica-Bold')
+        .text(
+          `$${finalPrice.toLocaleString('es-CO')}`,
+          detailsRight - 50,
+          doc.y - 26,
+          { align: 'right' },
+        );
+
+      doc.end();
+    });
+
+    const fileName = `recibo_${serviceRequestId.substring(0, 8)}.pdf`;
+    const url = await this.blobStorageService.uploadBuffer(
+      pdfBuffer,
+      fileName,
+      'application/pdf',
+      clientUser?.email ?? undefined,
+    );
+
+    await this.requestRepo.update(serviceRequestId, { receiptUrl: url });
+
+    return {
+      url: this.blobStorageService.toSasUrl(url) ?? url,
+      buffer: pdfBuffer,
+    };
+  }
+
+  async updateUserLocation(
+    userId: string,
+    latitude: number,
+    longitude: number,
+  ): Promise<void> {
+    const locationData = {
+      currentLatitude: latitude,
+      currentLongitude: longitude,
+      lastLocationUpdate: new Date(),
+    };
+    await this.tenantUserRepo.update(userId, locationData);
+    const publicUserRepo = await this.getPublicUserRepo();
+    await publicUserRepo.update(userId, locationData);
+
+    const activeRequest = await this.requestRepo.findOne({
+      where: [
+        {
+          userId,
+          status: ServiceRequestStatus.ASSIGNED,
+        },
+        {
+          assignedTechnicianId: userId,
+          status: ServiceRequestStatus.ASSIGNED,
+        },
+        {
+          userId,
+          status: ServiceRequestStatus.ON_THE_WAY,
+        },
+        {
+          assignedTechnicianId: userId,
+          status: ServiceRequestStatus.ON_THE_WAY,
+        },
+        {
+          userId,
+          status: ServiceRequestStatus.IN_PROGRESS,
+        },
+        {
+          assignedTechnicianId: userId,
+          status: ServiceRequestStatus.IN_PROGRESS,
+        },
+      ],
+      select: [
+        'id',
+        'userId',
+        'assignedTechnicianId',
+        'status',
+        'latitude',
+        'longitude',
+      ],
+      relations: [],
+    });
+
+    if (!activeRequest) return;
+
+    const isClient = activeRequest.userId === userId;
+    this.gateway.emitLocationUpdated(activeRequest.id, {
+      userId,
+      role: isClient ? 'client' : 'technician',
+      latitude,
+      longitude,
+    });
+
+    if (activeRequest.status === ServiceRequestStatus.ON_THE_WAY) {
+      const client = await this.tenantUserRepo.findOne({
+        where: { id: activeRequest.userId },
+        select: ['id', 'currentLatitude', 'currentLongitude'],
+      });
+      const technician = await this.tenantUserRepo.findOne({
+        where: { id: activeRequest.assignedTechnicianId ?? '' },
+        select: ['id', 'currentLatitude', 'currentLongitude'],
+      });
+
+      const clientLat = client?.currentLatitude ?? activeRequest.latitude;
+      const clientLng = client?.currentLongitude ?? activeRequest.longitude;
+      const techLat = technician?.currentLatitude ?? null;
+      const techLng = technician?.currentLongitude ?? null;
+
+      if (techLat !== null && techLng !== null) {
+        const distance = this.haversineDistance(
+          clientLat,
+          clientLng,
+          techLat,
+          techLng,
+        );
+
+        if (distance <= 100) {
+          await this.requestRepo.update(activeRequest.id, {
+            status: ServiceRequestStatus.IN_PROGRESS,
+            startedAt: new Date(),
+          });
+
+          const event = this.eventRepo.create({
+            serviceRequestId: activeRequest.id,
+            previousStatus: ServiceRequestStatus.ON_THE_WAY,
+            newStatus: ServiceRequestStatus.IN_PROGRESS,
+            triggeredBy: userId,
+            metadata: {
+              action: 'PROXIMITY_TRIGGERED',
+              distanceMeters: distance,
+            },
+          });
+          await this.eventRepo.save(event);
+
+          this.gateway.emitServiceStatusUpdated(
+            activeRequest.id,
+            ServiceRequestStatus.IN_PROGRESS,
+          );
+        }
+      }
+    }
+  }
+
+  private haversineDistance(
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number,
+  ): number {
+    const R = 6371000;
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
+
+  private async findByIdOrThrow(
+    serviceRequestId: string,
+  ): Promise<ServiceRequestResponseDto> {
+    const request = await this.requestRepo.findOne({
+      where: { id: serviceRequestId },
+      relations: ['technicianResponses', 'assignedTechnician', 'user'],
+    });
+
+    if (!request) {
+      throw new NotFoundException(
+        `Service request with ID ${serviceRequestId} not found`,
+      );
+    }
+
+    let technicianRating: number | null = null;
+    if (request.assignedTechnicianId) {
+      try {
+        const profileRepo = await this.getPublicProfileRepo();
+        const profile = await profileRepo.findOne({
+          where: { userId: request.assignedTechnicianId },
+          select: ['userId', 'averageRating'],
+        });
+        technicianRating = profile?.averageRating ?? null;
+      } catch (_) {}
+    }
+
+    return this.toResponse(request, technicianRating);
+  }
+
+  private async calculateFinalPrice(
+    request: ServiceRequestEntity,
+    completedAt: Date,
+  ): Promise<string> {
+    const categorySlug =
+      request.requestedSkills.length > 0 ? request.requestedSkills[0] : null;
+
+    let basePrice = 0;
+    let pricePerKm = 0;
+    let pricePerHour = 0;
+
+    if (categorySlug) {
+      const category = await this.serviceCategoryRepo.findOne({
+        where: { slug: categorySlug },
+      });
+      if (category) {
+        basePrice = category.basePrice;
+        pricePerKm = category.pricePerKm;
+        pricePerHour = category.pricePerHour;
+      }
+    }
+
+    const distanceKm = request.displacementDistanceKm ?? 0;
+    const durationHours = request.startedAt
+      ? (completedAt.getTime() - request.startedAt.getTime()) / 3600000
+      : 0;
+
+    const urgencyFactors: Record<UrgencyLevel, number> = {
+      [UrgencyLevel.baja]: 1.0,
+      [UrgencyLevel.media]: 1.5,
+      [UrgencyLevel.alta]: 2.0,
+    };
+    const urgencyFactor = urgencyFactors[request.urgency] ?? 1.0;
+
+    const finalPrice = Math.round(
+      (basePrice + distanceKm * pricePerKm + durationHours * pricePerHour) *
+        urgencyFactor,
+    );
+
+    return String(finalPrice);
   }
 
   private normalizeSkills(skills: string[]): string[] {
@@ -640,26 +1205,42 @@ export class ServiceRequestsService {
     return UrgencyLevel.media;
   }
 
-  private toResponse(request: {
-    id: string;
-    userId: string;
-    assignedTechnicianId: string | null;
-    rawDescription: string;
-    serviceCity: string;
-    requestedSkills: string[];
-    status: ServiceRequestStatus;
-    urgency: UrgencyLevel;
-    latitude: number;
-    longitude: number;
-    addressText: string;
-    createdAt: Date;
-    updatedAt: Date;
-    technicianResponses: {
-      technicianUserId: string;
-      status: TechnicianResponseStatus;
-      respondedAt: Date;
-    }[];
-  }): ServiceRequestResponseDto {
+  private toResponse(
+    request: {
+      id: string;
+      userId: string;
+      assignedTechnicianId: string | null;
+      rawDescription: string;
+      serviceCity: string;
+      requestedSkills: string[];
+      status: ServiceRequestStatus;
+      urgency: UrgencyLevel;
+      latitude: number;
+      longitude: number;
+      addressText: string;
+      startedAt?: Date | null;
+      completedAt?: Date | null;
+      clientMarkedComplete?: boolean;
+      technicianMarkedComplete?: boolean;
+      displacementDistanceKm?: number | null;
+      finalPrice?: string | null;
+      receiptUrl?: string | null;
+      isRated?: boolean;
+      user?: { fullName: string; profilePhotoUrl?: string | null } | null;
+      assignedTechnician?: {
+        fullName: string;
+        profilePhotoUrl?: string | null;
+      } | null;
+      createdAt: Date;
+      updatedAt: Date;
+      technicianResponses: {
+        technicianUserId: string;
+        status: TechnicianResponseStatus;
+        respondedAt: Date;
+      }[];
+    },
+    technicianRating?: number | null,
+  ): ServiceRequestResponseDto {
     const response = new ServiceRequestResponseDto();
     response.id = request.id;
     response.userId = request.userId;
@@ -672,6 +1253,28 @@ export class ServiceRequestsService {
     response.longitude = request.longitude;
     response.addressText = request.addressText;
     response.serviceCity = request.serviceCity;
+    response.startedAt = request.startedAt ?? null;
+    response.completedAt = request.completedAt ?? null;
+    response.clientMarkedComplete = request.clientMarkedComplete ?? false;
+    response.technicianMarkedComplete =
+      request.technicianMarkedComplete ?? false;
+    response.displacementDistanceKm = request.displacementDistanceKm ?? null;
+    response.finalPrice = request.finalPrice ?? null;
+    response.technicianName = request.assignedTechnician?.fullName ?? null;
+    response.technicianPhotoUrl = this.blobStorageService.toSasUrl(
+      request.assignedTechnician?.profilePhotoUrl ?? null,
+    );
+    response.receiptUrl = this.blobStorageService.toSasUrl(
+      request.receiptUrl ?? null,
+    );
+    response.isRated = request.isRated ?? false;
+    response.categoryName =
+      request.requestedSkills.length > 0 ? request.requestedSkills[0] : null;
+    response.clientName = request.user?.fullName ?? null;
+    response.clientPhotoUrl = this.blobStorageService.toSasUrl(
+      request.user?.profilePhotoUrl ?? null,
+    );
+    response.technicianRating = technicianRating ?? null;
     response.technicianResponses = request.technicianResponses.map((item) => ({
       technicianUserId: item.technicianUserId,
       status: item.status,
@@ -680,5 +1283,76 @@ export class ServiceRequestsService {
     response.createdAt = request.createdAt;
     response.updatedAt = request.updatedAt;
     return response;
+  }
+
+  async rateService(
+    serviceRequestId: string,
+    dto: RateServiceRequestDto,
+  ): Promise<ServiceRequestResponseDto> {
+    const request = await this.requestRepo.findOne({
+      where: { id: serviceRequestId },
+      relations: ['assignedTechnician', 'technicianResponses'],
+    });
+
+    if (!request) {
+      throw new NotFoundException(
+        `Service request with ID ${serviceRequestId} not found`,
+      );
+    }
+
+    if (request.status !== ServiceRequestStatus.COMPLETED) {
+      throw new BadRequestException('Only completed services can be rated');
+    }
+
+    if (request.isRated) {
+      throw new ConflictException('This service has already been rated');
+    }
+
+    if (!request.assignedTechnicianId) {
+      throw new BadRequestException(
+        'Cannot rate a service without an assigned technician',
+      );
+    }
+
+    await this.requestRepo.update(serviceRequestId, {
+      serviceRating: dto.serviceRating,
+      clientComment: dto.comment ?? null,
+      technicianRatingValue: dto.technicianRating,
+      isRated: true,
+    });
+
+    const publicDataSource =
+      await this.tenantDataSourceService.getDataSource('public');
+    const publicProfileRepo = publicDataSource.getRepository(
+      ProviderProfileEntity,
+    );
+
+    const profile = await publicProfileRepo.findOne({
+      where: { userId: request.assignedTechnicianId },
+    });
+
+    if (profile) {
+      const currentTotal = profile.totalRatings ?? 0;
+      const currentAvg = profile.averageRating ?? 0;
+      const newTotal = currentTotal + 1;
+      const newAvg =
+        (currentAvg * currentTotal + dto.technicianRating) / newTotal;
+
+      await publicProfileRepo.update(
+        { userId: request.assignedTechnicianId },
+        {
+          averageRating: newAvg,
+          totalRatings: newTotal,
+        },
+      );
+    }
+
+    const updated = await this.requestRepo.findOneOrFail({
+      where: { id: serviceRequestId },
+      relations: ['assignedTechnician', 'technicianResponses'],
+    });
+
+    this.logger.log(`Service request ${serviceRequestId} rated`);
+    return this.toResponse(updated);
   }
 }

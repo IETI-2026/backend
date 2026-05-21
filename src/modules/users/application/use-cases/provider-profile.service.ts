@@ -1,21 +1,33 @@
+import { HttpService } from '@nestjs/axios';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import {
+  BadGatewayException,
   ConflictException,
+  ForbiddenException,
   Inject,
   Injectable,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import type { Cache } from 'cache-manager';
 import { DataSource, Repository } from 'typeorm';
+import { BlobStorageService } from '@/common/services/blob-storage.service';
 import {
   UserEntity as DbUserEntity,
   ProviderProfileEntity,
 } from '@/database/entities';
 import { ProviderVerificationStatus, RoleName } from '@/database/enums';
-import { TENANT_DATA_SOURCE } from '@/tenant';
+import { TENANT_DATA_SOURCE, TenantContext } from '@/tenant';
 import { AUTH_REPOSITORY } from '../../../auth/domain/repositories';
 import type { IAuthRepository } from '../../../auth/domain/repositories/auth.repository';
 import type { CreateProviderProfileDto } from '../dtos/create-provider-profile.dto';
 import { ProviderProfileResponseDto } from '../dtos/provider-profile-response.dto';
+import {
+  ProviderReviewQueueItemDto,
+  ProviderReviewQueueResponseDto,
+} from '../dtos/provider-review-queue.dto';
+import { ProviderSearchResultDto } from '../dtos/provider-search-result.dto';
 import type { UpdateProviderProfileDto } from '../dtos/update-provider-profile.dto';
 import { VerificationAction } from '../dtos/verify-provider.dto';
 
@@ -30,6 +42,12 @@ export class ProviderProfileService {
     dataSource: DataSource,
     @Inject(AUTH_REPOSITORY)
     private readonly authRepository: IAuthRepository,
+    private readonly httpService: HttpService,
+    @Inject(CACHE_MANAGER)
+    private readonly cache: Cache,
+    private readonly configService: ConfigService,
+    private readonly tenantContext: TenantContext,
+    private readonly blobStorageService: BlobStorageService,
   ) {
     this.profileRepo = dataSource.getRepository(ProviderProfileEntity);
     this.userRepo = dataSource.getRepository(DbUserEntity);
@@ -49,7 +67,6 @@ export class ProviderProfileService {
     const profile = this.profileRepo.create({
       userId,
       bio: dto.bio ?? null,
-      coverageRadiusKm: dto.coverageRadiusKm ?? 10.0,
       isAvailable: dto.isAvailable ?? false,
       nequiNumber: dto.nequiNumber ?? null,
       daviplataNumber: dto.daviplataNumber ?? null,
@@ -87,10 +104,17 @@ export class ProviderProfileService {
       throw new NotFoundException('Provider profile not found');
     }
 
+    if (
+      dto.isAvailable === true &&
+      existing.verificationStatus !== ProviderVerificationStatus.VERIFIED
+    ) {
+      throw new ForbiddenException(
+        'Cannot set availability: provider is not verified',
+      );
+    }
+
     const updateData: Record<string, unknown> = {};
     if (dto.bio !== undefined) updateData.bio = dto.bio;
-    if (dto.coverageRadiusKm !== undefined)
-      updateData.coverageRadiusKm = dto.coverageRadiusKm;
     if (dto.isAvailable !== undefined) updateData.isAvailable = dto.isAvailable;
     if (dto.nequiNumber !== undefined) updateData.nequiNumber = dto.nequiNumber;
     if (dto.daviplataNumber !== undefined)
@@ -110,6 +134,9 @@ export class ProviderProfileService {
     const profile = await this.profileRepo.findOneOrFail({
       where: { userId },
     });
+
+    // Invalidate rating cache on update
+    await this.invalidateRatingCache(userId);
 
     let skills: string[] = [];
     if (dto.skills !== undefined) {
@@ -149,6 +176,10 @@ export class ProviderProfileService {
       { userId: providerUserId },
       { verificationStatus: statusMap[action] },
     );
+
+    // Invalidate cache on verification status change
+    await this.invalidateRatingCache(providerUserId);
+
     const updated = await this.profileRepo.findOneOrFail({
       where: { userId: providerUserId },
     });
@@ -159,20 +190,191 @@ export class ProviderProfileService {
     return this.mapToResponse(updated, profile.user?.skills ?? []);
   }
 
+  async getProviderReviewQueue(
+    page: number,
+    limit: number,
+    status?: string,
+  ): Promise<ProviderReviewQueueResponseDto> {
+    const statusMap: Record<string, ProviderVerificationStatus[]> = {
+      PENDING_REVIEW: [
+        ProviderVerificationStatus.UNVERIFIED,
+        ProviderVerificationStatus.UNDER_REVIEW,
+      ],
+      APPROVED: [ProviderVerificationStatus.VERIFIED],
+      REJECTED: [
+        ProviderVerificationStatus.REJECTED,
+        ProviderVerificationStatus.SUSPENDED,
+      ],
+    };
+
+    const qb = this.profileRepo
+      .createQueryBuilder('p')
+      .innerJoinAndSelect('p.user', 'u')
+      .skip(page * limit)
+      .take(limit)
+      .orderBy('p.createdAt', 'DESC');
+
+    if (status && status !== 'ALL' && statusMap[status]) {
+      qb.where('p.verificationStatus IN (:...statuses)', {
+        statuses: statusMap[status],
+      });
+    }
+
+    const [profiles, total] = await qb.getManyAndCount();
+
+    const items = profiles.map((p) => {
+      const item = new ProviderReviewQueueItemDto();
+      item.documentId = p.id;
+      item.providerUserId = p.userId;
+      item.providerProfileId = p.id;
+      item.providerFullName = p.user?.fullName ?? p.userId;
+      item.providerDocumentId = p.user?.documentId ?? '';
+      item.documentType = 'IDENTITY_DOCUMENT';
+      item.documentStatus =
+        p.verificationStatus === ProviderVerificationStatus.VERIFIED
+          ? 'APPROVED'
+          : p.verificationStatus === ProviderVerificationStatus.REJECTED ||
+              p.verificationStatus === ProviderVerificationStatus.SUSPENDED
+            ? 'REJECTED'
+            : 'PENDING_REVIEW';
+      item.providerVerificationStatus = p.verificationStatus;
+      item.createdAt = p.createdAt.toISOString();
+      return item;
+    });
+
+    return {
+      items,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit) || 0,
+    };
+  }
+
+  async searchBySkill(skill: string): Promise<ProviderSearchResultDto[]> {
+    const profiles = await this.profileRepo
+      .createQueryBuilder('p')
+      .innerJoinAndSelect('p.user', 'u')
+      .where(
+        `EXISTS (SELECT 1 FROM unnest(u.skills) AS s WHERE s ILIKE :pattern)`,
+        { pattern: `%${skill}%` },
+      )
+      .getMany();
+
+    return profiles.map((p) => {
+      const dto = new ProviderSearchResultDto();
+      dto.userId = p.userId;
+      dto.fullName = p.user.fullName;
+      dto.profilePhotoUrl = this.blobStorageService.toSasUrl(
+        p.user.profilePhotoUrl,
+      );
+      dto.bio = p.bio;
+      dto.skills = p.user.skills;
+      dto.averageRating = p.averageRating;
+      dto.totalRatings = p.totalRatings;
+      dto.isAvailable = p.isAvailable;
+      dto.verificationStatus = p.verificationStatus;
+      return dto;
+    });
+  }
+
+  async forwardIdentityDocument(
+    userId: string,
+    file: Express.Multer.File,
+  ): Promise<{ message: string }> {
+    const externalServices = this.configService.get<{
+      documentVerificationUrl?: string;
+    }>('externalServices');
+
+    if (!externalServices?.documentVerificationUrl) {
+      throw new BadGatewayException(
+        'Document verification service is not configured',
+      );
+    }
+
+    try {
+      const payload = {
+        userId,
+        fileName: file.originalname,
+        mimeType: file.mimetype,
+        fileBase64: file.buffer.toString('base64'),
+      };
+
+      await this.httpService.axiosRef.post(
+        externalServices.documentVerificationUrl,
+        payload,
+      );
+      this.logger.log(`Identity document forwarded for user ${userId}`);
+    } catch (error) {
+      this.logger.warn(
+        `Failed to forward identity document for user ${userId} (resilient): ${error.message}`,
+      );
+    }
+
+    return { message: 'Document sent for verification' };
+  }
+
+  /**
+   * Get cached provider rating
+   */
+  async getCachedRating(providerId: string): Promise<number | null> {
+    const tenantId = this.tenantContext.getTenantId() || 'public';
+    const cacheConfig = this.configService.get('cache');
+    const ttl = cacheConfig.ttls?.provider_rating || cacheConfig.ttl;
+
+    const cacheKey = `provider:${tenantId}:rating:${providerId}`;
+
+    return (
+      (await this.cache.get<number | null>(cacheKey)) ||
+      (await this.computeAndCacheRating(providerId, cacheKey, ttl))
+    );
+  }
+
+  /**
+   * Compute and cache provider rating
+   */
+  private async computeAndCacheRating(
+    providerId: string,
+    cacheKey: string,
+    ttl: number,
+  ): Promise<number | null> {
+    const profile = await this.profileRepo.findOne({
+      where: { userId: providerId },
+      select: ['averageRating'],
+    });
+
+    const rating = profile?.averageRating ?? null;
+    await this.cache.set(cacheKey, rating, ttl);
+    return rating;
+  }
+
+  /**
+   * Invalidate rating cache for a provider
+   */
+  private async invalidateRatingCache(providerId: string): Promise<void> {
+    const tenantId = this.tenantContext.getTenantId() || 'public';
+    const cacheKey = `provider:${tenantId}:rating:${providerId}`;
+
+    try {
+      await this.cache.del(cacheKey);
+    } catch {
+      // Silently handle invalidation errors
+    }
+  }
+
   private mapToResponse(
     profile: {
       id: string;
       userId: string;
       bio: string | null;
       verificationStatus: string;
-      averageRating: number;
+      averageRating: number | null;
       totalRatings: number;
       totalCompletedServices: number;
       totalCancelledServices: number;
       isAvailable: boolean;
       currentLatitude: number | null;
       currentLongitude: number | null;
-      coverageRadiusKm: number;
       nequiNumber: string | null;
       daviplataNumber: string | null;
       createdAt: Date;
@@ -192,7 +394,6 @@ export class ProviderProfileService {
     dto.isAvailable = profile.isAvailable;
     dto.currentLatitude = profile.currentLatitude;
     dto.currentLongitude = profile.currentLongitude;
-    dto.coverageRadiusKm = profile.coverageRadiusKm;
     dto.nequiNumber = profile.nequiNumber;
     dto.daviplataNumber = profile.daviplataNumber;
     dto.skills = skills;

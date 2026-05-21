@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -8,19 +9,26 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UnauthorizedException,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
+  ApiBody,
   ApiConflictResponse,
+  ApiConsumes,
   ApiCreatedResponse,
   ApiForbiddenResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
@@ -31,6 +39,8 @@ import { JwtAuthGuard, RolesGuard } from '../../../auth/infrastructure/guards';
 import {
   CreateProviderProfileDto,
   ProviderProfileResponseDto,
+  ProviderReviewQueueResponseDto,
+  ProviderSearchResultDto,
   UpdateProviderProfileDto,
   VerifyProviderDto,
 } from '../../application/dtos';
@@ -97,6 +107,103 @@ export class ProviderProfileController {
     if (!user.sub) throw new UnauthorizedException('User ID not available');
     this.logger.log(`PATCH /users/me/provider-profile by ${user.email}`);
     return this.providerProfileService.update(user.sub, dto);
+  }
+
+  @Post('me/provider-profile/upload-document')
+  @HttpCode(HttpStatus.OK)
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary: 'Subir documento de identidad para verificación',
+    description:
+      'Sube una foto del documento de identidad (PDF, JPG, PNG, JPEG) y la envía a un servicio externo de verificación. El archivo no se almacena.',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', format: 'binary' },
+      },
+      required: ['file'],
+    },
+  })
+  @ApiOkResponse({ description: 'Documento enviado para verificación' })
+  @ApiBadRequestResponse({ description: 'Archivo no válido' })
+  async uploadIdentityDocument(
+    @CurrentUser() user: JwtPayloadEntity,
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<{ message: string }> {
+    if (!user.sub) throw new UnauthorizedException('User ID not available');
+    if (!file) throw new BadRequestException('File is required');
+
+    const allowedMimeTypes = [
+      'image/jpeg',
+      'image/jpg',
+      'image/png',
+      'application/pdf',
+    ];
+    if (!allowedMimeTypes.includes(file.mimetype)) {
+      throw new BadRequestException(
+        'Only PDF, JPG, JPEG and PNG files are allowed',
+      );
+    }
+
+    this.logger.log(
+      `POST /users/me/provider-profile/upload-document by ${user.email}`,
+    );
+    return this.providerProfileService.forwardIdentityDocument(user.sub, file);
+  }
+
+  @Get('providers/search')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Buscar prestadores por habilidad',
+    description:
+      'Retorna prestadores cuyas habilidades coincidan con el término de búsqueda',
+  })
+  @ApiQuery({
+    name: 'skill',
+    required: true,
+    type: String,
+    description: 'Término a buscar en las habilidades',
+  })
+  @ApiOkResponse({ type: [ProviderSearchResultDto] })
+  @ApiBadRequestResponse({ description: 'Parámetro skill requerido' })
+  async searchProviders(
+    @Query('skill') skill: string,
+  ): Promise<ProviderSearchResultDto[]> {
+    this.logger.log(`GET /users/providers/search?skill=${skill}`);
+    return this.providerProfileService.searchBySkill(skill);
+  }
+
+  @Get('admin/provider-review-queue')
+  @HttpCode(HttpStatus.OK)
+  @Roles(RoleName.ADMIN, RoleName.MODERATOR)
+  @ApiOperation({
+    summary: 'Bandeja de revisión de proveedores (Admin/Moderador)',
+  })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 0 })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 20 })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: ['PENDING_REVIEW', 'APPROVED', 'REJECTED', 'ALL'],
+  })
+  @ApiOkResponse({ type: ProviderReviewQueueResponseDto })
+  @ApiForbiddenResponse({ description: 'Requiere rol Admin o Moderador' })
+  async getProviderReviewQueue(
+    @Query('page') page = 0,
+    @Query('limit') limit = 20,
+    @Query('status') status?: string,
+  ): Promise<ProviderReviewQueueResponseDto> {
+    this.logger.log(
+      `GET /users/admin/provider-review-queue page=${page} limit=${limit} status=${status ?? 'ALL'}`,
+    );
+    return this.providerProfileService.getProviderReviewQueue(
+      Number(page),
+      Number(limit),
+      status,
+    );
   }
 
   @Get(':id/provider-profile')

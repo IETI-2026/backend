@@ -34,8 +34,8 @@ export class ProviderProfileEntity {
   })
   verificationStatus!: ProviderVerificationStatus;
 
-  @Column({ type: 'float', default: 0.0 })
-  averageRating!: number;
+  @Column({ type: 'float', nullable: true })
+  averageRating!: number | null;
 
   @Column({ type: 'int', default: 0 })
   totalRatings!: number;
@@ -60,9 +60,6 @@ export class ProviderProfileEntity {
 
   @Column({ type: 'timestamp', nullable: true })
   lastLocationUpdate!: Date | null;
-
-  @Column({ type: 'float', default: 10.0 })
-  coverageRadiusKm!: number;
 
   @Column({ type: 'varchar', nullable: true })
   bankAccountInfo!: string | null;

@@ -1,17 +1,45 @@
 {
   "name": "cameyo-backend",
   "version": "1.1.0",
-  "description": "",
-  "author": "",
+  "description": "Backend API para CameYo - Plataforma conecta técnicos verificados con clientes en municipios de Colombia. Implementa multi-tenancy, autenticación JWT, pagos integrados y verificación de identidad.",
+  "author": {
+    "name": "IETI 2026 Team",
+    "url": "https://github.com/IETI-2026|"
+  },
+  "license": "MIT",
   "private": true,
-  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/IETI-2026/backend.git"
+  },
+  "homepage": "https://github.com/IETI-2026/backend#readme",
+  "bugs": {
+    "url": "https://github.com/IETI-2026/backend/issues"
+  },
+  "keywords": [
+    "nestjs",
+    "typescript",
+    "multi-tenancy",
+    "jwt-auth",
+    "postgresql",
+    "typeorm",
+    "rest-api",
+    "cloud-services",
+    "cameyo"
+  ],
+  "engines": {
+    "node": ">=18.19.0",
+    "npm": ">=9.0.0"
+  },
   "scripts": {
-    "build": "nest build",
+    "audit": "npm audit",
+    "build": "nest build && npm run build:copy-assets",
+    "build:copy-assets": "copyfiles -u 0 src/modules/mail/infrastructure/templates/*.hbs dist/",
     "format": "biome format --write",
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/main",
+    "start:prod": "node dist/src/main",
     "lint": "biome check",
     "lint:fix": "biome check --write",
     "test": "jest",
@@ -19,8 +47,15 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "test:staged": "jest --bail --findRelatedTests",
-    "type-check": "tsc --noEmit",
+    "test:staged": "jest --bail --passWithNoTests --findRelatedTests",
+    "type-check": "tsc --noEmit -p tsconfig.build.json",
+    "validate": "npm run type-check && npm run lint && npm run test",
+    "security:audit": "npm audit --audit-level=moderate",
+    "security:fix": "npm audit fix",
+    "docs:generate": "nest build && ts-node -p tsconfig.build.json src/docs/generate-swagger.ts",
+    "db:seed": "ts-node -r tsconfig-paths/register src/database/seeds/index.ts",
+    "db:drop": "ts-node -r tsconfig-paths/register src/database/drop.ts",
+    "db:create": "ts-node -r tsconfig-paths/register src/database/create.ts",
     "docker:build": "docker-compose build",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
@@ -35,36 +70,55 @@
     "prepare": "husky"
   },
   "dependencies": {
+    "@azure/storage-blob": "^12.31.0",
+    "@nestjs-modules/mailer": "^2.0.2",
     "@nestjs/axios": "^4.0.1",
-    "@nestjs/common": "^11.0.1",
+    "@nestjs/cache-manager": "^3.1.0",
+    "@nestjs/common": "^11.1.17",
     "@nestjs/config": "^4.0.3",
     "@nestjs/core": "^11.0.1",
     "@nestjs/jwt": "^11.0.2",
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.0.1",
+    "@nestjs/platform-socket.io": "^11.1.17",
     "@nestjs/swagger": "^11.2.6",
+    "@nestjs/throttler": "^6.5.0",
     "@nestjs/typeorm": "^11.0.0",
+    "@nestjs/websockets": "^11.1.17",
+    "@types/nodemailer": "^7.0.11",
+    "@types/pdfkit": "^0.17.5",
+    "applicationinsights": "^3.14.0",
     "axios": "^1.13.6",
     "bcrypt": "^6.0.0",
+    "cache-manager": "^7.2.8",
+    "cache-manager-redis-store": "^3.0.1",
     "class-transformer": "^0.5.1",
-    "class-validator": "^0.14.3",
+    "class-validator": "^0.14.4",
     "compression": "^1.8.1",
     "dotenv": "^17.3.1",
     "dotenv-expand": "^12.0.3",
+    "fast-xml-parser": "^5.7.2",
     "google-auth-library": "^10.5.0",
+    "handlebars": "^4.7.8",
     "helmet": "^8.1.0",
+    "joi": "^18.0.2",
+    "liquidjs": "^10.25.7",
+    "nodemailer": "^8.0.2",
     "openai": "^6.22.0",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
     "passport-jwt": "^4.0.1",
+    "pdfkit": "^0.18.0",
     "pg": "^8.18.0",
+    "redis": "^5.11.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
+    "socket.io": "^4.8.3",
     "swagger-ui-express": "^5.0.1",
     "typeorm": "^0.3.28"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.3.15",
+    "@biomejs/biome": "2.4.8",
     "@commitlint/cli": "^20.5.0",
     "@commitlint/config-conventional": "^20.5.0",
     "@jest/globals": "^30.0.0-alpha.6",
@@ -75,11 +129,13 @@
     "@types/compression": "^1.8.1",
     "@types/express": "^5.0.0",
     "@types/jest": "^30.0.0",
+    "@types/multer": "^2.1.0",
     "@types/node": "^25.2.3",
     "@types/passport-google-oauth20": "^2.0.17",
     "@types/passport-jwt": "^4.0.1",
     "@types/pg": "^8.16.0",
-    "@types/supertest": "^6.0.2",
+    "@types/supertest": "^7.2.0",
+    "copyfiles": "^2.4.1",
     "globals": "^17.3.0",
     "husky": "^9.1.7",
     "jest": "^30.0.0",
@@ -95,28 +151,9 @@
     "typescript": "^5.7.3",
     "typescript-eslint": "^8.20.0"
   },
-  "jest": {
-    "moduleFileExtensions": [
-      "js",
-      "json",
-      "ts"
-    ],
-    "rootDir": "src",
-    "testRegex": ".*\\.spec\\.ts$",
-    "transform": {
-      "^.+\\.(t|j)s$": "ts-jest"
-    },
-    "collectCoverageFrom": [
-      "**/*.(t|j)s"
-    ],
-    "coverageDirectory": "../coverage",
-    "testEnvironment": "node",
-    "moduleNameMapper": {
-      "^@/(.*)$": "<rootDir>/$1",
-      "^@common/(.*)$": "<rootDir>/common/$1",
-      "^@users/(.*)$": "<rootDir>/modules/users/$1",
-      "^@config/(.*)$": "<rootDir>/config/$1"
-    }
+  "overrides": {
+    "ws": "8.20.1",
+    "protobufjs": "8.4.0"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": [

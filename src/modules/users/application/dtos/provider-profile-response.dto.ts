@@ -5,14 +5,13 @@ export class ProviderProfileResponseDto {
   @ApiProperty() userId!: string;
   @ApiPropertyOptional() bio!: string | null;
   @ApiProperty() verificationStatus!: string;
-  @ApiProperty() averageRating!: number;
+  @ApiPropertyOptional({ nullable: true }) averageRating!: number | null;
   @ApiProperty() totalRatings!: number;
   @ApiProperty() totalCompletedServices!: number;
   @ApiProperty() totalCancelledServices!: number;
   @ApiProperty() isAvailable!: boolean;
   @ApiPropertyOptional() currentLatitude!: number | null;
   @ApiPropertyOptional() currentLongitude!: number | null;
-  @ApiProperty() coverageRadiusKm!: number;
   @ApiPropertyOptional() nequiNumber!: string | null;
   @ApiPropertyOptional() daviplataNumber!: string | null;
   @ApiProperty() skills!: string[];

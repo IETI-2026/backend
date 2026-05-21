@@ -1,3 +1,4 @@
+import { MailService } from '@mail/application/mail.service';
 import {
   BadRequestException,
   ConflictException,
@@ -7,6 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import * as bcrypt from 'bcrypt';
+import { BlobStorageService } from '@/common/services/blob-storage.service';
 import { RoleName } from '../../../../../database/enums';
 import {
   AUTH_REPOSITORY,
@@ -14,15 +16,12 @@ import {
 } from '../../../domain/repositories';
 import { AuthService } from '../auth.service';
 
-// Keep bcrypt fast and deterministic in unit tests
 jest.mock('bcrypt');
 const mockedBcrypt = bcrypt as jest.Mocked<typeof bcrypt>;
 
 describe('AuthService', () => {
   let service: AuthService;
   let authRepository: jest.Mocked<IAuthRepository>;
-
-  // ─── shared fixtures ───────────────────────────────────────────────────────
 
   const mockUser = {
     id: 'user-uuid-001',
@@ -88,6 +87,23 @@ describe('AuthService', () => {
     get: jest.fn().mockReturnValue('mock-secret'),
   };
 
+  const mockMailService = {
+    sendWelcomeEmail: jest.fn().mockResolvedValue(undefined),
+    sendPasswordResetEmail: jest.fn().mockResolvedValue(undefined),
+    sendOtpEmail: jest.fn().mockResolvedValue(undefined),
+  };
+
+  const mockBlobStorageService = {
+    uploadFile: jest.fn().mockResolvedValue('https://example.com/photo.jpg'),
+    uploadBuffer: jest.fn().mockResolvedValue('https://example.com/photo.jpg'),
+    generateSasUrl: jest
+      .fn()
+      .mockReturnValue('https://example.com/photo.jpg?sas=token'),
+    toSasUrl: jest
+      .fn()
+      .mockReturnValue('https://example.com/photo.jpg?sas=token'),
+  };
+
   // ─── module setup ──────────────────────────────────────────────────────────
 
   beforeEach(async () => {
@@ -97,6 +113,8 @@ describe('AuthService', () => {
         { provide: AUTH_REPOSITORY, useValue: mockAuthRepository },
         { provide: JwtService, useValue: mockJwtService },
         { provide: ConfigService, useValue: mockConfigService },
+        { provide: MailService, useValue: mockMailService },
+        { provide: BlobStorageService, useValue: mockBlobStorageService },
       ],
     }).compile();
 
@@ -105,7 +123,6 @@ describe('AuthService', () => {
 
     jest.clearAllMocks();
 
-    // Default stubs – individual tests override as needed
     mockAuthRepository.getUserRoles.mockResolvedValue([RoleName.USER]);
     mockAuthRepository.createRefreshToken.mockResolvedValue(
       mockRefreshTokenRecord as unknown,
@@ -118,8 +135,6 @@ describe('AuthService', () => {
   it('should be defined', () => {
     expect(service).toBeDefined();
   });
-
-  // ─── signUp ────────────────────────────────────────────────────────────────
 
   describe('signUp', () => {
     it('should create a new user and return auth tokens on success', async () => {
@@ -172,8 +187,6 @@ describe('AuthService', () => {
     });
   });
 
-  // ─── login ─────────────────────────────────────────────────────────────────
-
   describe('login', () => {
     it('should return auth tokens when credentials are valid', async () => {
       mockAuthRepository.findUserByEmail.mockResolvedValue(mockUser as unknown);
@@ -220,8 +233,6 @@ describe('AuthService', () => {
       ).rejects.toThrow(UnauthorizedException);
     });
   });
-
-  // ─── refreshToken ──────────────────────────────────────────────────────────
 
   describe('refreshToken', () => {
     it('should return new auth tokens for a valid refresh token', async () => {
@@ -284,8 +295,6 @@ describe('AuthService', () => {
     });
   });
 
-  // ─── logout ────────────────────────────────────────────────────────────────
-
   describe('logout', () => {
     it('should revoke all user sessions and return a success message', async () => {
       mockAuthRepository.revokeAllUserRefreshTokens.mockResolvedValue(
@@ -300,8 +309,6 @@ describe('AuthService', () => {
       expect(result.message).toContain('Logout successful');
     });
   });
-
-  // ─── sendOtp ───────────────────────────────────────────────────────────────
 
   describe('sendOtp', () => {
     it('should invalidate old codes, create a new OTP and return expiry info', async () => {
@@ -335,8 +342,6 @@ describe('AuthService', () => {
       );
     });
   });
-
-  // ─── verifyOtpAndLogin ─────────────────────────────────────────────────────
 
   describe('verifyOtpAndLogin', () => {
     const mockOtp = {
@@ -402,8 +407,6 @@ describe('AuthService', () => {
     });
   });
 
-  // ─── forgotPassword ────────────────────────────────────────────────────────
-
   describe('forgotPassword', () => {
     it('should create a reset token and return a generic message when the email is found', async () => {
       mockAuthRepository.findUserByEmail.mockResolvedValue(mockUser as unknown);
@@ -447,8 +450,6 @@ describe('AuthService', () => {
     });
   });
 
-  // ─── resetPassword ─────────────────────────────────────────────────────────
-
   describe('resetPassword', () => {
     it('should update password hash and mark the token as used on success', async () => {
       mockAuthRepository.findValidPasswordResetToken.mockResolvedValue({
@@ -488,8 +489,6 @@ describe('AuthService', () => {
       ).rejects.toThrow(BadRequestException);
     });
   });
-
-  // ─── changePassword ────────────────────────────────────────────────────────
 
   describe('changePassword', () => {
     it('should update the password when the current password is correct', async () => {
@@ -547,8 +546,6 @@ describe('AuthService', () => {
       ).rejects.toThrow(UnauthorizedException);
     });
   });
-
-  // ─── handleGoogleOAuthCallback ─────────────────────────────────────────────
 
   describe('handleGoogleOAuthCallback', () => {
     const googleProfile = {
@@ -618,8 +615,6 @@ describe('AuthService', () => {
     });
   });
 
-  // ─── validateJwtPayload ────────────────────────────────────────────────────
-
   describe('validateJwtPayload', () => {
     it('should return an enriched payload for an active user', async () => {
       mockAuthRepository.findUserById.mockResolvedValue({
@@ -668,8 +663,6 @@ describe('AuthService', () => {
     });
   });
 
-  // ─── getCurrentUser ────────────────────────────────────────────────────────
-
   describe('getCurrentUser', () => {
     it('should return a full user profile including roles', async () => {
       const userWithRoles = {
@@ -706,8 +699,6 @@ describe('AuthService', () => {
     });
   });
 
-  // ─── revokeRefreshToken ────────────────────────────────────────────────────
-
   describe('revokeRefreshToken', () => {
     it('should delegate to the repository', async () => {
       mockAuthRepository.revokeRefreshToken.mockResolvedValue(undefined);
@@ -717,6 +708,119 @@ describe('AuthService', () => {
       expect(authRepository.revokeRefreshToken).toHaveBeenCalledWith(
         'token-uuid-001',
       );
+    });
+  });
+
+  describe('loginWithGoogleIdToken', () => {
+    function buildMockGoogleClient(
+      payloadOverrides: Record<string, unknown> = {},
+    ) {
+      const payload = {
+        sub: 'google-sub-001',
+        email: 'google@example.com',
+        email_verified: true,
+        name: 'Google User',
+        picture: 'https://photo.url',
+        iss: 'accounts.google.com',
+        ...payloadOverrides,
+      };
+      return {
+        verifyIdToken: jest
+          .fn()
+          .mockResolvedValue({ getPayload: () => payload }),
+      };
+    }
+
+    beforeEach(() => {
+      mockConfigService.get.mockImplementation((key: string) => {
+        if (key === 'oauth.google.clientId') return 'configured-client-id';
+        return 'mock-secret';
+      });
+      process.env.GOOGLE_WEB_CLIENT_ID = 'web-client-id';
+      process.env.GOOGLE_ANDROID_CLIENT_ID = '';
+      process.env.GOOGLE_IOS_CLIENT_ID = '';
+      process.env.GOOGLE_MOBILE_CLIENT_IDS = '';
+    });
+
+    it('should throw BadRequestException when idToken is empty', async () => {
+      await expect(service.loginWithGoogleIdToken('')).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should throw UnauthorizedException when no audiences are configured', async () => {
+      mockConfigService.get.mockReturnValue('');
+      process.env.GOOGLE_WEB_CLIENT_ID = '';
+      process.env.GOOGLE_ANDROID_CLIENT_ID = '';
+      process.env.GOOGLE_IOS_CLIENT_ID = '';
+      process.env.GOOGLE_MOBILE_CLIENT_IDS = '';
+
+      await expect(
+        service.loginWithGoogleIdToken('some-token'),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('should throw UnauthorizedException when verifyIdToken throws', async () => {
+      const mockClient = {
+        verifyIdToken: jest.fn().mockRejectedValue(new Error('invalid token')),
+      };
+      (service as unknown as Record<string, unknown>).googleOAuthClient =
+        mockClient;
+
+      await expect(service.loginWithGoogleIdToken('bad-token')).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+
+    it('should throw UnauthorizedException when payload is missing sub', async () => {
+      const mockClient = buildMockGoogleClient({ sub: undefined });
+      (service as unknown as Record<string, unknown>).googleOAuthClient =
+        mockClient;
+
+      await expect(
+        service.loginWithGoogleIdToken('valid-token'),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('should throw UnauthorizedException when email is not verified', async () => {
+      const mockClient = buildMockGoogleClient({ email_verified: false });
+      (service as unknown as Record<string, unknown>).googleOAuthClient =
+        mockClient;
+
+      await expect(
+        service.loginWithGoogleIdToken('valid-token'),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('should throw UnauthorizedException when issuer is invalid', async () => {
+      const mockClient = buildMockGoogleClient({ iss: 'evil.com' });
+      (service as unknown as Record<string, unknown>).googleOAuthClient =
+        mockClient;
+
+      await expect(
+        service.loginWithGoogleIdToken('valid-token'),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('should succeed and return auth response for a valid token (new user)', async () => {
+      const mockClient = buildMockGoogleClient();
+      (service as unknown as Record<string, unknown>).googleOAuthClient =
+        mockClient;
+
+      mockAuthRepository.findOAuthAccount.mockResolvedValue(null);
+      mockAuthRepository.findUserByEmail.mockResolvedValue(null);
+      mockAuthRepository.createUser.mockResolvedValue(mockUser as unknown);
+      mockAuthRepository.createOAuthAccount.mockResolvedValue(undefined);
+      mockAuthRepository.assignRoleToUser.mockResolvedValue(undefined);
+      mockAuthRepository.getUserRoles.mockResolvedValue([RoleName.USER]);
+      mockAuthRepository.createRefreshToken.mockResolvedValue(
+        mockRefreshTokenRecord as unknown,
+      );
+      mockJwtService.sign.mockReturnValue('access.token');
+
+      const result = await service.loginWithGoogleIdToken('valid-token');
+
+      expect(result.accessToken).toBeDefined();
     });
   });
 });

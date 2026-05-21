@@ -1,13 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsBoolean,
-  IsNumber,
-  IsOptional,
-  IsString,
-  Max,
-  MaxLength,
-  Min,
-} from 'class-validator';
+import { IsBoolean, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class CreateProviderProfileDto {
   @ApiPropertyOptional({
@@ -20,18 +12,6 @@ export class CreateProviderProfileDto {
   @IsString()
   @MaxLength(500)
   bio?: string;
-
-  @ApiPropertyOptional({
-    description: 'Radio de cobertura en kilómetros',
-    example: 15.0,
-    minimum: 1,
-    maximum: 100,
-  })
-  @IsOptional()
-  @IsNumber()
-  @Min(1)
-  @Max(100)
-  coverageRadiusKm?: number;
 
   @ApiPropertyOptional({
     description: 'Disponible para recibir solicitudes',

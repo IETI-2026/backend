@@ -7,8 +7,6 @@ import { ReverseGeocodeDto } from '../dto/reverse-geocode.dto';
 import { GeocodingController } from '../geocoding.controller';
 import { GeocodingService } from '../geocoding.service';
 
-// ─── shared fixtures ──────────────────────────────────────────────────────────
-
 const mockReverseGeocodeResult = {
   formattedAddress: 'Cra. 7 #123-45, Bogotá, Colombia',
   placeId: 'ChIJ_place_id_123',
@@ -47,8 +45,6 @@ describe('GeocodingController', () => {
   it('should be defined', () => {
     expect(controller).toBeDefined();
   });
-
-  // ─── reverse ─────────────────────────────────────────────────────────────────
 
   describe('reverse', () => {
     const payload: ReverseGeocodeDto = { lat: 4.711, lng: -74.0721 };
@@ -100,8 +96,6 @@ describe('GeocodingController', () => {
       );
     });
   });
-
-  // ─── getTenant ───────────────────────────────────────────────────────────────
 
   describe('getTenant', () => {
     const payload: ReverseGeocodeDto = { lat: 4.711, lng: -74.0721 };
